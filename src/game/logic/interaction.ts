@@ -9,3 +9,29 @@ export function isSameInteractable(a: Interactable | null, b: Interactable): boo
   if (a.kind === 'fishingSpot' && b.kind === 'fishingSpot') return a.spotId === b.spotId
   return true
 }
+
+export type KeyAction =
+  | { type: 'none' }
+  | { type: 'startFishing'; spotId: string }
+  | { type: 'openMode'; mode: Mode }
+  | { type: 'stopFishing' }
+  | { type: 'closePanel' }
+
+export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable | null): KeyAction {
+  if (code === 'Escape') {
+    if (mode === 'explore') return { type: 'openMode', mode: 'menu' }
+    if (mode === 'fishing') return { type: 'stopFishing' }
+    return { type: 'closePanel' }
+  }
+  if (code === 'KeyE' && mode === 'explore' && nearby) {
+    switch (nearby.kind) {
+      case 'fishingSpot':
+        return { type: 'startFishing', spotId: nearby.spotId }
+      case 'sellBox':
+        return { type: 'openMode', mode: 'sell' }
+      case 'gearShop':
+        return { type: 'openMode', mode: 'shop' }
+    }
+  }
+  return { type: 'none' }
+}

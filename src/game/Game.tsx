@@ -1,12 +1,14 @@
 import { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
+import { useInteractionKeys } from './input/useInteractionKeys'
 import { useKeyboardTracking } from './input/keys'
 import { pressPointer, usePointerRelease } from './input/pointer'
 import { World } from './scene/World'
 import { useFishingStore } from './stores/fishingStore'
 import { useSessionStore } from './stores/sessionStore'
 import { Hud } from './ui/Hud'
+import { Panels } from './ui/Panels'
 
 export type GameResult = { score: number }
 
@@ -21,9 +23,10 @@ export type GameProps = {
  * 게임 전체를 감싸는 단일 컴포넌트. 로비 앱은 이것만 import 해서 쓰면 된다.
  * 부모 요소의 크기를 100% 채운다.
  */
-export function Game(_props: GameProps) {
+export function Game({ onExit }: GameProps) {
   useKeyboardTracking()
   usePointerRelease()
+  useInteractionKeys()
 
   // 진행 상황(progressStore)은 저장된 것을 이어 쓰고, 이번 판 상태만 초기화한다
   useEffect(() => {
@@ -45,6 +48,7 @@ export function Game(_props: GameProps) {
         </Canvas>
       </div>
       <Hud />
+      <Panels onExit={onExit} />
     </div>
   )
 }

@@ -1,3 +1,6 @@
+import { FishingSpots } from './facilities/FishingSpots'
+import { GearShop } from './facilities/GearShop'
+import { SellBox } from './facilities/SellBox'
 import { Island } from './Island'
 import { Player } from './Player'
 
@@ -20,6 +23,9 @@ export function World() {
       />
       <Island />
       <Player />
+      <FishingSpots />
+      <SellBox />
+      <GearShop />
     </>
   )
 }
