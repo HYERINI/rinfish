@@ -1,0 +1,14 @@
+/* 전체 화면을 캔버스가 꽉 채우도록 기본 여백/스크롤 제거 */
+html,
+body,
+#root {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #111;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+}
