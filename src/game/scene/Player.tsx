@@ -6,8 +6,11 @@ import { ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
 import { isPointerDown } from '../input/pointer'
+import { castPowerFromHold } from '../logic/cast'
+import type { FishingState } from '../logic/fishingSession'
 import { useFishingStore } from '../stores/fishingStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { fishingFx } from './fishing/fishingFx'
 
 /** 다른 컴포넌트(낚싯줄 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
 export const playerRig = {
@@ -22,6 +25,48 @@ const CAMERA_HEIGHT = 7
 const DRAG_SENSITIVITY = 0.005
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
 const FISHING_YAW_SPEED = 4
+
+/** 낚싯대 기본 각도 (앞으로 살짝 숙임). 음수면 어깨 뒤로 젖혀진다 */
+const ROD_REST = 0.5
+/** 끝까지 모아 던질 때 뒤로 젖히는 각도 */
+const ROD_WINDUP = -1.3
+/** 휘두르는 순간: 앞으로 내리치는 시간과 그 뒤 출렁이며 자리 잡는 시간 */
+const ROD_WHIP_TIME = 0.14
+const ROD_SETTLE_TIME = 0.6
+
+/** 낚시 단계에 맞는 낚싯대 목표 각도 */
+function rodAngle(fishing: FishingState | null, now: number): number {
+  if (!fishing) return ROD_REST
+  switch (fishing.stage) {
+    case 'aiming':
+      // 누르고 있는 동안 힘이 모일수록 뒤로 젖힌다
+      return fishing.holding ? ROD_REST + (ROD_WINDUP - ROD_REST) * castPowerFromHold(fishing.holdTime) : ROD_REST
+    case 'waiting': {
+      const since = fishingFx.castAt < 0 ? 0 : now - fishingFx.castAt
+      if (since < ROD_WHIP_TIME) {
+        // 젖힌 자리에서 앞으로 확 내리친다
+        return fishingFx.windup + (1.3 - fishingFx.windup) * (since / ROD_WHIP_TIME)
+      }
+      if (since < ROD_SETTLE_TIME) {
+        // 낚싯대 끝이 출렁이다 멈춘다
+        const k = (since - ROD_WHIP_TIME) / (ROD_SETTLE_TIME - ROD_WHIP_TIME)
+        return 0.7 + 0.6 * (1 - k) * Math.cos(k * Math.PI * 3)
+      }
+      if (fishing.bite.phase === 'nibble') return 0.78 // 톡톡
+      if (fishing.bite.phase === 'bite') return 0.95 // 쑥!
+      return 0.7
+    }
+    case 'fighting': {
+      // 텐션이 높을수록 물 쪽으로 휜다. 물고기가 당길 땐 부르르 떤다
+      const f = fishing.fight
+      const bend = Math.min(f.tension / f.gear.maxTension, 1)
+      return ROD_REST + bend * 0.7 + (f.pull.active ? Math.sin(now * 35) * 0.06 : 0)
+    }
+    case 'done':
+      // 낚아 올리면 번쩍 들어 올린다
+      return fishing.result === 'caught' ? 0.3 : ROD_REST
+  }
+}
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
@@ -49,7 +94,7 @@ export function Player() {
     return () => window.removeEventListener('pointermove', onMove)
   }, [])
 
-  useFrame((_, delta) => {
+  useFrame(({ clock }, delta) => {
     const rb = body.current
     if (!rb) return
     const mode = useSessionStore.getState().mode
@@ -95,10 +140,15 @@ export function Player() {
     }
     if (visual.current) visual.current.rotation.y = facing.current
 
-    // 4) 텐션이 높을수록 낚싯대가 물 쪽으로 휜다
+    // 4) 낚싯대 각도: 젖혔다가 휘두르고, 줄다리기 땐 텐션만큼 휜다
     const fishing = useFishingStore.getState().state
-    const bend = fishing?.stage === 'fighting' ? fishing.fight.tension / fishing.fight.gear.maxTension : 0
-    if (rod.current) rod.current.rotation.x = 0.5 + Math.min(bend, 1) * 0.7
+    if (rod.current) {
+      const target = rodAngle(fishing, clock.elapsedTime)
+      // 휘두르는 순간은 빠르게, 그 밖에는 부드럽게 따라간다
+      const swinging = fishing?.stage === 'waiting' && clock.elapsedTime - fishingFx.castAt < ROD_WHIP_TIME
+      rod.current.rotation.x = swinging ? target : rod.current.rotation.x + (target - rod.current.rotation.x) * (1 - Math.exp(-delta * 12))
+      if (fishing?.stage === 'aiming') fishingFx.windup = rod.current.rotation.x
+    }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
 
     // 5) 3인칭 카메라: 목표 위치로 부드럽게 따라간다

@@ -1,3 +1,4 @@
+import { useEffect, useState, type CSSProperties } from 'react'
 import { RARITY_COLOR, RARITY_LABEL, getSpecies } from '../data/fish'
 import type { FishInstance } from '../data/types'
 import { castPowerFromHold } from '../logic/cast'
@@ -78,9 +79,29 @@ const FAIL_TEXT = {
   escaped: '물고기가 도망갔다! 줄을 팽팽하게 유지해 보세요.',
 }
 
+/** 결과 카드를 띄우기까지 기다리는 시간 (3D 연출 시간과 맞춘다) */
+const RESULT_DELAY_CAUGHT_MS = 900
+const RESULT_DELAY_MS = 500
+
+/** 결과 카드: 화면 아래쪽에 띄워서 가운데의 낚싯대·물고기를 가리지 않는다 */
+const resultBox: CSSProperties = {
+  ...panelBox,
+  top: 'auto',
+  bottom: 24,
+  transform: 'translateX(-50%)',
+  textAlign: 'center',
+  width: 'min(360px, 90vw)',
+  maxHeight: '55vh',
+}
+
 function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: 'done' }>; caught: FishInstance | null }) {
   const dex = useProgressStore((s) => s.dex)
   const spotId = useFishingStore((s) => s.spotId)
+  const [visible, setVisible] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setVisible(true), state.result === 'caught' ? RESULT_DELAY_CAUGHT_MS : RESULT_DELAY_MS)
+    return () => clearTimeout(id)
+  }, [state.result])
 
   const retry = () => {
     if (spotId) useFishingStore.getState().begin(spotId)
@@ -108,8 +129,10 @@ function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: '
     body = <h3>{state.result === 'caught' ? '' : FAIL_TEXT[state.result]}</h3>
   }
 
+  // 물고기가 튀어 오르고 찌를 감아 들이는 연출을 먼저 보여 준 뒤에 카드를 띄운다
+  if (!visible) return null
   return (
-    <div style={{ ...panelBox, textAlign: 'center', width: 'min(360px, 90vw)' }}>
+    <div style={resultBox}>
       {body}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
         <button style={button} onClick={retry}>

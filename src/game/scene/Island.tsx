@@ -1,6 +1,7 @@
 import { Html } from '@react-three/drei'
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier'
-import { FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, WATER_Y, ZONES, type ZoneDef } from '../data/zones'
+import { FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, ZONES, type ZoneDef } from '../data/zones'
+import { Ocean } from './Ocean'
 
 export function Island() {
   return (
@@ -20,11 +21,7 @@ export function Island() {
         <meshStandardMaterial color="#9ccc65" />
       </mesh>
 
-      {/* 바다 */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, WATER_Y, 0]}>
-        <planeGeometry args={[300, 300]} />
-        <meshStandardMaterial color="#2a9df4" transparent opacity={0.85} />
-      </mesh>
+      <Ocean />
 
       {/* 선착장 (보기용, 충돌 없음). 섬 가장자리(z=30)에서 끝나서 찌가 떨어지는 바다를 가리지 않는다 */}
       <mesh position={[0, 0.05, 25.5]} castShadow receiveShadow>
