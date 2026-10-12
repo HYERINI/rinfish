@@ -1,0 +1,125 @@
+import { useEffect, useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
+import { Vector3, type Group, type Object3D } from 'three'
+import { ISLAND_RADIUS, getSpot } from '../data/zones'
+import { isKeyDown } from '../input/keys'
+import { isPointerDown } from '../input/pointer'
+import { useFishingStore } from '../stores/fishingStore'
+import { useSessionStore } from '../stores/sessionStore'
+
+/** 다른 컴포넌트(낚싯줄 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
+export const playerRig = {
+  position: new Vector3(0, 1, 15),
+  rodTip: new Vector3(0, 2, 15),
+}
+
+const MOVE_SPEED = 6
+const PLAYER_LIMIT = ISLAND_RADIUS - 1
+const CAMERA_DISTANCE = 10
+const CAMERA_HEIGHT = 7
+const DRAG_SENSITIVITY = 0.005
+
+// 매 프레임 new Vector3()를 만들지 않도록 재사용
+const moveDir = new Vector3()
+const cameraTarget = new Vector3()
+
+export function Player() {
+  const body = useRef<RapierRigidBody>(null)
+  const visual = useRef<Group>(null)
+  const rod = useRef<Group>(null)
+  const rodTip = useRef<Object3D>(null)
+  /** 카메라가 플레이어 주위를 도는 각도 */
+  const yaw = useRef(0)
+  /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
+  const facing = useRef(Math.PI)
+  const camera = useThree((s) => s.camera)
+
+  // 탐험 중 마우스 드래그로 카메라 회전
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (isPointerDown() && useSessionStore.getState().mode === 'explore') {
+        yaw.current -= e.movementX * DRAG_SENSITIVITY
+      }
+    }
+    window.addEventListener('pointermove', onMove)
+    return () => window.removeEventListener('pointermove', onMove)
+  }, [])
+
+  useFrame((_, delta) => {
+    const rb = body.current
+    if (!rb) return
+    const mode = useSessionStore.getState().mode
+
+    // 1) WASD → 카메라 기준 이동 방향
+    const forward = mode === 'explore' ? Number(isKeyDown('KeyW')) - Number(isKeyDown('KeyS')) : 0
+    const right = mode === 'explore' ? Number(isKeyDown('KeyD')) - Number(isKeyDown('KeyA')) : 0
+    const sin = Math.sin(yaw.current)
+    const cos = Math.cos(yaw.current)
+    moveDir.set(-sin * forward + cos * right, 0, -cos * forward - sin * right)
+    if (moveDir.lengthSq() > 0) moveDir.normalize()
+
+    // 속도를 직접 정해 준다. y(중력에 의한 낙하)는 물리 엔진 값을 그대로 둔다
+    const velocity = rb.linvel()
+    rb.setLinvel({ x: moveDir.x * MOVE_SPEED, y: velocity.y, z: moveDir.z * MOVE_SPEED }, true)
+
+    // 2) 섬 밖으로 못 나가게 가장자리에서 붙잡는다
+    const p = rb.translation()
+    const dist = Math.hypot(p.x, p.z)
+    let x = p.x
+    let z = p.z
+    if (dist > PLAYER_LIMIT) {
+      x = (p.x * PLAYER_LIMIT) / dist
+      z = (p.z * PLAYER_LIMIT) / dist
+      rb.setTranslation({ x, y: p.y, z }, true)
+    }
+    playerRig.position.set(x, p.y, z)
+
+    // 3) 바라보는 방향: 낚시 중엔 물 쪽, 아니면 이동 방향
+    const spotId = useFishingStore.getState().spotId
+    if (mode === 'fishing' && spotId) {
+      const [fx, fz] = getSpot(spotId).facing
+      facing.current = Math.atan2(fx, fz)
+    } else if (moveDir.lengthSq() > 0) {
+      facing.current = Math.atan2(moveDir.x, moveDir.z)
+    }
+    if (visual.current) visual.current.rotation.y = facing.current
+
+    // 4) 텐션이 높을수록 낚싯대가 물 쪽으로 휜다
+    const fishing = useFishingStore.getState().state
+    const bend = fishing?.stage === 'fighting' ? fishing.fight.tension / fishing.fight.gear.maxTension : 0
+    if (rod.current) rod.current.rotation.x = 0.5 + Math.min(bend, 1) * 0.7
+    rodTip.current?.getWorldPosition(playerRig.rodTip)
+
+    // 5) 3인칭 카메라: 목표 위치로 부드럽게 따라간다
+    cameraTarget.set(x + sin * CAMERA_DISTANCE, p.y + CAMERA_HEIGHT, z + cos * CAMERA_DISTANCE)
+    camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * 5))
+    camera.lookAt(x, p.y + 1, z)
+  })
+
+  return (
+    // dynamic 물체지만 회전은 막아서 넘어지지 않게 한다
+    <RigidBody ref={body} colliders={false} position={[0, 2, 15]} enabledRotations={[false, false, false]}>
+      <CapsuleCollider args={[0.5, 0.4]} />
+      <group ref={visual}>
+        <mesh castShadow>
+          <capsuleGeometry args={[0.4, 1, 4, 12]} />
+          <meshStandardMaterial color="#f4a261" />
+        </mesh>
+        {/* 바라보는 방향 표시용 눈 */}
+        <mesh position={[0, 0.5, 0.35]}>
+          <boxGeometry args={[0.4, 0.1, 0.1]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        {/* 낚싯대: 그룹을 x축으로 기울이면 앞(+z)으로 숙여진다 */}
+        <group ref={rod} position={[0.35, 0.1, 0.2]}>
+          <mesh position={[0, 1, 0]}>
+            <cylinderGeometry args={[0.02, 0.04, 2]} />
+            <meshStandardMaterial color="#6d4c41" />
+          </mesh>
+          <object3D ref={rodTip} position={[0, 2, 0]} />
+        </group>
+      </group>
+    </RigidBody>
+  )
+}
