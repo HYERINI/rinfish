@@ -1,8 +1,11 @@
 import { FishingSpots } from './facilities/FishingSpots'
 import { GearShop } from './facilities/GearShop'
 import { SellBox } from './facilities/SellBox'
+import { FishingController } from './fishing/FishingController'
+import { FishingVisuals } from './fishing/FishingVisuals'
 import { Island } from './Island'
 import { Player } from './Player'
+import { PlayTimeTicker } from './PlayTimeTicker'
 
 export function World() {
   return (
@@ -26,6 +29,9 @@ export function World() {
       <FishingSpots />
       <SellBox />
       <GearShop />
+      <FishingController />
+      <FishingVisuals />
+      <PlayTimeTicker />
     </>
   )
 }

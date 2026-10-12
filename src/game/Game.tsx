@@ -7,6 +7,7 @@ import { pressPointer, usePointerRelease } from './input/pointer'
 import { World } from './scene/World'
 import { useFishingStore } from './stores/fishingStore'
 import { useSessionStore } from './stores/sessionStore'
+import { FishingOverlay } from './ui/FishingOverlay'
 import { Hud } from './ui/Hud'
 import { Panels } from './ui/Panels'
 
@@ -48,6 +49,7 @@ export function Game({ onExit }: GameProps) {
         </Canvas>
       </div>
       <Hud />
+      <FishingOverlay />
       <Panels onExit={onExit} />
     </div>
   )
