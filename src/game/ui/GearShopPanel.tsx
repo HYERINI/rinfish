@@ -38,7 +38,11 @@ export function GearShopPanel() {
                 <span style={{ flex: 1 }}>
                   다음: Lv{level + 2} {next.label} ({VALUE_TEXT[slot](next.value)})
                 </span>
-                <button style={affordable ? button : disabledButton} disabled={!affordable} onClick={() => buyGear(slot)}>
+                <button style={affordable ? button : disabledButton} disabled={!affordable} onClick={(e) => {
+                    buyGear(slot)
+                    // 포커스가 남아 Space/Enter로 연달아 구매되는 것을 막는다
+                    e.currentTarget.blur()
+                  }}>
                   {next.price} 코인
                 </button>
               </div>

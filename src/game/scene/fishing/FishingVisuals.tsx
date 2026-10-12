@@ -20,8 +20,8 @@ export function FishingVisuals() {
   useFrame(({ clock }) => {
     const { state, spotId } = useFishingStore.getState()
     if (!bobber.current) return
-    // 던지기 전(aiming)이나 낚시 중이 아닐 때는 찌와 줄을 숨긴다
-    if (!state || !spotId || state.stage === 'aiming') {
+    // 던지기 전(aiming)·결과 카드(done)·낚시 중이 아닐 때는 찌와 줄을 숨긴다
+    if (!state || !spotId || state.stage === 'aiming' || state.stage === 'done') {
       bobber.current.visible = false
       line.visible = false
       return

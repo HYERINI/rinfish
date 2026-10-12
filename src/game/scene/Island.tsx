@@ -26,9 +26,9 @@ export function Island() {
         <meshStandardMaterial color="#2a9df4" transparent opacity={0.85} />
       </mesh>
 
-      {/* 선착장 (보기용, 충돌 없음) */}
-      <mesh position={[0, 0.05, 31]} castShadow receiveShadow>
-        <boxGeometry args={[3, 0.3, 10]} />
+      {/* 선착장 (보기용, 충돌 없음). 섬 가장자리(z=30)에서 끝나서 찌가 떨어지는 바다를 가리지 않는다 */}
+      <mesh position={[0, 0.05, 25.5]} castShadow receiveShadow>
+        <boxGeometry args={[3, 0.3, 9]} />
         <meshStandardMaterial color="#a1887f" />
       </mesh>
 

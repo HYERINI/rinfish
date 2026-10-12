@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
 import { ISLAND_RADIUS, getSpot } from '../data/zones'
+import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
 import { isPointerDown } from '../input/pointer'
 import { useFishingStore } from '../stores/fishingStore'
@@ -19,6 +20,8 @@ const PLAYER_LIMIT = ISLAND_RADIUS - 1
 const CAMERA_DISTANCE = 10
 const CAMERA_HEIGHT = 7
 const DRAG_SENSITIVITY = 0.005
+/** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
+const FISHING_YAW_SPEED = 4
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
@@ -50,6 +53,14 @@ export function Player() {
     const rb = body.current
     if (!rb) return
     const mode = useSessionStore.getState().mode
+    const spotId = useFishingStore.getState().spotId
+
+    // 0) 낚시 중엔 카메라를 플레이어 뒤로 돌려 물 쪽(찌가 떨어지는 곳)이 보이게 한다.
+    //    탐험으로 돌아오면 이 값에서 이어서 드래그로 자유롭게 돌릴 수 있다
+    if (mode === 'fishing' && spotId) {
+      const target = yawForFacing(getSpot(spotId).facing)
+      yaw.current += shortestAngleDelta(yaw.current, target) * (1 - Math.exp(-delta * FISHING_YAW_SPEED))
+    }
 
     // 1) WASD → 카메라 기준 이동 방향
     const forward = mode === 'explore' ? Number(isKeyDown('KeyW')) - Number(isKeyDown('KeyS')) : 0
@@ -76,7 +87,6 @@ export function Player() {
     playerRig.position.set(x, p.y, z)
 
     // 3) 바라보는 방향: 낚시 중엔 물 쪽, 아니면 이동 방향
-    const spotId = useFishingStore.getState().spotId
     if (mode === 'fishing' && spotId) {
       const [fx, fz] = getSpot(spotId).facing
       facing.current = Math.atan2(fx, fz)

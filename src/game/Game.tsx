@@ -38,7 +38,7 @@ export function Game({ onExit }: GameProps) {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       {/* 캔버스 영역 클릭만 게임 입력으로 받는다 (UI 버튼 클릭은 제외) */}
-      <div style={{ position: 'absolute', inset: 0 }} onPointerDown={pressPointer}>
+      <div style={{ position: 'absolute', inset: 0 }} onPointerDown={pressPointer} onContextMenu={(e) => e.preventDefault()}>
         <Canvas shadows camera={{ position: [0, 8, 25], fov: 50 }}>
           {/* Rapier는 물리 엔진(wasm)을 비동기로 불러오므로 Suspense가 필요하다 */}
           <Suspense fallback={null}>

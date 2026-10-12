@@ -50,8 +50,9 @@ export function createFight(
 export function activePattern(state: FightState): BasicPattern {
   if (state.pattern !== 'mixed') return state.pattern
   const progress = state.distance / FIGHT.startDistance
-  if (progress > 0.66) return 'dasher'
-  if (progress > 0.33) return 'endurance'
+  const [dasherAbove, enduranceAbove] = FIGHT.mixedPhaseThresholds
+  if (progress > dasherAbove) return 'dasher'
+  if (progress > enduranceAbove) return 'endurance'
   return 'erratic'
 }
 

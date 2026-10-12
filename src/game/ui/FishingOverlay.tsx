@@ -75,7 +75,7 @@ function Bar({ ratio, color }: { ratio: number; color: string }) {
 const FAIL_TEXT = {
   missed: '놓쳤다! 찌가 크게 잠길 때 챔질해야 해요.',
   snapped: '줄이 끊어졌다! 텐션이 빨개지면 손을 떼세요.',
-  escaped: '물고기가 도망갔다! 줄이 너무 느슨했어요.',
+  escaped: '물고기가 도망갔다! 줄을 팽팽하게 유지해 보세요.',
 }
 
 function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: 'done' }>; caught: FishInstance | null }) {

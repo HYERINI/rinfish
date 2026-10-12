@@ -25,6 +25,8 @@ export const FIGHT = {
   reelDuringPullFactor: 0.3,
   /** 한 번의 스텝에서 처리하는 최대 시간(초) */
   maxDt: 0.1,
+  /** 전설(mixed) 패턴 전환 기준: 남은 거리 비율이 첫 값보다 크면 돌진, 둘째 값보다 크면 지구전, 그 아래는 변덕 */
+  mixedPhaseThresholds: [0.66, 0.33] as const,
 }
 
 export type PatternConfig = {
