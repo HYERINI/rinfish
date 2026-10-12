@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest'
+import { catchWeights, rollSpecies, rollWeight } from './catchTable'
+import { castDistance, castPowerFromHold } from './cast'
+import { fixedRng } from './rng'
+import { getSpecies } from '../data/fish'
+
+describe('rollSpecies', () => {
+  it('rng가 0이면 그 구역 목록의 첫 물고기가 나온다', () => {
+    expect(rollSpecies('beach', 0, fixedRng(0)).id).toBe('sleepy-sardine')
+  })
+
+  it('동굴에서는 항상 전설의 물고기가 나온다', () => {
+    for (const v of [0, 0.5, 0.99]) {
+      expect(rollSpecies('cave', 0.5, fixedRng(v)).rarity).toBe('legendary')
+    }
+  })
+
+  it('멀리 던질수록 에픽이 나올 확률이 올라간다', () => {
+    const epicShare = (power: number) => {
+      const table = catchWeights('reef', power)
+      const total = table.reduce((sum, e) => sum + e.weight, 0)
+      const epic = table.filter((e) => e.species.rarity === 'epic').reduce((sum, e) => sum + e.weight, 0)
+      return epic / total
+    }
+    expect(epicShare(1)).toBeGreaterThan(epicShare(0))
+  })
+})
+
+describe('rollWeight', () => {
+  it('무게는 종의 무게 범위 안에서 나온다', () => {
+    const sardine = getSpecies('sleepy-sardine')
+    expect(rollWeight(sardine, fixedRng(0))).toBe(0.1)
+    const heavy = rollWeight(sardine, fixedRng(0.999))
+    expect(heavy).toBeGreaterThan(0.29)
+    expect(heavy).toBeLessThanOrEqual(0.3)
+  })
+})
+
+describe('cast', () => {
+  it('누른 시간에 비례해 파워가 0~1로 정해진다', () => {
+    expect(castPowerFromHold(0)).toBe(0)
+    expect(castPowerFromHold(0.75)).toBe(0.5)
+    expect(castPowerFromHold(10)).toBe(1)
+  })
+
+  it('파워에 따라 찌가 떨어지는 거리가 4~12가 된다', () => {
+    expect(castDistance(0)).toBe(4)
+    expect(castDistance(1)).toBe(12)
+  })
+})
