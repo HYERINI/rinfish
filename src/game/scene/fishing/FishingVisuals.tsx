@@ -243,7 +243,7 @@ export function FishingVisuals() {
         <circleGeometry args={[0.5, 24]} />
         <meshBasicMaterial color="#041a2c" transparent opacity={0.5} depthWrite={false} />
       </mesh>
-      <FishModel ref={fish} color={speciesId ? getSpecies(speciesId).color : '#ffffff'} />
+      <FishModel ref={fish} speciesId={speciesId} />
       {/* primitive: 직접 만든 three.js 객체를 씬에 넣을 때 쓴다 */}
       <primitive object={line} />
       <Splashes />
