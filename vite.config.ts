@@ -5,6 +5,6 @@ import { configDefaults, defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [react()],
   test: {
-    exclude: [...configDefaults.exclude, '.claude/**'],
+    exclude: [...configDefaults.exclude, '.claude/**', 'tools/**'],
   },
 })
