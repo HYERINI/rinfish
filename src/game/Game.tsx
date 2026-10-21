@@ -1,7 +1,8 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
 import { useInteractionKeys } from './input/useInteractionKeys'
+import { useWheelZoom } from './input/useWheelZoom'
 import { useKeyboardTracking } from './input/keys'
 import { pressPointer, usePointerRelease } from './input/pointer'
 import { World } from './scene/World'
@@ -29,6 +30,8 @@ export function Game({ onExit }: GameProps) {
   useKeyboardTracking()
   usePointerRelease()
   useInteractionKeys()
+  const canvasArea = useRef<HTMLDivElement>(null)
+  useWheelZoom(canvasArea)
 
   // 진행 상황(progressStore)은 저장된 것을 이어 쓰고, 이번 판 상태만 초기화한다
   useEffect(() => {
@@ -39,7 +42,7 @@ export function Game({ onExit }: GameProps) {
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       {/* 캔버스 영역 클릭만 게임 입력으로 받는다 (UI 버튼 클릭은 제외) */}
-      <div style={{ position: 'absolute', inset: 0 }} onPointerDown={pressPointer} onContextMenu={(e) => e.preventDefault()}>
+      <div ref={canvasArea} style={{ position: 'absolute', inset: 0 }} onPointerDown={pressPointer} onContextMenu={(e) => e.preventDefault()}>
         <Canvas shadows camera={{ position: [0, 8, 25], fov: 50 }}>
           {/* Rapier는 물리 엔진(wasm)을 비동기로 불러오므로 Suspense가 필요하다 */}
           <Suspense fallback={null}>

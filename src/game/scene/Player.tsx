@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
-import { ISLAND_RADIUS, getSpot } from '../data/zones'
+import { CAMERA_ZOOM } from '../data/balance'
+import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
 import { isPointerDown } from '../input/pointer'
@@ -23,8 +24,6 @@ export const playerRig = {
 
 const MOVE_SPEED = 6
 const PLAYER_LIMIT = ISLAND_RADIUS - 1
-const CAMERA_DISTANCE = 10
-const CAMERA_HEIGHT = 7
 const DRAG_SENSITIVITY = 0.005
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
 const FISHING_YAW_SPEED = 4
@@ -74,6 +73,8 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 const FOOT_Y = -0.9
+/** 앉았을 때 모델 보정 (y: 위아래, z: 앞뒤). 엉덩이가 벤치 면에 닿게 */
+const SIT_OFFSET = { y: -0.04, z: -0.02 }
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
@@ -86,6 +87,7 @@ export function Player() {
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const model = useRef<PlayerModelHandle>(null)
+  const seat = useRef<Group>(null)
   /** 카메라가 플레이어 주위를 도는 각도 */
   const yaw = useRef(0)
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
@@ -139,6 +141,13 @@ export function Player() {
     const speed = Math.hypot(velocity.x, velocity.z)
     rb.setLinvel({ x: moveDir.x * MOVE_SPEED, y: velocity.y, z: moveDir.z * MOVE_SPEED }, true)
 
+    // 벤치에서 쉬는 동안엔 앉는 자리에 고정하고 바다를 본다
+    if (mode === 'rest') {
+      const [sx, sz] = BENCH_SEAT.position
+      rb.setTranslation({ x: sx, y: rb.translation().y, z: sz }, true)
+      rb.setLinvel({ x: 0, y: velocity.y, z: 0 }, true)
+    }
+
     // 2) 섬 밖으로 못 나가게 가장자리에서 붙잡는다
     const p = rb.translation()
     const dist = Math.hypot(p.x, p.z)
@@ -155,10 +164,13 @@ export function Player() {
     if (mode === 'fishing' && spotId) {
       const [fx, fz] = getSpot(spotId).facing
       facing.current = Math.atan2(fx, fz)
+    } else if (mode === 'rest') {
+      facing.current = BENCH_SEAT.facing
     } else if (moveDir.lengthSq() > 0) {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
     if (visual.current) visual.current.rotation.y = facing.current
+    seat.current?.position.set(0, FOOT_Y + (mode === 'rest' ? SIT_OFFSET.y : 0), mode === 'rest' ? SIT_OFFSET.z : 0)
 
     // 4) 낚싯대 각도: 젖혔다가 휘두르고, 줄다리기 땐 텐션만큼 휜다
     const fishing = useFishingStore.getState().state
@@ -181,7 +193,9 @@ export function Player() {
     rodTip.current?.getWorldPosition(playerRig.rodTip)
 
     // 6) 3인칭 카메라: 목표 위치로 부드럽게 따라간다
-    cameraTarget.set(x + sin * CAMERA_DISTANCE, p.y + CAMERA_HEIGHT, z + cos * CAMERA_DISTANCE)
+    const distance = useSessionStore.getState().zoom
+    const height = distance * CAMERA_ZOOM.heightRatio
+    cameraTarget.set(x + sin * distance, p.y + height, z + cos * distance)
     camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * 5))
     camera.lookAt(x, p.y + 1, z)
   })
@@ -191,7 +205,7 @@ export function Player() {
     <RigidBody ref={body} colliders={false} position={[0, 2, 15]} enabledRotations={[false, false, false]}>
       <CapsuleCollider args={[0.5, 0.4]} />
       <group ref={visual}>
-        <group position={[0, FOOT_Y, 0]}>
+        <group ref={seat} position={[0, FOOT_Y, 0]}>
           <PlayerModel ref={model} look={look} />
         </group>
         {/* 낚싯대: 그룹을 x축으로 기울이면 앞(+z)으로 숙여진다. 위치는 매 프레임 손으로 옮긴다 (모델을 받기 전엔 이 자리) */}
