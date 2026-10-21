@@ -18,7 +18,7 @@ export function WeaknessOverlay() {
   const minutes = Math.floor(graceLeft / 60)
   const seconds = Math.floor(graceLeft % 60)
   return (
-    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', boxShadow: 'inset 0 0 140px 40px rgba(200, 0, 0, 0.55)' }}>
+    <div style={{ position: 'absolute', inset: 0, zIndex: 900, pointerEvents: 'none', boxShadow: 'inset 0 0 140px 40px rgba(200, 0, 0, 0.55)' }}>
       <div style={{ position: 'absolute', top: 56, width: '100%', textAlign: 'center', color: '#ff8a80', fontWeight: 800, fontSize: 18, textShadow: '0 1px 3px #000' }}>
         기진맥진! {minutes}:{String(seconds).padStart(2, '0')} 안에 먹거나 쉬지 않으면 쓰러져요
       </div>

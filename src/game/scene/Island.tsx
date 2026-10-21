@@ -106,7 +106,7 @@ function Gate({ zone }: { zone: ZoneDef }) {
         <meshStandardMaterial color={zone.color} transparent opacity={0.7} />
       </mesh>
       {/* Html: 3D 위치에 일반 HTML을 띄운다 (한글 표시용) */}
-      <Html center position={[0, 2, 0]} style={gateLabel}>
+      <Html center position={[0, 2, 0]} zIndexRange={[100, 0]} style={gateLabel}>
         잠김 · {zone.name} — {zone.unlockLabel}
       </Html>
     </RigidBody>

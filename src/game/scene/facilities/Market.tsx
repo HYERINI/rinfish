@@ -40,7 +40,7 @@ export function Market() {
           <meshStandardMaterial color={AWNING[i % 2]} />
         </mesh>
       ))}
-      <Html center position={[0, 3.1, -0.4]} style={sign}>
+      <Html center position={[0, 3.1, -0.4]} zIndexRange={[100, 0]} style={sign}>
         🐟 어시장
       </Html>
       <InteractionZone position={[0, 1, 1.2]} halfSize={[2.2, 1.5, 1.2]} target={{ kind: 'market' }} />

@@ -4,12 +4,14 @@ import type { CSSProperties } from 'react'
 export const overlayLayer: CSSProperties = {
   position: 'absolute',
   inset: 0,
+  zIndex: 1000,
   pointerEvents: 'none',
   color: '#fff',
 }
 
 export const panelBox: CSSProperties = {
   pointerEvents: 'auto',
+  zIndex: 1000,
   position: 'absolute',
   top: '50%',
   left: '50%',

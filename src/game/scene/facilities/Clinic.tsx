@@ -29,7 +29,7 @@ export function Clinic() {
       <Prop url={ASSET.bed} height={0.6} position={[1.2, 0, 1.9]} rotationY={Math.PI / 2} />
       <Prop url={ASSET.plant} height={0.9} position={[-1.4, 0, 1.6]} />
       <Visitor url={ASSET.visitorC} position={[-0.6, 0, 1.8]} clip="idle" />
-      <Html center position={[0, 2.9, 0]} style={sign}>
+      <Html center position={[0, 2.9, 0]} zIndexRange={[100, 0]} style={sign}>
         🏥 진료소
       </Html>
     </group>
