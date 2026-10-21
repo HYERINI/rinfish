@@ -6,7 +6,7 @@ import { CHARACTER_CLIPS, CHARACTER_FILES, OUTFIT_ALT_TEXTURES, type CharacterCl
 import type { CharacterLook, OutfitId } from '../data/types'
 import { CHARACTER_POSES, characterPose, clipTimeScale, leanBack, poseClips, type CharacterPose } from '../logic/characterPose'
 import type { FishingState } from '../logic/fishingSession'
-import { applyLook, prepareCharacter } from './characterAppearance'
+import { applyLook, measureLift, prepareCharacter } from './characterAppearance'
 
 /** Player 가 매 프레임 부르는 조종 손잡이 */
 export type PlayerModelHandle = {
@@ -180,7 +180,12 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
         const drag = a.weights.dragged
         object.position.z = drag * (DRAG_SLIDE + Math.sin(now * 30) * 0.03)
         // 5) 잡았을 땐 춤추면서 깡충깡충
-        object.position.y = rig.lift + a.weights.celebrate * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT + a.weights.fallBack * FALL_LIFT
+        // 다리 길이 보정은 지금 자세로 잰다 (서기·웅크리기·눕기마다 다르다).
+        // 앉아 있을 땐 발이 아니라 엉덩이가 벤치에 닿아야 하므로 보정을 뺀다(다리가 짧으면 발이 뜨고, 길면 발이 땅에 조금 묻힌다).
+        // 앉는 동안엔 클립이 진행된 만큼 발 → 엉덩이로 옮겨 간다
+        const enter = actions.sitEnter.getClip().duration
+        const seated = a.weights.sit * (sitEntering ? Math.min(1, (now - a.sitAt) / enter) : 1)
+        object.position.y = measureLift(rig) * (1 - seated) + a.weights.celebrate * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT + a.weights.fallBack * FALL_LIFT
       },
       gripPosition(target) {
         if (!bones.hand || !bones.knuckle) return

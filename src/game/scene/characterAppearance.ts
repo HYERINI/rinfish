@@ -34,7 +34,12 @@ export type CharacterRig = {
     /** 스켈레톤별 원래 역바인드 행렬. 인스턴스마다 복제한 배열에 배율을 곱해 넣는다 */
     skeletons: { inverses: Matrix4[]; rest: Matrix4[]; names: string[] }[]
   }
-  /** 다리 길이·키에 맞춰 몸을 올리는 높이. applyLook 이 채운다 */
+  /** 다리 길이 배율. applyLook 이 채운다 */
+  legScale: number
+  /**
+   * 다리 길이에 맞춰 몸을 올리는 높이(키 배율 포함). applyLook 이 선 자세 기준값을 넣고,
+   * 매 프레임 measureLift 가 지금 자세로 다시 잰다
+   */
   lift: number
 }
 
@@ -147,7 +152,7 @@ export function prepareCharacter(root: Object3D): CharacterRig {
   const thigh = bones.get('thigh_l')
   const foot = bones.get('foot_l')
   const legLength = thigh && foot ? thigh.getWorldPosition(tmp).y - foot.getWorldPosition(new Vector3()).y : 0.8
-  const rig: CharacterRig = { root, parts, skin, hair, outfits, bones, rest: { legLength, axes, positions, shoulderSpan, skeletons: [...inverseCopies.values()] }, lift: 0 }
+  const rig: CharacterRig = { root, parts, skin, hair, outfits, bones, rest: { legLength, axes, positions, shoulderSpan, skeletons: [...inverseCopies.values()] }, legScale: 1, lift: 0 }
   prepared.set(root, rig)
   return rig
 }
@@ -266,6 +271,30 @@ export function applyLook(rig: CharacterRig, look: CharacterLook, altMaps: Recor
   // 키: 루트 균일 배율 (발이 원점이라 땅에 붙어 있다)
   bones.get('root')?.scale.setScalar(look.height)
 
-  // 다리가 길어진 만큼 몸을 올려 발이 땅에 닿게 한다
+  // 다리가 길어진 만큼 몸을 올려 발이 땅에 닿게 한다 (선 자세 기준. 애니메이션 중엔 measureLift 가 덮어쓴다)
+  rig.legScale = b.legLength
   rig.lift = (b.legLength - 1) * rest.legLength * look.height
+}
+
+const hip = new Vector3()
+const ankle = new Vector3()
+
+/**
+ * 지금 자세에서 다리 길이 때문에 몸을 올려야 하는 높이를 재서 rig.lift 에 넣는다. mixer.update 뒤에 부른다.
+ * 다리를 L 배 늘리면 엉덩이는 "지금 허벅지~발목의 세로 거리"의 (L-1)/L 만큼만 올라간다(그 거리는 이미 L 배라서).
+ * 서 있으면 다리 전체, 앉으면 정강이만큼, 누워 다리를 든 자세면 0 이다. 두 다리 중 더 긴 쪽(땅을 딛는 쪽)을 쓴다.
+ * 조상 노드는 y축 회전·이동뿐이라 월드 y 차이 = 모델 기준 높이 차이다
+ */
+export function measureLift(rig: CharacterRig): number {
+  const L = rig.legScale
+  if (L === 1) return (rig.lift = 0)
+  let span = 0
+  for (const [t, f] of [['thigh_l', 'foot_l'], ['thigh_r', 'foot_r']]) {
+    const thigh = rig.bones.get(t)
+    const foot = rig.bones.get(f)
+    if (!thigh || !foot) continue
+    foot.updateWorldMatrix(true, false) // 허벅지는 발의 조상이라 함께 갱신된다
+    span = Math.max(span, hip.setFromMatrixPosition(thigh.matrixWorld).y - ankle.setFromMatrixPosition(foot.matrixWorld).y)
+  }
+  return (rig.lift = (span * (L - 1)) / L)
 }
