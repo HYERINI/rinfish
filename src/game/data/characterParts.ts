@@ -1,4 +1,4 @@
-import type { BodyPart, CharacterLook, Gender, HairId, OutfitId } from './types'
+import type { BodyPart, CharacterLook, Gender, HairId, OutfitId, OutfitSlot } from './types'
 
 export const GENDER_LABEL: Record<Gender, string> = { male: '남자', female: '여자' }
 
@@ -19,6 +19,14 @@ export const OUTFITS: { id: OutfitId; name: string }[] = [
 /** 피부 견본 (밝게 만든 피부 텍스처에 곱한다) */
 export const SKIN_COLORS = ['#ffe3cc', '#f7cfae', '#eab892', '#d9a274', '#c08457', '#9a6440', '#70462c', '#4a2f1f']
 export const HAIR_COLORS = ['#1c1c1c', '#4a3020', '#7a4b2a', '#b07a45', '#e2c27c', '#bdbdbd', '#f4f4f4', '#b23a3a', '#d77fae', '#3d6fd6']
+
+/** 옷 염색 견본 */
+export const DYE_COLORS = ['#f4f4f4', '#2b2b2b', '#c62828', '#ef6c00', '#f9a825', '#2e7d32', '#00897b', '#1565c0', '#5e35b1', '#d81b60', '#6d4c41', '#90a4ae']
+
+/** 염색 안 함 (모든 부위 원래 색) */
+export const NO_DYE: Record<OutfitSlot, string | null> = { top: null, bottom: null, shoes: null }
+
+export const OUTFIT_SLOTS: OutfitSlot[] = ['top', 'bottom', 'shoes']
 
 export const HEIGHT_RANGE: [number, number] = [0.75, 1.3]
 
@@ -55,22 +63,22 @@ export const LOOK_PRESETS: { id: string; name: string; look: CharacterLook }[] =
   {
     id: 'grandpa',
     name: '어부 할아버지',
-    look: { gender: 'male', skinColor: '#eab892', hair: 'simpleParted', hairColor: '#bdbdbd', beard: true, top: 'peasant', bottom: 'peasant', shoes: 'peasant', hood: false, outfitColor: 'base', height: 1, body: DEFAULT_BODY },
+    look: { gender: 'male', skinColor: '#eab892', hair: 'simpleParted', hairColor: '#bdbdbd', beard: true, top: 'peasant', bottom: 'peasant', shoes: 'peasant', hood: false, outfitColor: 'base', dye: NO_DYE, height: 1, body: DEFAULT_BODY },
   },
   {
     id: 'lady',
     name: '어부 아가씨',
-    look: { gender: 'female', skinColor: '#f7cfae', hair: 'buns', hairColor: '#7a4b2a', beard: false, top: 'peasant', bottom: 'peasant', shoes: 'peasant', hood: false, outfitColor: 'alt', height: 1, body: DEFAULT_BODY },
+    look: { gender: 'female', skinColor: '#f7cfae', hair: 'buns', hairColor: '#7a4b2a', beard: false, top: 'peasant', bottom: 'peasant', shoes: 'peasant', hood: false, outfitColor: 'alt', dye: NO_DYE, height: 1, body: DEFAULT_BODY },
   },
   {
     id: 'rangerMale',
     name: '레인저 (남)',
-    look: { gender: 'male', skinColor: '#c08457', hair: 'buzzed', hairColor: '#1c1c1c', beard: false, top: 'ranger', bottom: 'ranger', shoes: 'ranger', hood: true, outfitColor: 'base', height: 1.05, body: DEFAULT_BODY },
+    look: { gender: 'male', skinColor: '#c08457', hair: 'buzzed', hairColor: '#1c1c1c', beard: false, top: 'ranger', bottom: 'ranger', shoes: 'ranger', hood: true, outfitColor: 'base', dye: NO_DYE, height: 1.05, body: DEFAULT_BODY },
   },
   {
     id: 'rangerFemale',
     name: '레인저 (여)',
-    look: { gender: 'female', skinColor: '#d9a274', hair: 'long', hairColor: '#e2c27c', beard: false, top: 'ranger', bottom: 'ranger', shoes: 'ranger', hood: false, outfitColor: 'alt', height: 1, body: DEFAULT_BODY },
+    look: { gender: 'female', skinColor: '#d9a274', hair: 'long', hairColor: '#e2c27c', beard: false, top: 'ranger', bottom: 'ranger', shoes: 'ranger', hood: false, outfitColor: 'alt', dye: NO_DYE, height: 1, body: DEFAULT_BODY },
   },
 ]
 

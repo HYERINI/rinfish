@@ -51,6 +51,8 @@ export type TankTypeId = 'basic' | 'sea' | 'fresh' | 'cave'
 export type Gender = 'male' | 'female'
 export type HairId = 'simpleParted' | 'buzzed' | 'long' | 'buns' | 'buzzedFemale' | 'none'
 export type OutfitId = 'peasant' | 'ranger'
+/** 염색할 수 있는 옷 부위 (후드는 윗옷과 같이 물든다) */
+export type OutfitSlot = 'top' | 'bottom' | 'shoes'
 export type BodyPart = 'head' | 'shoulders' | 'chest' | 'belly' | 'armThickness' | 'armLength' | 'legThickness' | 'legLength'
 
 /** 플레이어 생김새. 저장된다 */
@@ -68,6 +70,8 @@ export type CharacterLook = {
   /** 레인저 후드. 쓰면 머리카락을 숨긴다 */
   hood: boolean
   outfitColor: 'base' | 'alt'
+  /** 부위별 염색 색 '#rrggbb'. null 이면 원래 옷 색 */
+  dye: Record<OutfitSlot, string | null>
   /** 전체 키 배율 */
   height: number
   /** 부위별 배율 */

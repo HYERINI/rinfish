@@ -26,6 +26,7 @@ describe('normalizeLook', () => {
       shoes: 7,
       hood: 'yes',
       outfitColor: 'neon',
+      dye: { top: '#C62828', bottom: 'blue', shoes: 3 },
       height: 9,
       body: { head: 0.1, belly: 'x', legLength: 1.2 },
     })
@@ -40,9 +41,15 @@ describe('normalizeLook', () => {
       shoes: DEFAULT_LOOK.shoes,
       hood: false,
       outfitColor: 'base',
+      dye: { top: '#c62828', bottom: null, shoes: null },
       height: HEIGHT_RANGE[1],
       body: { ...DEFAULT_LOOK.body, head: BODY_RANGES.head[0], legLength: 1.2 },
     })
+  })
+
+  it('염색 정보가 없거나 깨져 있으면 모두 원래 색(null)', () => {
+    expect(normalizeLook({ ...DEFAULT_LOOK, dye: undefined })?.dye).toEqual({ top: null, bottom: null, shoes: null })
+    expect(normalizeLook({ ...DEFAULT_LOOK, dye: 'red' })?.dye).toEqual({ top: null, bottom: null, shoes: null })
   })
 
   it('성별이 틀리면 기본 꾸밈의 성별을 쓴다', () => {

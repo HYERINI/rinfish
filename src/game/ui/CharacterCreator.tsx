@@ -2,7 +2,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Suspense, useRef, useState, type ReactNode } from 'react'
 import { Vector3, type Group } from 'three'
 import {
-  BODY_PART_LABEL, BODY_PARTS, BODY_RANGES, DEFAULT_BODY, GENDER_LABEL, HAIR_COLORS, HAIRS, HEIGHT_RANGE, LOOK_PRESETS, OUTFITS, SKIN_COLORS,
+  BODY_PART_LABEL, BODY_PARTS, BODY_RANGES, DEFAULT_BODY, DYE_COLORS, GENDER_LABEL, HAIR_COLORS, HAIRS, HEIGHT_RANGE, LOOK_PRESETS, OUTFITS, SKIN_COLORS,
 } from '../data/characterParts'
 import type { CharacterLook, Gender, OutfitId } from '../data/types'
 import { randomLook, switchGender } from '../logic/characterLook'
@@ -115,6 +115,16 @@ function Swatches({ colors, value, onChange }: { colors: string[]; value: string
   )
 }
 
+/** 옷 염색: "원래 색" + 견본 + 직접 고르기 */
+function DyePicker({ value, onChange }: { value: string | null; onChange: (c: string | null) => void }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center', width: '100%', marginTop: 2 }}>
+      <Choice active={value === null} onClick={() => onChange(null)}>원래 색</Choice>
+      <Swatches colors={DYE_COLORS} value={value ?? '#ffffff'} onChange={onChange} />
+    </div>
+  )
+}
+
 function Slider({ label, value, range, onChange }: { label: string; value: number; range: [number, number]; onChange: (v: number) => void }) {
   return (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, margin: '4px 0' }}>
@@ -186,6 +196,7 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
         {(['top', 'bottom', 'shoes'] as const).map((slot) => (
           <Row key={slot} label={{ top: '윗옷', bottom: '바지', shoes: '신발' }[slot]}>
             {OUTFITS.map((o) => <Choice key={o.id} active={draft[slot] === o.id} onClick={() => set({ [slot]: o.id as OutfitId })}>{o.name}</Choice>)}
+            <DyePicker value={draft.dye[slot]} onChange={(c) => setDraft((d) => ({ ...d, dye: { ...d.dye, [slot]: c } }))} />
           </Row>
         ))}
         <Row label="소품·옷 색">

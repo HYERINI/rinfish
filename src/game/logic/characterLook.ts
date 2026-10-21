@@ -1,5 +1,5 @@
-import { BODY_PARTS, BODY_RANGES, DEFAULT_LOOK, HAIR_COLORS, HAIRS, HEIGHT_RANGE, OUTFITS, SKIN_COLORS } from '../data/characterParts'
-import type { BodyPart, CharacterLook, Gender, HairId, OutfitId } from '../data/types'
+import { BODY_PARTS, BODY_RANGES, DEFAULT_LOOK, DYE_COLORS, HAIR_COLORS, HAIRS, HEIGHT_RANGE, OUTFIT_SLOTS, OUTFITS, SKIN_COLORS } from '../data/characterParts'
+import type { BodyPart, CharacterLook, Gender, HairId, OutfitId, OutfitSlot } from '../data/types'
 import { lerp, type Rng } from './rng'
 
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -8,6 +8,17 @@ const clamp = (v: number, [min, max]: [number, number]) => Math.min(max, Math.ma
 
 function readColor(v: unknown, fallback: string): string {
   return typeof v === 'string' && COLOR.test(v) ? v.toLowerCase() : fallback
+}
+
+/** 부위별 염색 색. 색이 아니면 null(원래 색) */
+function readDye(v: unknown): Record<OutfitSlot, string | null> {
+  const saved = isRecord(v) ? v : {}
+  const dye = {} as Record<OutfitSlot, string | null>
+  for (const slot of OUTFIT_SLOTS) {
+    const c = saved[slot]
+    dye[slot] = typeof c === 'string' && COLOR.test(c) ? c.toLowerCase() : null
+  }
+  return dye
 }
 
 function readNumber(v: unknown, range: [number, number], fallback: number): number {
@@ -40,6 +51,7 @@ export function normalizeLook(v: unknown): CharacterLook | null {
     shoes: readOneOf<OutfitId>(v.shoes, OUTFIT_IDS, d.shoes),
     hood: v.hood === true,
     outfitColor: readOneOf(v.outfitColor, ['base', 'alt'] as const, 'base'),
+    dye: readDye(v.dye),
     height: readNumber(v.height, HEIGHT_RANGE, d.height),
     body,
   }
@@ -58,6 +70,9 @@ export function randomLook(rng: Rng): CharacterLook {
   const gender: Gender = rng() < 0.5 ? 'male' : 'female'
   const body = {} as Record<BodyPart, number>
   for (const part of BODY_PARTS) body[part] = centered(rng, BODY_RANGES[part])
+  // 반쯤은 원래 옷 색 그대로 두고, 나머지는 견본 색으로 물들인다
+  const dye = {} as Record<OutfitSlot, string | null>
+  for (const slot of OUTFIT_SLOTS) dye[slot] = rng() < 0.5 ? null : pick(DYE_COLORS, rng())
   return {
     gender,
     skinColor: pick(SKIN_COLORS, rng()),
@@ -69,6 +84,7 @@ export function randomLook(rng: Rng): CharacterLook {
     shoes: pick(OUTFIT_IDS, rng()),
     hood: rng() < 0.25,
     outfitColor: rng() < 0.5 ? 'base' : 'alt',
+    dye,
     height: centered(rng, HEIGHT_RANGE),
     body,
   }

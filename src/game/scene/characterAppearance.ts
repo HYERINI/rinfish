@@ -1,6 +1,6 @@
-import { Matrix4, Vector3, type Bone, type Material, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three'
-import { ALWAYS_VISIBLE_NODES, PART_NODES } from '../data/characterParts'
-import type { CharacterLook, OutfitId } from '../data/types'
+import { CanvasTexture, Matrix4, Vector3, type Bone, type Material, type MeshStandardMaterial, type Object3D, type SkinnedMesh, type Texture } from 'three'
+import { ALWAYS_VISIBLE_NODES, OUTFIT_SLOTS, PART_NODES } from '../data/characterParts'
+import type { CharacterLook, OutfitId, OutfitSlot } from '../data/types'
 
 type Axis = 0 | 1 | 2
 
@@ -19,7 +19,8 @@ export type CharacterRig = {
   parts: Map<string, Object3D>
   skin: MeshStandardMaterial[]
   hair: MeshStandardMaterial[]
-  outfits: Record<OutfitId, { material: MeshStandardMaterial; base: Texture | null }[]>
+  /** 옷 재질. 부위(윗옷·바지·신발)마다 따로 복제해서 부위별로 다른 색으로 물들일 수 있다 */
+  outfits: Record<OutfitId, { material: MeshStandardMaterial; base: Texture | null; slot: OutfitSlot }[]>
   /** 이 인스턴스가 복제한 재질 전부(눈 등 색을 안 바꾸는 것 포함). 내려갈 때 모두 정리한다 */
   materials: Material[]
   bones: Map<string, Bone>
@@ -80,6 +81,21 @@ function lengthAxis(bone: Object3D): Axis {
 const LENGTH_CHILDREN = ['lowerarm_l', 'lowerarm_r', 'hand_l', 'hand_r', 'calf_l', 'calf_r', 'foot_l', 'foot_r']
 const CLAVICLES = { clavicle_l: 'upperarm_l', clavicle_r: 'upperarm_r' }
 
+/** 옷 노드 이름 → 염색 부위. 후드는 윗옷과 같이 물든다 */
+const NODE_SLOT = new Map<string, OutfitSlot>([
+  ...OUTFIT_SLOTS.flatMap((slot) => Object.values(PART_NODES[slot]).flat().map((name) => [name, slot] as [string, OutfitSlot])),
+  [PART_NODES.hood, 'top'],
+])
+
+/** 메시가 속한 옷 부위 (부모 쪽으로 올라가며 이름으로 찾는다. 팔은 Group 아래 메시 두 개다) */
+function slotOf(o: Object3D): OutfitSlot | null {
+  for (let n: Object3D | null = o; n; n = n.parent) {
+    const slot = NODE_SLOT.get(n.name)
+    if (slot) return slot
+  }
+  return null
+}
+
 /** StrictMode 는 useMemo 를 두 번 불러 한쪽 결과를 버린다. 두 번째 호출이 재질을 또 바꿔 끼우지 않게 객체마다 한 번만 준비한다 */
 const prepared = new WeakMap<Object3D, CharacterRig>()
 
@@ -95,7 +111,7 @@ export function prepareCharacter(root: Object3D): CharacterRig {
   const skin: MeshStandardMaterial[] = []
   const hair: MeshStandardMaterial[] = []
   const outfits: CharacterRig['outfits'] = { peasant: [], ranger: [] }
-  const cloned = new Map<Material, MeshStandardMaterial>()
+  const cloned = new Map<string, MeshStandardMaterial>()
   // SkeletonUtils.clone 은 역바인드 행렬 배열을 원본과 함께 쓴다. 원본 배열마다 한 번만 복제한다
   const inverseCopies = new Map<Matrix4[], CharacterRig['rest']['skeletons'][number]>()
 
@@ -107,13 +123,17 @@ export function prepareCharacter(root: Object3D): CharacterRig {
     if (!mesh.isMesh) return
     // 머리카락 재질은 텍스처가 달라 두 개지만 이름이 같아(hair) 둘 다 색을 곱한다
     const original = mesh.material as MeshStandardMaterial
-    let material = cloned.get(original)
+    // 옷은 부위마다 따로 물들이므로 (원본 재질, 부위) 짝마다 복제한다. 나머지는 원본 재질마다 하나
+    const isOutfit = original.name === 'peasant' || original.name === 'ranger'
+    const slot = isOutfit ? slotOf(mesh) : null
+    const key = slot ? `${original.uuid}:${slot}` : original.uuid
+    let material = cloned.get(key)
     if (!material) {
       material = original.clone()
-      cloned.set(original, material)
+      cloned.set(key, material)
       if (material.name.startsWith('skin')) skin.push(material)
       else if (material.name === 'hair') hair.push(material)
-      else if (material.name === 'peasant' || material.name === 'ranger') outfits[material.name].push({ material, base: material.map })
+      else if (isOutfit) outfits[material.name as OutfitId].push({ material, base: material.map, slot: slot ?? 'top' })
     }
     mesh.material = material
 
@@ -178,6 +198,43 @@ const allPartNodes = [
   PART_NODES.hood,
 ]
 
+/** 원본 옷 텍스처 → 염색용(밝은 흑백) 텍스처. 텍스처마다 한 번만 만들고 모든 인스턴스가 같이 쓴다 */
+const dyeMaps = new WeakMap<Texture, Texture>()
+
+/**
+ * 원래 옷 색 위에 색을 곱하면 갈색 바지에 파랑을 골라도 거무튀튀해진다.
+ * 그래서 밝기만 남긴 흑백으로 바꾸고 밝게 끌어올린 뒤 고른 색을 곱한다 (천의 주름·바느질 명암은 남는다)
+ */
+function dyeMap(source: Texture): Texture | null {
+  const done = dyeMaps.get(source)
+  if (done) return done
+  const image = source.image as CanvasImageSource & { width: number; height: number } | undefined
+  if (!image?.width || typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  ctx.drawImage(image, 0, 0)
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const d = pixels.data
+  for (let i = 0; i < d.length; i += 4) {
+    const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]
+    // 어두운 가죽도 색이 보이도록 밝기를 위로 모은다 (0~255 → 대략 90~255)
+    const v = Math.min(255, 90 + gray * 0.75)
+    d[i] = d[i + 1] = d[i + 2] = v
+  }
+  ctx.putImageData(pixels, 0, 0)
+  const texture = new CanvasTexture(canvas)
+  texture.flipY = source.flipY
+  texture.colorSpace = source.colorSpace
+  texture.wrapS = source.wrapS
+  texture.wrapT = source.wrapT
+  texture.channel = source.channel
+  dyeMaps.set(source, texture)
+  return texture
+}
+
 /** 모습 적용: 부위 보이기, 색, 옷 텍스처, 몸 부위 배율 */
 export function applyLook(rig: CharacterRig, look: CharacterLook, altMaps: Record<OutfitId, Texture>) {
   // 1) 부위
@@ -194,14 +251,17 @@ export function applyLook(rig: CharacterRig, look: CharacterLook, altMaps: Recor
   for (const mat of rig.skin) mat.color.set(look.skinColor)
   for (const mat of rig.hair) mat.color.set(look.hairColor)
 
-  // 3) 옷 색: 텍스처 바꾸기
+  // 3) 옷 색: 색 버전 텍스처, 또는 부위별 염색(흑백 텍스처 × 고른 색)
   for (const outfit of ['peasant', 'ranger'] as OutfitId[]) {
-    for (const { material, base } of rig.outfits[outfit]) {
-      const map = look.outfitColor === 'alt' ? altMaps[outfit] : base
+    for (const { material, base, slot } of rig.outfits[outfit]) {
+      const dye = look.dye[slot]
+      const dyed = dye && base ? dyeMap(base) : null
+      const map = dyed ?? (look.outfitColor === 'alt' ? altMaps[outfit] : base)
       if (material.map !== map) {
         material.map = map
         material.needsUpdate = true
       }
+      material.color.set(dyed && dye ? dye : '#ffffff')
     }
   }
 
