@@ -11,6 +11,7 @@ import type { FishingState } from '../logic/fishingSession'
 import { useFishingStore } from '../stores/fishingStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { fishingFx } from './fishing/fishingFx'
+import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 
 /** 다른 컴포넌트(낚싯줄 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
 export const playerRig = {
@@ -63,20 +64,26 @@ function rodAngle(fishing: FishingState | null, now: number): number {
       return ROD_REST + bend * 0.7 + (f.pull.active ? Math.sin(now * 35) * 0.06 : 0)
     }
     case 'done':
-      // 낚아 올리면 번쩍 들어 올린다
-      return fishing.result === 'caught' ? 0.3 : ROD_REST
+      // 낚아 올리면 번쩍 들어 올린다. 줄이 끊기면 사람과 함께 뒤로 벌러덩, 놓치면 축 늘어진다
+      if (fishing.result === 'caught') return 0.3
+      return fishing.result === 'snapped' ? -1.45 : 1.1
   }
 }
+
+/** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
+const FOOT_Y = -0.9
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
 const cameraTarget = new Vector3()
+const grip = new Vector3()
 
 export function Player() {
   const body = useRef<RapierRigidBody>(null)
   const visual = useRef<Group>(null)
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
+  const model = useRef<PlayerModelHandle>(null)
   /** 카메라가 플레이어 주위를 도는 각도 */
   const yaw = useRef(0)
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
@@ -117,6 +124,8 @@ export function Player() {
 
     // 속도를 직접 정해 준다. y(중력에 의한 낙하)는 물리 엔진 값을 그대로 둔다
     const velocity = rb.linvel()
+    // 애니메이션용: 지난 스텝에 실제로 움직인 수평 속도 (벽에 막히면 0에 가깝다)
+    const speed = Math.hypot(velocity.x, velocity.z)
     rb.setLinvel({ x: moveDir.x * MOVE_SPEED, y: velocity.y, z: moveDir.z * MOVE_SPEED }, true)
 
     // 2) 섬 밖으로 못 나가게 가장자리에서 붙잡는다
@@ -148,10 +157,19 @@ export function Player() {
       const swinging = fishing?.stage === 'waiting' && clock.elapsedTime - fishingFx.castAt < ROD_WHIP_TIME
       rod.current.rotation.x = swinging ? target : rod.current.rotation.x + (target - rod.current.rotation.x) * (1 - Math.exp(-delta * 12))
       if (fishing?.stage === 'aiming') fishingFx.windup = rod.current.rotation.x
+
+      // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
+      const m = model.current
+      if (m && visual.current) {
+        m.update(delta, clock.elapsedTime, fishing, speed, rod.current.rotation.x)
+        visual.current.updateWorldMatrix(true, false)
+        m.gripPosition(grip)
+        rod.current.position.copy(visual.current.worldToLocal(grip))
+      }
     }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
 
-    // 5) 3인칭 카메라: 목표 위치로 부드럽게 따라간다
+    // 6) 3인칭 카메라: 목표 위치로 부드럽게 따라간다
     cameraTarget.set(x + sin * CAMERA_DISTANCE, p.y + CAMERA_HEIGHT, z + cos * CAMERA_DISTANCE)
     camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * 5))
     camera.lookAt(x, p.y + 1, z)
@@ -162,19 +180,14 @@ export function Player() {
     <RigidBody ref={body} colliders={false} position={[0, 2, 15]} enabledRotations={[false, false, false]}>
       <CapsuleCollider args={[0.5, 0.4]} />
       <group ref={visual}>
-        <mesh castShadow>
-          <capsuleGeometry args={[0.4, 1, 4, 12]} />
-          <meshStandardMaterial color="#f4a261" />
-        </mesh>
-        {/* 바라보는 방향 표시용 눈 */}
-        <mesh position={[0, 0.5, 0.35]}>
-          <boxGeometry args={[0.4, 0.1, 0.1]} />
-          <meshStandardMaterial color="#222" />
-        </mesh>
-        {/* 낚싯대: 그룹을 x축으로 기울이면 앞(+z)으로 숙여진다 */}
-        <group ref={rod} position={[0.35, 0.1, 0.2]}>
-          <mesh position={[0, 1, 0]}>
-            <cylinderGeometry args={[0.02, 0.04, 2]} />
+        <group position={[0, FOOT_Y, 0]}>
+          <PlayerModel ref={model} />
+        </group>
+        {/* 낚싯대: 그룹을 x축으로 기울이면 앞(+z)으로 숙여진다. 위치는 매 프레임 손으로 옮긴다 (모델을 받기 전엔 이 자리) */}
+        <group ref={rod} position={[-0.35, 0.1, 0.2]}>
+          {/* 손잡이가 주먹 아래로 조금 나오게 */}
+          <mesh position={[0, 0.85, 0]} castShadow>
+            <cylinderGeometry args={[0.015, 0.035, 2.3]} />
             <meshStandardMaterial color="#6d4c41" />
           </mesh>
           <object3D ref={rodTip} position={[0, 2, 0]} />
