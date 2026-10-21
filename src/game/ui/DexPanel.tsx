@@ -1,6 +1,7 @@
 import { FISH_SPECIES, RARITY_COLOR, RARITY_LABEL } from '../data/fish'
 import { ZONES } from '../data/zones'
 import { useProgressStore } from '../stores/progressStore'
+import { FishImage } from './FishImage'
 import { Panel } from './Panel'
 
 export function DexPanel() {
@@ -15,7 +16,7 @@ export function DexPanel() {
           const zoneNames = species.zones.map((z) => ZONES.find((zone) => zone.id === z)?.name).join(', ')
           return (
             <div key={species.id} style={{ background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: 10, fontSize: 13 }}>
-              <div style={{ width: 48, height: 24, borderRadius: '50%', background: entry ? species.color : '#333', marginBottom: 6 }} />
+              <FishImage speciesId={species.id} width={96} silhouette={!entry} style={{ marginBottom: 6 }} />
               {entry ? (
                 <>
                   <strong>{species.name}</strong>

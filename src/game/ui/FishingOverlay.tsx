@@ -7,6 +7,7 @@ import type { FishingState } from '../logic/fishingSession'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { FishImage } from './FishImage'
 import { button, hint, overlayLayer, panelBox } from './styles'
 
 export function FishingOverlay() {
@@ -118,7 +119,7 @@ function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: '
     body = (
       <>
         {isNew && <div style={{ color: '#ffd166', fontWeight: 700 }}>새로운 물고기!</div>}
-        <div style={{ width: 80, height: 40, borderRadius: '50%', background: species.color, margin: '12px auto' }} />
+        <FishImage speciesId={species.id} width={180} style={{ margin: '4px auto' }} />
         <h2 style={{ margin: '4px 0' }}>{species.name}</h2>
         <div style={{ color: RARITY_COLOR[species.rarity] }}>{RARITY_LABEL[species.rarity]}</div>
         <div style={{ margin: '8px 0' }}>{caught.weight}kg</div>
