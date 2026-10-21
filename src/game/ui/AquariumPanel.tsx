@@ -27,13 +27,22 @@ export function AquariumPanel() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button style={income > 0 ? button : disabledButton} disabled={income === 0} onClick={() => s.claimAquariumIncome()}>
+        <button style={income > 0 ? button : disabledButton} disabled={income === 0} onClick={(e) => {
+              e.currentTarget.blur()
+              s.claimAquariumIncome()
+            }}>
           입장료 받기 (+{income})
         </button>
-        <button style={feed > 0 && aquarium.displayed.length > 0 ? button : disabledButton} disabled={feed === 0 || aquarium.displayed.length === 0} onClick={() => s.feedWithPellet()}>
+        <button style={feed > 0 && aquarium.displayed.length > 0 ? button : disabledButton} disabled={feed === 0 || aquarium.displayed.length === 0} onClick={(e) => {
+              e.currentTarget.blur()
+              s.feedWithPellet()
+            }}>
           사료 주기 (남은 사료 {feed})
         </button>
-        <button style={junk && aquarium.displayed.length > 0 ? button : disabledButton} disabled={!junk || aquarium.displayed.length === 0} onClick={() => junk && s.feedWithJunk(junk.id)}>
+        <button style={junk && aquarium.displayed.length > 0 ? button : disabledButton} disabled={!junk || aquarium.displayed.length === 0} onClick={(e) => {
+              e.currentTarget.blur()
+              if (junk) s.feedWithJunk(junk.id)
+            }}>
           잡어 주기
         </button>
       </div>
@@ -46,7 +55,10 @@ export function AquariumPanel() {
           <div key={fish.id} style={row}>
             <span style={{ flex: 1, color: species ? RARITY_COLOR[species.rarity] : undefined }}>{species?.name ?? '???'}</span>
             <span style={{ width: 70, textAlign: 'right' }}>{fish.weight}kg</span>
-            <button style={button} onClick={() => s.undisplayFish(fish.id)}>
+            <button style={button} onClick={(e) => {
+              e.currentTarget.blur()
+              s.undisplayFish(fish.id)
+            }}>
               빼기
             </button>
           </div>
@@ -61,7 +73,10 @@ export function AquariumPanel() {
           <div key={fish.id} style={row}>
             <span style={{ flex: 1, color: species ? RARITY_COLOR[species.rarity] : undefined }}>{species?.name ?? '???'}</span>
             <span style={{ width: 70, textAlign: 'right' }}>{fish.weight}kg</span>
-            <button style={full ? disabledButton : button} disabled={full} onClick={() => s.displayFish(fish.id)}>
+            <button style={full ? disabledButton : button} disabled={full} onClick={(e) => {
+              e.currentTarget.blur()
+              s.displayFish(fish.id)
+            }}>
               전시
             </button>
           </div>
@@ -80,11 +95,17 @@ export function AquariumPanel() {
             {active ? (
               <span style={{ color: '#ffd166', fontSize: 14 }}>사용 중</span>
             ) : owned ? (
-              <button style={button} onClick={() => s.selectTankType(type.id)}>
+              <button style={button} onClick={(e) => {
+              e.currentTarget.blur()
+              s.selectTankType(type.id)
+            }}>
                 바꾸기
               </button>
             ) : (
-              <button style={coins >= type.price ? button : disabledButton} disabled={coins < type.price} onClick={() => s.buyTankType(type.id)}>
+              <button style={coins >= type.price ? button : disabledButton} disabled={coins < type.price} onClick={(e) => {
+              e.currentTarget.blur()
+              s.buyTankType(type.id)
+            }}>
                 {type.price} 코인
               </button>
             )}
@@ -98,7 +119,10 @@ export function AquariumPanel() {
           <span style={{ flex: 1 }}>
             Lv{aquarium.level + 2}: {nextLevel.slots}칸 · 입장료 ×{nextLevel.incomeMul}
           </span>
-          <button style={coins >= nextLevel.price ? button : disabledButton} disabled={coins < nextLevel.price} onClick={() => s.buyAquariumExpansion()}>
+          <button style={coins >= nextLevel.price ? button : disabledButton} disabled={coins < nextLevel.price} onClick={(e) => {
+              e.currentTarget.blur()
+              s.buyAquariumExpansion()
+            }}>
             {nextLevel.price} 코인
           </button>
         </div>

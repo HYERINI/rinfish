@@ -20,22 +20,27 @@ const AQUARIUM_NOTICE: Record<AquariumEvent, string> = {
 export function PlayTimeTicker() {
   const pending = useRef(0)
   useFrame((_, delta) => {
+    const session = useSessionStore.getState()
+    // 메뉴를 열어 둔 동안은 시간이 흐르지 않는다. 멈춘 시간이 다음 틱에 몰려 들어가지 않게 비운다
+    if (session.mode === 'menu') {
+      pending.current = 0
+      return
+    }
     pending.current += clampDelta(delta)
     if (pending.current < 1) return
     const seconds = pending.current
     pending.current = 0
 
-    const session = useSessionStore.getState()
     const fighting = session.mode === 'fishing' && useFishingStore.getState().state?.stage === 'fighting'
     const events = useProgressStore.getState().tick(seconds, { fighting, resting: session.mode === 'rest' })
 
+    for (const event of events.aquarium) session.notify(AQUARIUM_NOTICE[event])
     if (events.fainted) {
       useFishingStore.getState().end()
       session.setMode('explore')
       session.requestTeleport(CLINIC_SPAWN)
       session.notify('쓰러졌다… 진료소에서 깨어났어요. 들고 있던 물고기를 잃고 진료비를 냈어요.')
     }
-    for (const event of events.aquarium) session.notify(AQUARIUM_NOTICE[event])
   })
   return null
 }

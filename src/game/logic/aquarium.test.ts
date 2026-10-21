@@ -18,7 +18,7 @@ import {
 
 const fish = (id: string, speciesId = 'sleepy-sardine'): FishInstance => ({ id, speciesId, weight: 0.2, caughtAtPlayTime: 0 })
 /** 일반 해변 물고기 1마리 = 분당 1코인 */
-const withSardine = (patch: Partial<AquariumState> = {}): AquariumState => ({ ...EMPTY_AQUARIUM, displayed: [fish('a')], ...patch })
+const withSardine = (patch: Partial<AquariumState> = {}): AquariumState => ({ ...EMPTY_AQUARIUM, displayed: [fish('a')], lastFedAt: 0, ...patch })
 const HUNGRY_AT = AQUARIUM.hungerAfter
 const RELEASE_AT = AQUARIUM.hungerAfter + AQUARIUM.releaseAfter
 
@@ -75,6 +75,21 @@ describe('전시', () => {
     expect(result.ok && result.aquarium.lastFedAt).toBe(500)
     const second = result.ok ? displayFish(result.aquarium, fish('b'), 900) : result
     expect(second.ok && second.aquarium.lastFedAt).toBe(500)
+  })
+
+  it('잠깐 비웠다가 다시 넣어도 배고픔 시계는 되돌아가지 않는다', () => {
+    const first = displayFish(EMPTY_AQUARIUM, fish('a'), 500)
+    if (!first.ok) throw new Error('display failed')
+    const emptied = removeFromDisplay(first.aquarium, 'a').aquarium
+    const again = displayFish(emptied, fish('a'), 1160)
+    expect(again.ok && again.aquarium.lastFedAt).toBe(500)
+    expect(again.ok && isHungry(again.aquarium, 1160)).toBe(true)
+  })
+
+  it('방생될 만큼 오래 비어 있던 어항은 다시 넣으면 막 밥을 먹은 상태로 시작한다', () => {
+    const emptied = { ...EMPTY_AQUARIUM, lastFedAt: 500 }
+    const again = displayFish(emptied, fish('a'), 500 + RELEASE_AT)
+    expect(again.ok && again.aquarium.lastFedAt).toBe(500 + RELEASE_AT)
   })
 
   it('칸이 꽉 차면 넣을 수 없다', () => {

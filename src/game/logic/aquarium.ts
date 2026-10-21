@@ -20,7 +20,8 @@ export const EMPTY_AQUARIUM: AquariumState = {
   ownedTypes: ['basic'],
   activeType: 'basic',
   displayed: [],
-  lastFedAt: 0,
+  /** -1 은 한 번도 먹이를 준 적(물고기를 넣은 적)이 없다는 뜻 */
+  lastFedAt: -1,
   pendingIncome: 0,
 }
 
@@ -70,8 +71,10 @@ export type DisplayResult = { ok: true; aquarium: AquariumState } | { ok: false;
 
 export function displayFish(aq: AquariumState, fish: FishInstance, playTime: number): DisplayResult {
   if (aq.displayed.length >= slotCount(aq)) return { ok: false, reason: 'full' }
-  // 빈 어항에 처음 넣을 때는 막 밥을 먹은 상태로 시작한다
-  const lastFedAt = aq.displayed.length === 0 ? playTime : aq.lastFedAt
+  // 한 번도 쓰지 않았거나, 물고기가 방생될 만큼 오래 비어 있던 어항은 막 밥을 먹은 상태로 시작한다.
+  // 물고기를 잠깐 빼고 다시 넣는 것으로는 배고픔 시계를 되돌릴 수 없다
+  const fresh = aq.lastFedAt < 0 || playTime - aq.lastFedAt >= AQUARIUM.hungerAfter + AQUARIUM.releaseAfter
+  const lastFedAt = aq.displayed.length === 0 && fresh ? playTime : aq.lastFedAt
   return { ok: true, aquarium: { ...aq, displayed: [...aq.displayed, fish], lastFedAt } }
 }
 

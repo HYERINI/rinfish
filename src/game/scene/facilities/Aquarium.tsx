@@ -1,5 +1,5 @@
 import { Html } from '@react-three/drei'
-import { RigidBody } from '@react-three/rapier'
+import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import type { TankTypeId } from '../../data/types'
 import { TANK_LEVELS, getTankType } from '../../data/aquarium'
 import { FACILITY } from '../../data/zones'
@@ -31,7 +31,9 @@ export function Aquarium() {
   return (
     <group position={[X, 0, Z]}>
       {/* 받침대 */}
-      <RigidBody type="fixed" colliders="cuboid">
+      <RigidBody type="fixed" colliders={false}>
+        {/* 확장하면 크기가 바뀌므로 자동 콜라이더 대신 args 로 다시 만든다. 유리 탱크 윗면까지 막는다 */}
+        <CuboidCollider args={[(w + 0.3) / 2, (STAND + h) / 2, (d + 0.3) / 2]} position={[0, (STAND + h) / 2, 0]} />
         <mesh position={[0, STAND / 2, 0]} castShadow receiveShadow>
           <boxGeometry args={[w + 0.3, STAND, d + 0.3]} />
           <meshStandardMaterial color="#5d4037" />

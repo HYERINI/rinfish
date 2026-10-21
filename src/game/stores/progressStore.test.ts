@@ -229,7 +229,7 @@ describe('progressStore', () => {
       ownedTypes: ['basic', 'sea'],
       activeType: 'basic',
       displayed: shown.slice(0, 6),
-      lastFedAt: 0,
+      lastFedAt: -1,
       pendingIncome: 3,
     })
   })
