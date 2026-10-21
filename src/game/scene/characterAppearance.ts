@@ -20,11 +20,15 @@ export type CharacterRig = {
   skin: MeshStandardMaterial[]
   hair: MeshStandardMaterial[]
   outfits: Record<OutfitId, { material: MeshStandardMaterial; base: Texture | null }[]>
+  /** 이 인스턴스가 복제한 재질 전부(눈 등 색을 안 바꾸는 것 포함). 내려갈 때 모두 정리한다 */
+  materials: Material[]
   bones: Map<string, Bone>
   /** 기본 자세에서 잰 값들 (배율 계산용) */
   rest: {
     /** 허벅지 시작 ~ 발목 높이 차 */
     legLength: number
+    /** 서 있을 때 발목(foot 뼈) 높이. 키 배율을 곱하면 발바닥이 땅에 닿는 발목 높이다 */
+    ankleHeight: number
     /** 뼈마다 로컬 축 */
     axes: Map<string, BoneAxes>
     /** 길이·어깨 조절로 옮기는 뼈들의 원래 위치 */
@@ -151,8 +155,9 @@ export function prepareCharacter(root: Object3D): CharacterRig {
 
   const thigh = bones.get('thigh_l')
   const foot = bones.get('foot_l')
+  const ankleHeight = foot ? foot.getWorldPosition(new Vector3()).y - root.getWorldPosition(tmp).y : 0.1
   const legLength = thigh && foot ? thigh.getWorldPosition(tmp).y - foot.getWorldPosition(new Vector3()).y : 0.8
-  const rig: CharacterRig = { root, parts, skin, hair, outfits, bones, rest: { legLength, axes, positions, shoulderSpan, skeletons: [...inverseCopies.values()] }, legScale: 1, lift: 0 }
+  const rig: CharacterRig = { root, parts, skin, hair, outfits, materials: [...cloned.values()], bones, rest: { legLength, ankleHeight, axes, positions, shoulderSpan, skeletons: [...inverseCopies.values()] }, legScale: 1, lift: 0 }
   prepared.set(root, rig)
   return rig
 }

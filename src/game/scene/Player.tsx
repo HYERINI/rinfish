@@ -13,6 +13,7 @@ import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { fishingFx } from './fishing/fishingFx'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 
@@ -73,8 +74,6 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 const FOOT_Y = -0.9
-/** 앉았을 때 모델 보정 (y: 위아래, z: 앞뒤). 엉덩이가 벤치 면에 닿게 */
-const SIT_OFFSET = { y: -0.04, z: -0.02 }
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
@@ -87,7 +86,6 @@ export function Player() {
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const model = useRef<PlayerModelHandle>(null)
-  const seat = useRef<Group>(null)
   /** 카메라가 플레이어 주위를 도는 각도 */
   const yaw = useRef(0)
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
@@ -170,7 +168,6 @@ export function Player() {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
     if (visual.current) visual.current.rotation.y = facing.current
-    seat.current?.position.set(0, FOOT_Y + (mode === 'rest' ? SIT_OFFSET.y : 0), mode === 'rest' ? SIT_OFFSET.z : 0)
 
     // 4) 낚싯대 각도: 젖혔다가 휘두르고, 줄다리기 땐 텐션만큼 휜다
     const fishing = useFishingStore.getState().state
@@ -182,9 +179,12 @@ export function Player() {
       if (fishing?.stage === 'aiming') fishingFx.windup = rod.current.rotation.x
 
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
+      // 앉아 있는 동안엔 낚싯대가 무릎을 뚫고 나오므로 숨긴다
+      rod.current.visible = mode !== 'rest'
       const m = model.current
       if (m && visual.current) {
-        m.update(delta, clock.elapsedTime, fishing, speed, rod.current.rotation.x, mode === 'rest')
+        // 골반은 벤치 자리에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
+        m.update(delta, clock.elapsedTime, fishing, speed, rod.current.rotation.x, mode === 'rest', BENCH_SEAT_SHAPE)
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
@@ -205,7 +205,7 @@ export function Player() {
     <RigidBody ref={body} colliders={false} position={[0, 2, 15]} enabledRotations={[false, false, false]}>
       <CapsuleCollider args={[0.5, 0.4]} />
       <group ref={visual}>
-        <group ref={seat} position={[0, FOOT_Y, 0]}>
+        <group position={[0, FOOT_Y, 0]}>
           <PlayerModel ref={model} look={look} />
         </group>
         {/* 낚싯대: 그룹을 x축으로 기울이면 앞(+z)으로 숙여진다. 위치는 매 프레임 손으로 옮긴다 (모델을 받기 전엔 이 자리) */}
