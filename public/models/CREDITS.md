@@ -29,3 +29,9 @@
 - 출처: https://kenney.nl — Food Kit, Furniture Kit, Nature Kit, Mini Characters
 - 라이선스: Creative Commons Zero (CC0). 출처 표기 의무는 없지만 기록해 둔다
 - 위치: `public/models/kenney/`
+
+## 꾸미기용 캐릭터 (characters/male.glb, female.glb)
+
+- 제작: Quaternius, 라이선스 CC0 1.0 (각 팩 zip 안 License 파일)
+- Universal Base Characters, Modular Character Outfits - Fantasy, Universal Animation Library 의 무료(Standard) 판을 합쳤다
+- 다시 만들기: `tools/build-characters/README.md`

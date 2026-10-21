@@ -1,0 +1,16 @@
+{
+  "name": "build-characters",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fetch": "python3 fetch-packs.py",
+    "build": "node build.mjs",
+    "inspect": "node inspect.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "sharp": "^0.34.0"
+  }
+}
