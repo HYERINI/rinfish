@@ -55,7 +55,9 @@ export function stepFishing(state: FishingState, input: FishingInput, dt: number
       return { ...state, bite }
     }
     case 'fighting': {
-      const fight = stepFight(state.fight, { reeling: input.pointerDown }, dt, ctx.rng)
+      // 약화·버프는 싸움 도중에도 바뀌므로 매 스텝 최신 보정값을 쓴다
+      const current = ctx.mods ? { ...state.fight, mods: ctx.mods } : state.fight
+      const fight = stepFight(current, { reeling: input.pointerDown }, dt, ctx.rng)
       if (fight.outcome === 'fighting') return { ...state, fight }
       return {
         stage: 'done',

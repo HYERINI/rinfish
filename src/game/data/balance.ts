@@ -80,3 +80,55 @@ export const CAST_RARITY_BONUS = { rare: 1, epic: 2 }
 
 /** 한 프레임에서 진행시킬 최대 시간(초). 탭 전환 후 큰 delta 방지 */
 export const MAX_FRAME_DELTA = 0.1
+
+/** 체력 */
+export const STAMINA = {
+  max: 100,
+  /** 한 번 던질 때 드는 체력 */
+  castCost: 4,
+  /** 줄다리기 중 초당 드는 체력 */
+  fightCostPerSecond: 1.5,
+  /** 체력 0이 된 뒤 쓰러지기까지 유예 시간(초) */
+  graceSeconds: 180,
+  /** 약화 상태에서 릴 속도에 곱하는 값 */
+  weakReelMul: 0.6,
+  /** 약화 상태에서 텐션 상승에 곱하는 값 */
+  weakTensionMul: 1.3,
+  /** 벤치에 앉아 있을 때 초당 회복량 */
+  benchRegenPerSecond: 2,
+}
+
+/** 쓰러졌을 때 보유 코인에서 진료비로 빠지는 비율 */
+export const FAINT_COIN_PENALTY = 0.2
+
+/** 요리 효과 배율. 희귀한 물고기로 만들수록 회복량과 버프 지속시간이 커진다 */
+export const DISH_POTENCY: Record<Rarity, number> = {
+  junk: 0.5,
+  common: 1,
+  rare: 1.5,
+  epic: 2,
+  legendary: 3,
+}
+
+/** 어항 */
+export const AQUARIUM = {
+  /** 마지막 급식 후 이 시간(초)이 지나면 배고픔 */
+  hungerAfter: 600,
+  /** 배고픈 상태로 이 시간(초)이 더 지나면 방생 */
+  releaseAfter: 600,
+  /** 방생 몇 초 전에 알림을 띄울지 */
+  releaseWarningBefore: 120,
+  /** 어항 종류와 맞는 구역 물고기의 수입 배율 */
+  typeBonus: 1.5,
+  /** 사료 1개 가격 */
+  feedPrice: 5,
+}
+
+/** 전시 물고기 한 마리가 1분에 버는 입장료 */
+export const VISITOR_INCOME_PER_MINUTE: Record<Rarity, number> = {
+  junk: 0,
+  common: 1,
+  rare: 3,
+  epic: 8,
+  legendary: 20,
+}

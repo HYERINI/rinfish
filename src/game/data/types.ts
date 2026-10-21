@@ -40,3 +40,10 @@ export type FishInstance = {
   weight: number
   caughtAtPlayTime: number
 }
+
+export type DishId = 'sashimi' | 'bowl' | 'stew'
+/** 요리 버프 종류. 같은 종류끼리는 겹치지 않고 남은 시간만 갱신된다 */
+export type BuffKind = 'reel' | 'tension'
+/** remaining: 남은 플레이 시간(초) */
+export type Buff = { kind: BuffKind; mul: number; remaining: number }
+export type TankTypeId = 'basic' | 'sea' | 'fresh' | 'cave'

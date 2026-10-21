@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { FIGHT } from '../data/balance'
+import { createFight } from './fight'
 import { startFishing, stepFishing, type FishingContext, type FishingState } from './fishingSession'
 import { fixedRng } from './rng'
 
@@ -65,5 +67,21 @@ describe('stepFishing', () => {
     let s = cast()
     s = stepFishing(s, click, 0.01, ctx)
     expect(stepFishing(s, click, 1, ctx)).toBe(s)
+  })
+})
+
+describe('싸움 중 보정값', () => {
+  it('약화·버프가 바뀌면 진행 중인 싸움에 바로 반영된다', () => {
+    const gear = { maxTension: 100, reelSpeed: 8, shockAbsorb: 1 }
+    // rng 0.5: 지구전 패턴의 첫 당김은 2초 뒤라 0.1초 동안은 당김이 없다
+    const fight = createFight({ strength: 2, pattern: 'endurance' }, gear, fixedRng(0.5))
+    const state: FishingState = { stage: 'fighting', castPower: 0.5, speciesId: 'sleepy-sardine', weight: 0.2, fight }
+    const reel = { pointerDown: true, pressed: false }
+    const base = { zone: 'beach' as const, gear, rng: fixedRng(0.5) }
+
+    const normal = stepFishing(state, reel, 0.1, base)
+    const slowed = stepFishing(state, reel, 0.1, { ...base, mods: { reelSpeedMul: 0.5, tensionMul: 1 } })
+    if (normal.stage !== 'fighting' || slowed.stage !== 'fighting') throw new Error('싸움이 끝나면 안 된다')
+    expect(FIGHT.startDistance - slowed.fight.distance).toBeCloseTo((FIGHT.startDistance - normal.fight.distance) / 2)
   })
 })
