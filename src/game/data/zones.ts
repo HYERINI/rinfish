@@ -49,3 +49,14 @@ export function getSpot(id: string): FishingSpot {
   if (!spot) throw new Error(`알 수 없는 낚시 포인트: ${id}`)
   return spot
 }
+
+/** 선착장 해변 시설 위치 [x, z]. 바닥(y=0) 기준 */
+export const FACILITY = {
+  market: [12, 12] as [number, number],
+  aquarium: [14, 19] as [number, number],
+  clinic: [-14, 10] as [number, number],
+  bench: [-5, 21] as [number, number],
+}
+
+/** 쓰러지면 깨어나는 곳 (진료소 앞) */
+export const CLINIC_SPAWN: [number, number] = [FACILITY.clinic[0], FACILITY.clinic[1] + 2.5]

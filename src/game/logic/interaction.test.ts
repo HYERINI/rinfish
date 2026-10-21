@@ -42,4 +42,19 @@ describe('resolveKeyAction', () => {
   it('다른 키는 무시한다', () => {
     expect(resolveKeyAction('KeyW', 'explore', spot)).toEqual({ type: 'none' })
   })
+
+  it('어시장·어항은 패널을 열고, 벤치는 앉는다', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'market' })).toEqual({ type: 'openMode', mode: 'market' })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'aquarium' })).toEqual({ type: 'openMode', mode: 'aquarium' })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'bench' })).toEqual({ type: 'openMode', mode: 'rest' })
+  })
+
+  it('앉아 있을 때 E나 ESC를 누르면 일어난다', () => {
+    expect(resolveKeyAction('KeyE', 'rest', { kind: 'bench' })).toEqual({ type: 'closePanel' })
+    expect(resolveKeyAction('Escape', 'rest', { kind: 'bench' })).toEqual({ type: 'closePanel' })
+  })
+
+  it('패널이 열려 있을 때 E는 아무 일도 하지 않는다', () => {
+    expect(resolveKeyAction('KeyE', 'market', { kind: 'market' })).toEqual({ type: 'none' })
+  })
 })

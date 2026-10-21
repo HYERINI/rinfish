@@ -7,6 +7,9 @@ const PROMPT: Record<Interactable['kind'], string> = {
   fishingSpot: 'E  낚시하기',
   sellBox: 'E  물고기 팔기',
   gearShop: 'E  장비 상점',
+  market: 'E  어시장',
+  bench: 'E  앉아서 쉬기',
+  aquarium: 'E  어항',
 }
 
 export function Hud() {

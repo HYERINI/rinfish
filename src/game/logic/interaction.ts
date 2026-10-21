@@ -1,8 +1,14 @@
-/** 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지) */
-export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu'
+/** 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중 */
+export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest'
 
 /** E 키로 상호작용할 수 있는 대상 */
-export type Interactable = { kind: 'fishingSpot'; spotId: string } | { kind: 'sellBox' } | { kind: 'gearShop' }
+export type Interactable =
+  | { kind: 'fishingSpot'; spotId: string }
+  | { kind: 'sellBox' }
+  | { kind: 'gearShop' }
+  | { kind: 'market' }
+  | { kind: 'bench' }
+  | { kind: 'aquarium' }
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
@@ -23,6 +29,8 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
     if (mode === 'fishing') return { type: 'stopFishing' }
     return { type: 'closePanel' }
   }
+  // 벤치에 앉아 있으면 E로도 일어난다
+  if (code === 'KeyE' && mode === 'rest') return { type: 'closePanel' }
   if (code === 'KeyE' && mode === 'explore' && nearby) {
     switch (nearby.kind) {
       case 'fishingSpot':
@@ -31,6 +39,12 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
         return { type: 'openMode', mode: 'sell' }
       case 'gearShop':
         return { type: 'openMode', mode: 'shop' }
+      case 'market':
+        return { type: 'openMode', mode: 'market' }
+      case 'aquarium':
+        return { type: 'openMode', mode: 'aquarium' }
+      case 'bench':
+        return { type: 'openMode', mode: 'rest' }
     }
   }
   return { type: 'none' }
