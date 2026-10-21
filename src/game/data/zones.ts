@@ -56,7 +56,11 @@ export const FACILITY = {
   aquarium: [14, 19] as [number, number],
   clinic: [-14, 10] as [number, number],
   bench: [-5, 21] as [number, number],
+  wardrobe: [7, 22] as [number, number],
 }
 
 /** 쓰러지면 깨어나는 곳 (진료소 앞) */
 export const CLINIC_SPAWN: [number, number] = [FACILITY.clinic[0], FACILITY.clinic[1] + 2.5]
+
+/** 벤치에 앉을 때 플레이어가 놓이는 자리와 바라보는 각도(0 = +z, 바다 쪽) */
+export const BENCH_SEAT = { position: [FACILITY.bench[0], FACILITY.bench[1]] as [number, number], facing: 0 }

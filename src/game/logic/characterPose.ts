@@ -7,9 +7,9 @@ import type { FishingState } from './fishingSession'
  * - tug: aim 자세 그대로 뒤로 젖혀 버틴다 (상체 젖힘은 scene 에서 덧입힌다)
  * - dragged: 물고기가 당기면 앞으로 끌려가며 허우적댄다
  */
-export type CharacterPose = 'idle' | 'walk' | 'run' | 'aim' | 'tug' | 'dragged' | 'celebrate' | 'fallBack' | 'dejected'
+export type CharacterPose = 'idle' | 'walk' | 'run' | 'aim' | 'tug' | 'dragged' | 'celebrate' | 'fallBack' | 'dejected' | 'sit' | 'standUp'
 
-export const CHARACTER_POSES: CharacterPose[] = ['idle', 'walk', 'run', 'aim', 'tug', 'dragged', 'celebrate', 'fallBack', 'dejected']
+export const CHARACTER_POSES: CharacterPose[] = ['idle', 'walk', 'run', 'aim', 'tug', 'dragged', 'celebrate', 'fallBack', 'dejected', 'sit', 'standUp']
 
 /** 이 속도(m/s)보다 느리면 서 있는다 */
 export const WALK_MIN_SPEED = 0.3
@@ -24,9 +24,11 @@ const AIM_UP_ANGLE = -1.3
 const AIM_NEUTRAL_ANGLE = 0.5
 const AIM_DOWN_ANGLE = 1.3
 
-export function characterPose(fishing: FishingState | null, speed: number): CharacterPose {
+/** resting: 벤치에 앉아 쉬는 중. standingUp: 막 일어나는 중(일어나기 클립 재생 시간 동안) */
+export function characterPose(fishing: FishingState | null, speed: number, resting = false, standingUp = false): CharacterPose {
+  if (resting) return 'sit'
   if (!fishing) {
-    if (speed < WALK_MIN_SPEED) return 'idle'
+    if (speed < WALK_MIN_SPEED) return standingUp ? 'standUp' : 'idle'
     return speed < RUN_MIN_SPEED ? 'walk' : 'run'
   }
   switch (fishing.stage) {
@@ -54,8 +56,8 @@ export function aimWeights(rodAngle: number): { up: number; neutral: number; dow
   return { up: 0, neutral: 1 - k, down: k }
 }
 
-/** 자세 하나를 이루는 클립과 비율 */
-export function poseClips(pose: CharacterPose, rodAngle: number): [CharacterClip, number][] {
+/** 자세 하나를 이루는 클립과 비율. sitEntering: 앉기 시작 클립이 아직 끝나지 않았다 */
+export function poseClips(pose: CharacterPose, rodAngle: number, sitEntering = false): [CharacterClip, number][] {
   switch (pose) {
     case 'aim':
     case 'tug': {
@@ -66,6 +68,10 @@ export function poseClips(pose: CharacterPose, rodAngle: number): [CharacterClip
         ['aimDown', w.down],
       ]
     }
+    case 'sit':
+      return [[sitEntering ? 'sitEnter' : 'sitIdle', 1]]
+    case 'standUp':
+      return [['sitExit', 1]]
     default:
       return [[pose, 1]]
   }

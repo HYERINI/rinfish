@@ -57,4 +57,13 @@ describe('resolveKeyAction', () => {
   it('패널이 열려 있을 때 E는 아무 일도 하지 않는다', () => {
     expect(resolveKeyAction('KeyE', 'market', { kind: 'market' })).toEqual({ type: 'none' })
   })
+
+  it('옷장에서 E를 누르면 꾸미기 화면을 연다', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'wardrobe' })).toEqual({ type: 'openMode', mode: 'wardrobe' })
+  })
+
+  it('처음 캐릭터를 만드는 중(잠금)엔 ESC로 닫히지 않는다', () => {
+    expect(resolveKeyAction('Escape', 'wardrobe', null, true)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Escape', 'wardrobe', null, false)).toEqual({ type: 'closePanel' })
+  })
 })

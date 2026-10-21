@@ -13,6 +13,7 @@ const PROMPT: Record<Interactable['kind'], string> = {
   market: 'E  어시장',
   bench: 'E  앉아서 쉬기',
   aquarium: 'E  어항',
+  wardrobe: 'E  옷장 (꾸미기)',
 }
 
 /** 알림을 띄워 두는 시간 */

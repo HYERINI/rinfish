@@ -78,3 +78,20 @@ describe('leanBack', () => {
     expect(leanBack(null)).toBe(0)
   })
 })
+
+describe('앉기', () => {
+  it('벤치에서 쉬는 중이면 앉는다', () => {
+    expect(characterPose(null, 0, true)).toBe('sit')
+  })
+
+  it('일어나는 중이고 움직이지 않으면 일어서는 자세, 움직이면 바로 걷는다', () => {
+    expect(characterPose(null, 0, false, true)).toBe('standUp')
+    expect(characterPose(null, 1, false, true)).toBe('walk')
+  })
+
+  it('앉는 중엔 앉기 시작 클립, 다 앉으면 앉아 있기 클립, 일어설 땐 일어나기 클립', () => {
+    expect(poseClips('sit', 0, true)).toEqual([['sitEnter', 1]])
+    expect(poseClips('sit', 0, false)).toEqual([['sitIdle', 1]])
+    expect(poseClips('standUp', 0)).toEqual([['sitExit', 1]])
+  })
+})

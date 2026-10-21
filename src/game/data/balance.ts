@@ -132,3 +132,13 @@ export const VISITOR_INCOME_PER_MINUTE: Record<Rarity, number> = {
   epic: 8,
   legendary: 20,
 }
+
+/** 마우스 휠 줌. 카메라 높이는 거리 × heightRatio */
+export const CAMERA_ZOOM = {
+  min: 4,
+  max: 18,
+  initial: 10,
+  heightRatio: 0.7,
+  /** 휠 deltaY 1당 거리 배율 변화 (지수) */
+  sensitivity: 0.0015,
+}
