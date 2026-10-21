@@ -24,12 +24,20 @@ function Preview({ look }: { look: CharacterLook }) {
     <group
       ref={turn}
       onPointerDown={(e) => {
+        // 포인터를 붙잡아 두면 모델 밖에서 손을 떼도 pointerup 이 이 그룹으로 온다
+        ;(e.target as Element).setPointerCapture(e.pointerId)
         drag.current.active = true
         drag.current.x = e.clientX
       }}
       onPointerUp={() => (drag.current.active = false)}
+      onLostPointerCapture={() => (drag.current.active = false)}
       onPointerMove={(e) => {
         if (!drag.current.active) return
+        // 그래도 버튼이 이미 떼어져 있으면(캔버스 밖에서 놓은 경우 등) 드래그를 끝낸다. 손을 뗀 채 지나가기만 해도 돌면 안 된다
+        if (e.buttons === 0) {
+          drag.current.active = false
+          return
+        }
         drag.current.extra += (e.clientX - drag.current.x) * 0.01
         drag.current.x = e.clientX
       }}
