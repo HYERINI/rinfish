@@ -5,7 +5,7 @@ import { AQUARIUM, STAMINA } from '../data/balance'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
 import { findSpecies } from '../data/fish'
-import type { Buff, DishId, FishInstance, GearLevels, GearSlot, TankTypeId } from '../data/types'
+import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId } from '../data/types'
 import {
   EMPTY_AQUARIUM,
   buyExpansion,
@@ -19,6 +19,7 @@ import {
   type AquariumEvent,
   type AquariumState,
 } from '../logic/aquarium'
+import { normalizeLook } from '../logic/characterLook'
 import { cook } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
@@ -29,6 +30,8 @@ export const SAVE_KEY = 'fishing-island-save-v1'
 export type DexEntry = { count: number; maxWeight: number }
 
 type ProgressData = {
+  /** 플레이어 생김새. null 이면 아직 만들지 않았다 */
+  look: CharacterLook | null
   coins: number
   gear: GearLevels
   /** 아직 팔지 않은 물고기 */
@@ -69,9 +72,11 @@ type ProgressActions = {
   buyAquariumExpansion: () => boolean
   buyTankType: (typeId: TankTypeId) => boolean
   selectTankType: (typeId: TankTypeId) => void
+  setLook: (look: CharacterLook) => void
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
+  look: null,
   coins: 0,
   gear: { line: 0, reel: 0, rod: 0 },
   inventory: [],
@@ -312,6 +317,8 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
 
       selectTankType: (typeId) => set((s) => ({ aquarium: selectTankTypeRule(s.aquarium, typeId) })),
 
+      setLook: (look) => set({ look: normalizeLook(look) }),
+
       resetProgress: () => set({ ...INITIAL_PROGRESS }),
     }),
     {
@@ -323,6 +330,7 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
         const saved = isRecord(persisted) ? persisted : {}
         return {
           ...current,
+          look: normalizeLook(saved.look),
           coins: readNonNegative(saved.coins, current.coins),
           playTime: readNonNegative(saved.playTime, current.playTime),
           gear: readGear(saved.gear, current.gear),

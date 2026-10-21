@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AQUARIUM, STAMINA } from '../data/balance'
+import { DEFAULT_LOOK, LOOK_PRESETS } from '../data/characterParts'
 import { EMPTY_AQUARIUM } from '../logic/aquarium'
 import { INITIAL_PROGRESS, SAVE_KEY, useProgressStore } from './progressStore'
 
@@ -232,5 +233,26 @@ describe('progressStore', () => {
       lastFedAt: -1,
       pendingIncome: 3,
     })
+  })
+
+  it('처음엔 모습이 없고, 정하면 저장된다', () => {
+    expect(store().look).toBeNull()
+    store().setLook(LOOK_PRESETS[1].look)
+    expect(store().look).toEqual(LOOK_PRESETS[1].look)
+  })
+
+  it('정할 때도 범위 밖 값은 고쳐서 저장한다', () => {
+    store().setLook({ ...DEFAULT_LOOK, height: 99 })
+    expect(store().look?.height).toBe(1.3)
+  })
+
+  it('모습이 없는 예전 저장본은 null, 깨진 모습은 고쳐서 불러온다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().look).toBeNull()
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { look: { ...DEFAULT_LOOK, gender: 'female', beard: true, hair: 'x' } }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().look).toMatchObject({ gender: 'female', beard: false, hair: DEFAULT_LOOK.hair })
   })
 })
