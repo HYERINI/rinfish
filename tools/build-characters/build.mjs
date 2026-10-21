@@ -2,6 +2,7 @@
 // 사용: npm run fetch 로 .cache 를 채운 뒤 npm run build
 // 노드·재질·클립 이름은 게임 코드(src/game/data/characterParts.ts)가 그대로 쓴다. 바꾸면 거기도 바꿔야 한다
 import { NodeIO } from '@gltf-transform/core'
+import { KHRMeshQuantization } from '@gltf-transform/extensions'
 import { compactPrimitive, dedup, mergeDocuments, prune, quantize, resample, textureCompress, unpartition } from '@gltf-transform/functions'
 import sharp from 'sharp'
 import fs from 'node:fs'
@@ -11,7 +12,8 @@ import { fileURLToPath } from 'node:url'
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const CACHE = path.join(HERE, '.cache')
 const OUT = path.resolve(HERE, '../../public/models/characters')
-const io = new NodeIO()
+// quantize() 가 붙이는 KHR_mesh_quantization 을 등록해야 쓸 때 extensionsUsed/Required 에 남는다
+const io = new NodeIO().registerExtensions([KHRMeshQuantization])
 
 // ---- 원본 경로 ----
 const BASE = path.join(CACHE, 'universal-base-characters/Universal Base Characters[Standard]')
@@ -165,7 +167,8 @@ function rebind(doc, node, refSkin) {
       const m = new Array(16).fill(0)
       for (let k = 0; k < 4; k++) if (w[k] > 0) for (let e = 0; e < 16; e++) m[e] += w[k] * corr[j[k]][e]
       const wsum = w[0] + w[1] + w[2] + w[3]
-      for (let e = 0; e < 16; e++) m[e] /= wsum
+      if (wsum > 0) for (let e = 0; e < 16; e++) m[e] /= wsum
+      else m.splice(0, 16, ...corr[j[0]]) // 가중치가 모두 0인 꼭짓점: 첫 관절 보정만 쓴다
       P.set(point(m, p), v * 3)
       // 행렬이 회전+이동뿐이라(크기 1) 방향 벡터는 3x3 그대로 돌리면 된다
       const d = dir(m, q), len = Math.hypot(...d) || 1
@@ -182,7 +185,11 @@ function rebind(doc, node, refSkin) {
 // 몸 메시에서 머리·목만 남긴다: 세 꼭짓점 모두 가장 큰 가중치의 뼈가 neck_01 이나 Head 인 삼각형
 function cutHead(node, refSkin) {
   const names = refSkin.listJoints().map((j) => j.getName())
-  const keepBones = new Set(['neck_01', 'Head'].map((n) => names.indexOf(n)))
+  const keepBones = new Set(['neck_01', 'Head'].map((n) => {
+    const i = names.indexOf(n)
+    if (i < 0) throw new Error(`기준 뼈대에 ${n} 뼈가 없다`)
+    return i
+  }))
   for (const prim of node.getMesh().listPrimitives()) {
     const jnt = prim.getAttribute('JOINTS_0'), wgt = prim.getAttribute('WEIGHTS_0')
     const n = jnt.getCount()
