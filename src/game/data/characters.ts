@@ -44,10 +44,3 @@ export const OUTFIT_ALT_TEXTURES: Record<OutfitId, string> = {
   peasant: 'characters/textures/peasant_alt.jpg',
   ranger: 'characters/textures/ranger_alt.jpg',
 }
-
-/** 꾸미기 모델로 바꾸기 전까지 쓰는 이전 캐릭터 (모습 적용 작업에서 지운다) */
-export const PLAYER_CHARACTER = {
-  name: '어부 할아버지',
-  file: 'fisherman.glb',
-  clips: { idle: 'Idle_Loop', walk: 'Walk_Loop', run: 'Jog_Fwd_Loop', aimUp: 'Pistol_Aim_Up', aimNeutral: 'Pistol_Aim_Neutral', aimDown: 'Pistol_Aim_Down', dragged: 'Push_Loop', celebrate: 'Dance_Loop', fallBack: 'Death01', dejected: 'Crouch_Idle_Loop' } as Partial<Record<CharacterClip, string>>,
-}

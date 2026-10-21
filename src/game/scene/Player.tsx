@@ -8,7 +8,9 @@ import { isKeyDown } from '../input/keys'
 import { isPointerDown } from '../input/pointer'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
+import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
+import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { fishingFx } from './fishing/fishingFx'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
@@ -89,6 +91,7 @@ export function Player() {
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
   const facing = useRef(Math.PI)
   const camera = useThree((s) => s.camera)
+  const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
 
   // 탐험 중 마우스 드래그로 카메라 회전
   useEffect(() => {
@@ -169,7 +172,7 @@ export function Player() {
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
       const m = model.current
       if (m && visual.current) {
-        m.update(delta, clock.elapsedTime, fishing, speed, rod.current.rotation.x)
+        m.update(delta, clock.elapsedTime, fishing, speed, rod.current.rotation.x, mode === 'rest')
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
@@ -189,7 +192,7 @@ export function Player() {
       <CapsuleCollider args={[0.5, 0.4]} />
       <group ref={visual}>
         <group position={[0, FOOT_Y, 0]}>
-          <PlayerModel ref={model} />
+          <PlayerModel ref={model} look={look} />
         </group>
         {/* 낚싯대: 그룹을 x축으로 기울이면 앞(+z)으로 숙여진다. 위치는 매 프레임 손으로 옮긴다 (모델을 받기 전엔 이 자리) */}
         <group ref={rod} position={[-0.35, 0.1, 0.2]}>

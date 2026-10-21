@@ -1,21 +1,25 @@
-import { useGLTF } from '@react-three/drei'
+import { useGLTF, useTexture } from '@react-three/drei'
 import { forwardRef, Suspense, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react'
-import { AnimationMixer, LoopOnce, Quaternion, Vector3, type AnimationAction, type Object3D } from 'three'
+import { AnimationMixer, LoopOnce, Quaternion, SRGBColorSpace, Vector3, type AnimationAction, type Object3D, type Texture } from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import { PLAYER_CHARACTER, type CharacterClip } from '../data/characters'
+import { CHARACTER_CLIPS, CHARACTER_FILES, OUTFIT_ALT_TEXTURES, type CharacterClip } from '../data/characters'
+import type { CharacterLook, OutfitId } from '../data/types'
 import { CHARACTER_POSES, characterPose, clipTimeScale, leanBack, poseClips, type CharacterPose } from '../logic/characterPose'
 import type { FishingState } from '../logic/fishingSession'
+import { applyLook, prepareCharacter } from './characterAppearance'
 
 /** Player 가 매 프레임 부르는 조종 손잡이 */
 export type PlayerModelHandle = {
   /** 자세 고르기 → 애니메이션 섞기 → 줄다리기 상체 젖힘 덧입히기 */
-  update(delta: number, now: number, fishing: FishingState | null, speed: number, rodAngle: number): void
+  update(delta: number, now: number, fishing: FishingState | null, speed: number, rodAngle: number, resting: boolean): void
   /** 낚싯대를 쥔 손(주먹 가운데)의 월드 위치 */
   gripPosition(target: Vector3): void
 }
 
-const modelUrl = `${import.meta.env.BASE_URL}models/${PLAYER_CHARACTER.file}`
-useGLTF.preload(modelUrl)
+const modelUrl = (file: string) => `${import.meta.env.BASE_URL}models/${file}`
+// 성별을 바꾸면 다른 파일이 필요하므로 둘 다 미리 받아 둔다
+for (const file of Object.values(CHARACTER_FILES)) useGLTF.preload(modelUrl(file))
+const ALT_URLS = Object.values(OUTFIT_ALT_TEXTURES).map(modelUrl)
 
 /** 자세가 바뀔 때 섞이는 속도. 클수록 빨리 바뀐다 */
 const FADE_SPEED = 8
@@ -44,9 +48,28 @@ function bendBone(bone: Object3D, root: Object3D, angle: number) {
   bone.quaternion.premultiply(turn.setFromAxisAngle(axis, angle))
 }
 
-const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
-  const { scene, animations } = useGLTF(modelUrl)
+const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Model({ look }, ref) {
+  const { scene, animations } = useGLTF(modelUrl(CHARACTER_FILES[look.gender]))
+  const [peasantAlt, rangerAlt] = useTexture(ALT_URLS)
+  const altMaps = useMemo(() => {
+    for (const t of [peasantAlt, rangerAlt]) {
+      t.flipY = false // glTF 텍스처와 같은 방향
+      t.colorSpace = SRGBColorSpace
+      t.needsUpdate = true
+    }
+    return { peasant: peasantAlt, ranger: rangerAlt } as Record<OutfitId, Texture>
+  }, [peasantAlt, rangerAlt])
   const object = useMemo(() => cloneSkinned(scene), [scene])
+  // 기본 자세에서 축·길이를 재야 하므로 믹서가 돌기 전에 준비한다
+  const rig = useMemo(() => prepareCharacter(object), [object])
+  useLayoutEffect(() => applyLook(rig, look, altMaps), [rig, look, altMaps])
+  // 인스턴스마다 복제한 재질은 내려갈 때 정리한다 (텍스처는 원본과 같이 쓰므로 그대로 둔다)
+  useEffect(
+    () => () => {
+      for (const mat of [...rig.skin, ...rig.hair, ...rig.outfits.peasant.map((o) => o.material), ...rig.outfits.ranger.map((o) => o.material)]) mat.dispose()
+    },
+    [rig],
+  )
   // drei useAnimations 는 자기 useFrame 에서 mixer 를 돌려서, 그 뒤에 뼈를 덧돌리는 순서를 보장할 수 없다. 직접 만든다
   const mixer = useMemo(() => new AnimationMixer(object), [object])
 
@@ -54,12 +77,12 @@ const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
   const actionsRef = useRef<Record<CharacterClip, AnimationAction> | null>(null)
   useEffect(() => {
     const map = {} as Record<CharacterClip, AnimationAction>
-    for (const [key, name] of Object.entries(PLAYER_CHARACTER.clips) as [CharacterClip, string][]) {
+    for (const [key, name] of Object.entries(CHARACTER_CLIPS) as [CharacterClip, string][]) {
       const clip = animations.find((a) => a.name === name)
       if (!clip) throw new Error(`캐릭터 애니메이션이 없다: ${name}`)
       const action = mixer.clipAction(clip)
-      if (key === 'fallBack') {
-        // 넘어지는 건 한 번만, 넘어진 채로 멈춘다
+      if (key === 'fallBack' || key === 'sitEnter' || key === 'sitExit') {
+        // 넘어지기·앉기·일어나기는 한 번만, 끝난 자세로 멈춘다
         action.setLoop(LoopOnce, 1)
         action.clampWhenFinished = true
       }
@@ -89,6 +112,9 @@ const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
     /** 자세별 현재 비율. 합은 늘 1 */
     weights: Object.fromEntries(CHARACTER_POSES.map((p) => [p, p === 'idle' ? 1 : 0])) as Record<CharacterPose, number>,
     lean: 0,
+    /** 앉기 시작 / 일어나기 시작 시각 */
+    sitAt: -1,
+    standAt: -1,
   })
 
   useLayoutEffect(() => {
@@ -101,16 +127,27 @@ const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
   useImperativeHandle(
     ref,
     () => ({
-      update(delta, now, fishing, speed, rodAngle) {
+      update(delta, now, fishing, speed, rodAngle, resting) {
         const actions = actionsRef.current
         if (!actions) return
         const a = anim.current
-        const pose = characterPose(fishing, speed)
+        const standingUp = a.standAt >= 0 && now - a.standAt < actions.sitExit.getClip().duration
+        const pose = characterPose(fishing, speed, resting, standingUp)
         if (pose !== a.pose) {
-          // 넘어지기는 처음부터 다시
+          // 넘어지기·앉기는 처음부터 다시
           if (pose === 'fallBack') actions.fallBack.reset().play()
+          if (pose === 'sit') {
+            actions.sitEnter.reset().play()
+            a.sitAt = now
+          }
+          // 앉아 있다가 다른 자세가 되면(일어선 자세가 오기 전 idle 로 바로 바뀌는 프레임 포함) 늘 일어나기부터 시작한다
+          if (a.pose === 'sit') {
+            actions.sitExit.reset().play()
+            a.standAt = now
+          }
           a.pose = pose
         }
+        const sitEntering = pose === 'sit' && now - a.sitAt < actions.sitEnter.getClip().duration
 
         // 1) 자세 비율을 목표(지금 자세 1, 나머지 0)로 부드럽게 옮긴다
         const k = 1 - Math.exp(-delta * FADE_SPEED)
@@ -121,7 +158,7 @@ const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
         for (const clip of Object.keys(actions) as CharacterClip[]) clipWeight[clip] = 0
         for (const p of CHARACTER_POSES) {
           if (a.weights[p] < 1e-3) continue
-          for (const [clip, share] of poseClips(p, rodAngle)) clipWeight[clip] += a.weights[p] * share
+          for (const [clip, share] of poseClips(p, rodAngle, sitEntering)) clipWeight[clip] += a.weights[p] * share
         }
         for (const clip of Object.keys(actions) as CharacterClip[]) {
           actions[clip].setEffectiveWeight(clipWeight[clip])
@@ -143,7 +180,7 @@ const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
         const drag = a.weights.dragged
         object.position.z = drag * (DRAG_SLIDE + Math.sin(now * 30) * 0.03)
         // 5) 잡았을 땐 춤추면서 깡충깡충
-        object.position.y = a.weights.celebrate * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT + a.weights.fallBack * FALL_LIFT
+        object.position.y = rig.lift + a.weights.celebrate * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT + a.weights.fallBack * FALL_LIFT
       },
       gripPosition(target) {
         if (!bones.hand || !bones.knuckle) return
@@ -153,20 +190,21 @@ const Model = forwardRef<PlayerModelHandle>(function Model(_, ref) {
         target.lerp(knuckle, 0.6)
       },
     }),
-    [bones, mixer, object],
+    [bones, mixer, object, rig],
   )
 
   return <primitive object={object} />
 })
 
 /**
- * 플레이어 캐릭터 모델 (Quaternius, CC0). 발이 원점, 얼굴이 +z 쪽.
+ * 플레이어 캐릭터 모델 (Quaternius, CC0). 발이 원점, 얼굴이 +z 쪽. look 대로 꾸민다.
  * 모델을 받는 동안엔 ref 가 비어 있다
  */
-export const PlayerModel = forwardRef<PlayerModelHandle>(function PlayerModel(_, ref) {
+export const PlayerModel = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function PlayerModel({ look }, ref) {
   return (
     <Suspense fallback={null}>
-      <Model ref={ref} />
+      {/* 성별이 바뀌면 다른 파일이라 새로 만든다 */}
+      <Model key={look.gender} ref={ref} look={look} />
     </Suspense>
   )
 })
