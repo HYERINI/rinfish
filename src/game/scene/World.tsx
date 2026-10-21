@@ -1,11 +1,17 @@
 import { FishingSpots } from './facilities/FishingSpots'
+import { preloadFacilityAssets } from './assets'
+import { Bench } from './facilities/Bench'
+import { Clinic } from './facilities/Clinic'
 import { GearShop } from './facilities/GearShop'
+import { Market } from './facilities/Market'
 import { SellBox } from './facilities/SellBox'
 import { FishingController } from './fishing/FishingController'
 import { FishingVisuals } from './fishing/FishingVisuals'
 import { Island } from './Island'
 import { Player } from './Player'
 import { PlayTimeTicker } from './PlayTimeTicker'
+
+preloadFacilityAssets()
 
 export function World() {
   return (
@@ -29,6 +35,9 @@ export function World() {
       <FishingSpots />
       <SellBox />
       <GearShop />
+      <Market />
+      <Clinic />
+      <Bench />
       <FishingController />
       <FishingVisuals />
       <PlayTimeTicker />
