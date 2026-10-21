@@ -7,6 +7,7 @@ import { useKeyboardTracking } from './input/keys'
 import { pressPointer, usePointerRelease } from './input/pointer'
 import { World } from './scene/World'
 import { useFishingStore } from './stores/fishingStore'
+import { useProgressStore } from './stores/progressStore'
 import { useSessionStore } from './stores/sessionStore'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { Hud } from './ui/Hud'
@@ -37,6 +38,8 @@ export function Game({ onExit }: GameProps) {
   useEffect(() => {
     useSessionStore.getState().resetSession()
     useFishingStore.getState().end()
+    // 아직 캐릭터를 만들지 않았으면 꾸미기 화면부터
+    if (!useProgressStore.getState().look) useSessionStore.getState().setMode('wardrobe')
   }, [])
 
   return (

@@ -5,6 +5,7 @@ import { Bench } from './facilities/Bench'
 import { Clinic } from './facilities/Clinic'
 import { GearShop } from './facilities/GearShop'
 import { Market } from './facilities/Market'
+import { Wardrobe } from './facilities/Wardrobe'
 import { SellBox } from './facilities/SellBox'
 import { FishingController } from './fishing/FishingController'
 import { FishingVisuals } from './fishing/FishingVisuals'
@@ -39,6 +40,7 @@ export function World() {
       <Market />
       <Clinic />
       <Bench />
+      <Wardrobe />
       <Aquarium />
       <FishingController />
       <FishingVisuals />

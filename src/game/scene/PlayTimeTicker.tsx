@@ -21,8 +21,8 @@ export function PlayTimeTicker() {
   const pending = useRef(0)
   useFrame((_, delta) => {
     const session = useSessionStore.getState()
-    // 메뉴를 열어 둔 동안은 시간이 흐르지 않는다. 멈춘 시간이 다음 틱에 몰려 들어가지 않게 비운다
-    if (session.mode === 'menu') {
+    // 메뉴나 꾸미기 화면을 열어 둔 동안은 시간이 흐르지 않는다. 멈춘 시간이 다음 틱에 몰려 들어가지 않게 비운다
+    if (session.mode === 'menu' || session.mode === 'wardrobe') {
       pending.current = 0
       return
     }

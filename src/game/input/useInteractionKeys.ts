@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { resolveKeyAction } from '../logic/interaction'
 import { useFishingStore } from '../stores/fishingStore'
+import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 
 export function useInteractionKeys() {
@@ -8,7 +9,7 @@ export function useInteractionKeys() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return // 꾹 누르고 있을 때 반복 입력 무시
       const session = useSessionStore.getState()
-      const action = resolveKeyAction(e.code, session.mode, session.nearby)
+      const action = resolveKeyAction(e.code, session.mode, session.nearby, session.mode === 'wardrobe' && !useProgressStore.getState().look)
       switch (action.type) {
         case 'startFishing':
           useFishingStore.getState().begin(action.spotId)
