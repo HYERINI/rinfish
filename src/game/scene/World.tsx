@@ -1,5 +1,6 @@
 import { FishingSpots } from './facilities/FishingSpots'
 import { preloadFacilityAssets } from './assets'
+import { Aquarium } from './facilities/Aquarium'
 import { Bench } from './facilities/Bench'
 import { Clinic } from './facilities/Clinic'
 import { GearShop } from './facilities/GearShop'
@@ -38,6 +39,7 @@ export function World() {
       <Market />
       <Clinic />
       <Bench />
+      <Aquarium />
       <FishingController />
       <FishingVisuals />
       <PlayTimeTicker />

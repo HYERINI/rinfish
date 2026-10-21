@@ -77,10 +77,10 @@ function Model({ id }: { id: ModelId }) {
  * 물고기 모델 (Quaternius, CC0). 머리가 +z 쪽.
  * 크기는 부모가 group.scale 로 정한다. 모델을 받는 동안에도 group 은 항상 있어서 ref 를 바로 쓸 수 있다
  */
-export const FishModel = forwardRef<Group, { speciesId: string | null }>(function FishModel({ speciesId }, ref) {
+export const FishModel = forwardRef<Group, { speciesId: string | null; scale?: number }>(function FishModel({ speciesId, scale = 1 }, ref) {
   const id = (speciesId && SPECIES_MODEL[speciesId]) || DEFAULT_MODEL
   return (
-    <group ref={ref}>
+    <group ref={ref} scale={scale}>
       <Suspense fallback={null}>
         <Model key={id} id={id} />
       </Suspense>

@@ -1,3 +1,4 @@
+import { AQUARIUM } from '../data/balance'
 import { GEAR } from '../data/gear'
 import type { GearSlot } from '../data/types'
 import { useProgressStore } from '../stores/progressStore'
@@ -16,6 +17,8 @@ export function GearShopPanel() {
   const gear = useProgressStore((s) => s.gear)
   const coins = useProgressStore((s) => s.coins)
   const buyGear = useProgressStore((s) => s.buyGear)
+  const feed = useProgressStore((s) => s.feed)
+  const buyFeed = useProgressStore((s) => s.buyFeed)
 
   return (
     <Panel title={`장비 상점 · 코인 ${coins}`}>
@@ -52,6 +55,17 @@ export function GearShopPanel() {
           </div>
         )
       })}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', fontSize: 14 }}>
+        <span style={{ flex: 1 }}>
+          <strong>어항 사료</strong> <span style={{ opacity: 0.7 }}>보유 {feed}개</span>
+        </span>
+        <button style={coins >= AQUARIUM.feedPrice ? button : disabledButton} disabled={coins < AQUARIUM.feedPrice} onClick={(e) => {
+            buyFeed()
+            e.currentTarget.blur()
+          }}>
+          {AQUARIUM.feedPrice} 코인
+        </button>
+      </div>
     </Panel>
   )
 }

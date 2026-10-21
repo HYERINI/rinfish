@@ -1,4 +1,5 @@
 import { useSessionStore } from '../stores/sessionStore'
+import { AquariumPanel } from './AquariumPanel'
 import { DexPanel } from './DexPanel'
 import { GearShopPanel } from './GearShopPanel'
 import { MarketPanel } from './MarketPanel'
@@ -19,6 +20,8 @@ export function Panels({ onExit }: { onExit?: () => void }) {
       return <GearShopPanel />
     case 'market':
       return <MarketPanel />
+    case 'aquarium':
+      return <AquariumPanel />
     default:
       return null
   }
