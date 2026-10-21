@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Suspense, useRef, useState, type ReactNode } from 'react'
-import type { Group } from 'three'
+import { Vector3, type Group } from 'three'
 import {
   BODY_PART_LABEL, BODY_PARTS, BODY_RANGES, DEFAULT_BODY, GENDER_LABEL, HAIR_COLORS, HAIRS, HEIGHT_RANGE, LOOK_PRESETS, OUTFITS, SKIN_COLORS,
 } from '../data/characterParts'
@@ -11,13 +11,51 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { button, panelBox } from './styles'
 
-/** 미리보기: 천천히 돌고, 드래그로 돌릴 수 있다 */
-function Preview({ look }: { look: CharacterLook }) {
+/** 자동 회전 속도 (라디안/초) */
+const SPIN_SPEED = 0.4
+/** 기본 체격(키 1)의 대략적인 키(m). 남 1.81, 여 1.77 */
+const BASE_FIGURE_HEIGHT = 1.8
+/** 화면 세로에서 캐릭터가 차지하는 비율. 나머지는 머리 위·발 아래 여백 */
+const FIGURE_FILL = 0.78
+const PREVIEW_FOV = 35
+
+/** 지금 모습의 대략적인 키. 다리는 키의 절반쯤, 머리는 0.25쯤을 차지한다 */
+function figureHeight(look: CharacterLook): number {
+  const legs = 0.5 * (look.body.legLength - 1)
+  const head = 0.13 * (look.body.head - 1)
+  return BASE_FIGURE_HEIGHT * look.height * (1 + legs + head)
+}
+
+/**
+ * 키가 커지면 카메라를 뒤로 빼서 머리 위 여백을 지킨다.
+ * 기본 키보다 작을 땐 카메라를 그대로 둬서 작아진 게 그대로 보이게 한다 (발은 늘 같은 자리)
+ */
+function FramingCamera({ look }: { look: CharacterLook }) {
+  const target = useRef(new Vector3())
+  const eye = useRef(new Vector3())
+  useFrame(({ camera }, delta) => {
+    const h = Math.max(figureHeight(look), BASE_FIGURE_HEIGHT)
+    const distance = (h / FIGURE_FILL / 2) / Math.tan(((PREVIEW_FOV / 2) * Math.PI) / 180)
+    // 가운데보다 살짝 아래를 봐서 발이 아래 버튼에 가리지 않게 한다
+    target.current.set(0, h * 0.47, 0)
+    // 슬라이더를 움직일 때 툭 끊기지 않게 부드럽게 따라간다
+    const k = 1 - Math.exp(-delta * 8)
+    camera.position.lerp(eye.current.set(0, h * 0.55, distance), k)
+    camera.lookAt(target.current)
+  })
+  return null
+}
+
+/** 미리보기: 천천히 돌고(멈출 수 있음), 드래그로 돌릴 수 있다 */
+function Preview({ look, spinning }: { look: CharacterLook; spinning: boolean }) {
   const turn = useRef<Group>(null)
   const model = useRef<PlayerModelHandle>(null)
   const drag = useRef({ active: false, x: 0, extra: 0 })
+  /** 자동 회전으로 돈 각도. 멈추면 그 자리에서 선다 */
+  const spin = useRef(0)
   useFrame(({ clock }, delta) => {
-    if (turn.current) turn.current.rotation.y = clock.elapsedTime * 0.4 + drag.current.extra
+    if (spinning) spin.current += delta * SPIN_SPEED
+    if (turn.current) turn.current.rotation.y = spin.current + drag.current.extra
     model.current?.update(delta, clock.elapsedTime, null, 0, 0.5, false)
   })
   return (
@@ -91,6 +129,7 @@ function Slider({ label, value, range, onChange }: { label: string; value: numbe
 export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
   const saved = useProgressStore((s) => s.look)
   const [draft, setDraft] = useState<CharacterLook>(saved ?? LOOK_PRESETS[0].look)
+  const [spinning, setSpinning] = useState(true)
   const set = (patch: Partial<CharacterLook>) => setDraft((d) => ({ ...d, ...patch }))
   const close = () => useSessionStore.getState().setMode('explore')
   const done = () => {
@@ -100,14 +139,24 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
 
   return (
     <div style={{ ...panelBox, width: 'min(960px, 96vw)', maxHeight: '92vh', display: 'flex', gap: 16, padding: 16 }}>
-      <div style={{ flex: '0 0 42%', minHeight: 420, background: 'radial-gradient(#3a5068, #16212e)', borderRadius: 10 }}>
-        <Canvas camera={{ position: [0, 1.3, 5.6], fov: 35 }} onCreated={({ camera }) => camera.lookAt(0, 1.1, 0)}>
+      <div style={{ position: 'relative', flex: '0 0 42%', minHeight: 420, background: 'radial-gradient(#3a5068, #16212e)', borderRadius: 10 }}>
+        <Canvas camera={{ position: [0, 1, 5.6], fov: PREVIEW_FOV }}>
           <ambientLight intensity={1} />
           <directionalLight position={[2, 4, 3]} intensity={1.8} />
+          <FramingCamera look={draft} />
           <Suspense fallback={null}>
-            <Preview look={draft} />
+            <Preview look={draft} spinning={spinning} />
           </Suspense>
         </Canvas>
+        <button
+          style={{ ...button, position: 'absolute', left: 10, bottom: 10, fontSize: 13 }}
+          onClick={(e) => {
+            setSpinning((s) => !s)
+            e.currentTarget.blur()
+          }}
+        >
+          {spinning ? '⏸ 회전 멈추기' : '▶ 다시 돌리기'}
+        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', paddingRight: 12, colorScheme: 'dark' }}>
