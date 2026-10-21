@@ -47,3 +47,29 @@ export type BuffKind = 'reel' | 'tension'
 /** remaining: 남은 플레이 시간(초) */
 export type Buff = { kind: BuffKind; mul: number; remaining: number }
 export type TankTypeId = 'basic' | 'sea' | 'fresh' | 'cave'
+
+export type Gender = 'male' | 'female'
+export type HairId = 'simpleParted' | 'buzzed' | 'long' | 'buns' | 'buzzedFemale' | 'none'
+export type OutfitId = 'peasant' | 'ranger'
+export type BodyPart = 'head' | 'shoulders' | 'chest' | 'belly' | 'armThickness' | 'armLength' | 'legThickness' | 'legLength'
+
+/** 플레이어 생김새. 저장된다 */
+export type CharacterLook = {
+  gender: Gender
+  /** '#rrggbb' */
+  skinColor: string
+  hair: HairId
+  hairColor: string
+  /** 남자만 */
+  beard: boolean
+  top: OutfitId
+  bottom: OutfitId
+  shoes: OutfitId
+  /** 레인저 후드. 쓰면 머리카락을 숨긴다 */
+  hood: boolean
+  outfitColor: 'base' | 'alt'
+  /** 전체 키 배율 */
+  height: number
+  /** 부위별 배율 */
+  body: Record<BodyPart, number>
+}
