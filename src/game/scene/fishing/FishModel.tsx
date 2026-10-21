@@ -1,8 +1,9 @@
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { forwardRef, Suspense, useEffect, useLayoutEffect, useMemo } from 'react'
-import { Box3, Vector3 } from 'three'
-import type { Group, Mesh, Object3D } from 'three'
+import { Vector3 } from 'three'
+import type { Group } from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { restBox } from '../modelBounds'
 
 type ModelId = 'clownfish' | 'blue-tang' | 'puffer' | 'tuna' | 'shark' | 'swordfish' | 'dolphin'
 
@@ -35,20 +36,6 @@ for (const id of MODEL_IDS) useGLTF.preload(modelUrl(id))
 
 /** 몸길이를 1.2 로 맞춘다. 기존 도형 물고기와 같은 크기 */
 const FISH_LENGTH = 1.2
-
-/** 애니메이션 전 기본 자세의 경계 상자. 스킨 메시는 setFromObject 가 뼈 변환까지 섞어 값이 튀어서 지오메트리로 직접 잰다 */
-function restBox(root: Object3D): Box3 {
-  const box = new Box3()
-  const part = new Box3()
-  root.updateWorldMatrix(false, true)
-  root.traverse((o) => {
-    const mesh = o as Mesh
-    if (!mesh.isMesh) return
-    mesh.geometry.computeBoundingBox()
-    box.union(part.copy(mesh.geometry.boundingBox!).applyMatrix4(mesh.matrixWorld))
-  })
-  return box
-}
 
 function Model({ id }: { id: ModelId }) {
   const { scene, animations } = useGLTF(modelUrl(id))
