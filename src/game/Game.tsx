@@ -9,6 +9,7 @@ import { useFishingStore } from './stores/fishingStore'
 import { useSessionStore } from './stores/sessionStore'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { Hud } from './ui/Hud'
+import { WeaknessOverlay } from './ui/WeaknessOverlay'
 import { Panels } from './ui/Panels'
 
 export type GameResult = { score: number }
@@ -48,6 +49,7 @@ export function Game({ onExit }: GameProps) {
           </Suspense>
         </Canvas>
       </div>
+      <WeaknessOverlay />
       <Hud />
       <FishingOverlay />
       <Panels onExit={onExit} />

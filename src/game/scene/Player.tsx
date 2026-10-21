@@ -102,6 +102,14 @@ export function Player() {
   }, [])
 
   useFrame(({ clock }, delta) => {
+    // 쓰러진 뒤 진료소로 옮기기
+    const teleport = useSessionStore.getState().teleport
+    if (teleport && body.current) {
+      body.current.setTranslation({ x: teleport[0], y: 1, z: teleport[1] }, true)
+      body.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      useSessionStore.getState().clearTeleport()
+    }
+
     const rb = body.current
     if (!rb) return
     const mode = useSessionStore.getState().mode
