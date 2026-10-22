@@ -10,6 +10,7 @@ import { SellBox } from './facilities/SellBox'
 import { FishingController } from './fishing/FishingController'
 import { FishingVisuals } from './fishing/FishingVisuals'
 import { Island } from './Island'
+import { IslandDecor } from './decor/IslandDecor'
 import { Player } from './Player'
 import { PlayTimeTicker } from './PlayTimeTicker'
 
@@ -33,6 +34,7 @@ export function World() {
         shadow-camera-bottom={-40}
       />
       <Island />
+      <IslandDecor />
       <Player />
       <FishingSpots />
       <SellBox />

@@ -53,6 +53,7 @@
 | survival/ | Survival Kit | barrel, box-large, box-open, bucket, signpost-single, fish, fish-large (.glb) | 장비 상점·판매함 소품 |
 | mini-market/ | Mini Market | freezer.glb | 판매함 아이스박스 |
 | pirate/ | Pirate Kit | crate.glb | 판매함 생선 상자 |
+| nature/ | Nature Kit | tree_palm·palmBend·palmShort·oak·default·fat·pineRoundA, flower_redA·yellowA·purpleA·yellowB, mushroom_red·tanGroup, plant_bush·bushLarge·bushDetailed (.glb, 텍스처 없음) | 섬 바닥 꾸미기 (나무·꽃·버섯·덤불). 색은 decorAssets.ts 에서 섬 풀빛에 맞춰 바꾼다 |
 
 ## 꾸미기용 캐릭터 (characters/male.glb, female.glb)
 
