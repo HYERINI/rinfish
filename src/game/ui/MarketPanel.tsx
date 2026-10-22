@@ -1,62 +1,86 @@
 import { useState } from 'react'
-import { DISHES, BUFF_LABEL } from '../data/dishes'
+import { BUFF_LABEL, DISHES, getDish } from '../data/dishes'
 import { RARITY_COLOR, RARITY_LABEL, findSpecies } from '../data/fish'
 import type { DishId } from '../data/types'
 import { dishEffect } from '../logic/cooking'
 import { useProgressStore } from '../stores/progressStore'
-import { Panel } from './Panel'
-import { button, disabledButton } from './styles'
+import { FishImage } from './FishImage'
+import { ItemIcon } from './ItemIcon'
+import { BigButton, Kiosk, KioskDetail } from './Kiosk'
+import { useFlash } from './useFlash'
 
+/** 어시장 키오스크: 요리(탭) → 재료 물고기(카드) → 먹기. 희귀한 물고기일수록 효과가 크다 */
 export function MarketPanel() {
   const inventory = useProgressStore((s) => s.inventory)
   const coins = useProgressStore((s) => s.coins)
   const stamina = useProgressStore((s) => s.survival.stamina)
-  const cookDish = useProgressStore((s) => s.cookDish)
   const [dishId, setDishId] = useState<DishId>('sashimi')
-  const dish = DISHES.find((d) => d.id === dishId) ?? DISHES[0]
+  const [fishId, setFishId] = useState<string | null>(null)
+  const [toast, flash] = useFlash()
+  const dish = getDish(dishId)
 
   const rows = inventory.flatMap((fish) => {
     const species = findSpecies(fish.speciesId)
     return species ? [{ fish, species, effect: dishEffect(dish, species.rarity) }] : []
   })
+  const chosen = rows.find((r) => r.fish.id === fishId) ?? rows[0] ?? null
   const affordable = coins >= dish.cookFee
 
+  const effectText = (heal: number, buff: { kind: keyof typeof BUFF_LABEL; remaining: number } | null) => `체력 +${heal}${buff ? ` · ${BUFF_LABEL[buff.kind]} ${Math.round(buff.remaining)}초` : ''}`
+
   return (
-    <Panel title={`어시장 · 코인 ${coins} · 체력 ${Math.ceil(stamina)}`}>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {DISHES.map((d) => (
-          <button key={d.id} style={{ ...button, flex: 1, opacity: d.id === dishId ? 1 : 0.55 }} onClick={() => setDishId(d.id)}>
-            {d.name}
-            <div style={{ fontSize: 11, fontWeight: 400 }}>조리비 {d.cookFee}</div>
-          </button>
-        ))}
-      </div>
-      <p style={{ margin: '0 0 12px', fontSize: 14, opacity: 0.85 }}>{dish.description}. 희귀한 물고기일수록 효과가 커요.</p>
-      {rows.length === 0 ? (
-        <p>요리할 물고기가 없어요. 낚시하러 가 볼까요?</p>
-      ) : (
-        rows.map(({ fish, species, effect }) => (
-          <div key={fish.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #333' }}>
-            <span style={{ color: RARITY_COLOR[species.rarity], flex: 1 }}>
-              {species.name} <span style={{ fontSize: 12, opacity: 0.7 }}>{RARITY_LABEL[species.rarity]}</span>
-            </span>
-            <span style={{ fontSize: 13, width: 170, textAlign: 'right' }}>
-              체력 +{effect.heal}
-              {effect.buff && ` · ${BUFF_LABEL[effect.buff.kind]} ${Math.round(effect.buff.remaining)}초`}
-            </span>
-            <button
-              style={affordable ? button : disabledButton}
+    <Kiosk
+      title={`🍲 어시장 · 체력 ${Math.ceil(stamina)}`}
+      accent="#e53935"
+      coins={coins}
+      tabs={DISHES.map((d) => ({ id: d.id, label: `${d.name} ${d.cookFee}`, icon: <ItemIcon id={d.id} size={22} /> }))}
+      tab={dishId}
+      onTab={(id) => setDishId(id as DishId)}
+      cards={rows.map(({ fish, species, effect }) => ({
+        id: fish.id,
+        name: species.name,
+        image: <FishImage speciesId={species.id} width={112} />,
+        sub: `${RARITY_LABEL[species.rarity]} · ${fish.weight}kg`,
+        subColor: species.rarity === 'common' ? undefined : RARITY_COLOR[species.rarity],
+        price: `체력 +${effect.heal}`,
+      }))}
+      selectedId={chosen?.fish.id ?? null}
+      onSelect={setFishId}
+      empty={
+        <>
+          <ItemIcon id={dish.id} size={96} />
+          <p>요리할 물고기가 없어요. 낚시하러 가 볼까요?</p>
+        </>
+      }
+      detail={
+        chosen ? (
+          <KioskDetail
+            image={
+              <div className="kiosk-combo">
+                <ItemIcon id={dish.id} size={96} />
+                <FishImage speciesId={chosen.species.id} width={120} />
+              </div>
+            }
+            title={`${chosen.species.name} ${dish.name}`}
+            lines={[dish.description, effectText(chosen.effect.heal, chosen.effect.buff), `조리비 ${dish.cookFee} 코인 · 물고기 1마리`]}
+          >
+            <BigButton
+              label="먹기"
+              sub={affordable ? `조리비 ${dish.cookFee} 코인` : '코인이 모자라요'}
               disabled={!affordable}
-              onClick={(e) => {
-                cookDish(dish.id, fish.id)
-                e.currentTarget.blur()
+              onClick={() => {
+                if (useProgressStore.getState().cookDish(dish.id, chosen.fish.id)) {
+                  flash(`냠냠! ${effectText(chosen.effect.heal, chosen.effect.buff)}`)
+                  setFishId(null)
+                }
               }}
-            >
-              먹기
-            </button>
-          </div>
-        ))
-      )}
-    </Panel>
+            />
+          </KioskDetail>
+        ) : (
+          <KioskDetail image={<ItemIcon id={dish.id} size={110} />} title={dish.name} lines={[dish.description, `조리비 ${dish.cookFee} 코인`, '보관함에 물고기가 있어야 만들 수 있어요']} />
+        )
+      }
+      toast={toast}
+    />
   )
 }
