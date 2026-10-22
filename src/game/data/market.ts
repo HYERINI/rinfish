@@ -9,6 +9,8 @@ export const MARKET = {
    * 가로:세로 = signSize 비율로 맞추면 늘어나지 않는다
    */
   signImage: 'signs/market.png',
+  /** 글씨 간판 왼쪽에 넣는 사장님 얼굴 (배경을 지운 PNG) */
+  signEmblem: 'signs/market-face.png',
   /** 간판 크기 [가로, 세로] (m) */
   signSize: [2.6, 0.8] as [number, number],
 }

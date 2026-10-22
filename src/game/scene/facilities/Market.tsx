@@ -42,7 +42,7 @@ export function Market() {
         </mesh>
       ))}
       {/* 간판: public/signs/market.png 가 있으면 그 그림, 없으면 글씨 간판 */}
-      <ShopSign image={MARKET.signImage} text={MARKET.name} size={MARKET.signSize} position={[0, 3.05, 0.2]} rotationX={-0.12} />
+      <ShopSign image={MARKET.signImage} text={MARKET.name} emblem={MARKET.signEmblem} size={MARKET.signSize} position={[0, 3.05, 0.2]} rotationX={-0.12} />
       <Html center position={[0, 3.85, -0.4]} zIndexRange={[100, 0]} style={sign}>
         🍲 {MARKET.name}
       </Html>
