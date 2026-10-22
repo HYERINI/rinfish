@@ -13,6 +13,7 @@ import { useProgressStore } from './stores/progressStore'
 import { useSessionStore } from './stores/sessionStore'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { Hud, NoticeLayer } from './ui/Hud'
+import { LoadingScreen } from './ui/LoadingScreen'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
 import { Panels } from './ui/Panels'
 
@@ -63,6 +64,7 @@ export function Game({ onExit }: GameProps) {
       <FishingOverlay />
       <Panels onExit={onExit} />
       <NoticeLayer />
+      <LoadingScreen />
     </div>
   )
 }
