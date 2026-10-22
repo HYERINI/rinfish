@@ -48,13 +48,13 @@ export const REPAIR_PLANS: Record<Exclude<ZoneId, 'beach'>, RepairPlan> = {
   },
   reef: {
     kind: 'hammer',
-    site: [20.5, 8.4],
+    site: [18.9, 7.3],
     workers: [
-      { from: [24.5, 16], work: [19.7, 9.9] },
-      { from: [26, 14.5], work: [21.4, 9.9] },
+      { from: [24, 15], work: [18.1, 8.8] },
+      { from: [25.5, 13.5], work: [19.8, 8.8] },
     ],
-    camera: { position: [15.5, 4.4, 16], lookAt: [19.5, 0.7, 8] },
-    watchFrom: [24, 10.4],
+    camera: { position: [14.5, 4.2, 14.5], lookAt: [18.6, 0.7, 7.2] },
+    watchFrom: [22.6, 9.6],
   },
   cave: {
     kind: 'push',
@@ -63,7 +63,8 @@ export const REPAIR_PLANS: Record<Exclude<ZoneId, 'beach'>, RepairPlan> = {
       { from: [8.5, 13.5] },
       { from: [10, 11.5] },
     ],
-    rockTo: [-5.6, 8.6],
+    // 섬 꾸미기가 비워 둔 문 앞(문 ±3m, z 8.5 까지) 안쪽으로 굴린다
+    rockTo: [-5.6, 7.1],
     camera: { position: [5.5, 4.6, 15], lookAt: [-2, 1, 6.6] },
     watchFrom: [-2.5, 11.8],
   },
