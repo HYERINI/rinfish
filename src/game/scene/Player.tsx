@@ -9,6 +9,10 @@ import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
 import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
 import { isPointerDown } from '../input/pointer'
+import { isPointerLocked } from '../input/pointerLock'
+import { MOUSE_LOOK } from '../data/settings'
+import { applyMouseLook, pitchedOffset } from '../logic/mouseLook'
+import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
 import { cameraRig, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
@@ -27,7 +31,6 @@ export const playerRig = {
 }
 
 const PLAYER_LIMIT = ISLAND_RADIUS - 1
-const DRAG_SENSITIVITY = 0.005
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
 const FISHING_YAW_SPEED = 4
 
@@ -99,6 +102,8 @@ export function Player() {
   const model = useRef<PlayerModelHandle>(null)
   /** 카메라가 플레이어 주위를 도는 각도 */
   const yaw = useRef(0)
+  /** 카메라 위아래 기울기 (마우스 잠금 중 위아래로 움직여서). 0 = 줌 리그 기본 높이 */
+  const pitch = useRef(0)
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
   const facing = useRef(Math.PI)
   const camera = useThree((s) => s.camera)
@@ -114,11 +119,17 @@ export function Player() {
   const cam = useRef({ offset: new Vector3(), lookY: 0, feetY: 0, ready: false })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
 
-  // 탐험 중 마우스 드래그로 카메라 회전
+  // 탐험 중 카메라 회전: 마우스가 잠겨 있으면 움직이는 만큼(감도), 아니면(터치 등) 드래그로
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      if (isPointerDown() && useSessionStore.getState().mode === 'explore') {
-        yaw.current -= e.movementX * DRAG_SENSITIVITY
+      if (useSessionStore.getState().mode !== 'explore') return
+      if (isPointerLocked()) {
+        const { lookSensitivity, invertY } = useSettingsStore.getState()
+        const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity, invertY)
+        yaw.current = next.yaw
+        pitch.current = next.pitch
+      } else if (isPointerDown()) {
+        yaw.current -= e.movementX * MOUSE_LOOK.dragSensitivity
       }
     }
     window.addEventListener('pointermove', onMove)
@@ -140,10 +151,12 @@ export function Player() {
     const spotId = useFishingStore.getState().spotId
 
     // 0) 낚시 중엔 카메라를 플레이어 뒤로 돌려 물 쪽(찌가 떨어지는 곳)이 보이게 한다.
-    //    탐험으로 돌아오면 이 값에서 이어서 드래그로 자유롭게 돌릴 수 있다
+    //    탐험으로 돌아오면 이 값에서 이어서 마우스로 자유롭게 돌릴 수 있다
     if (mode === 'fishing' && spotId) {
       const target = yawForFacing(getSpot(spotId).facing)
       yaw.current += shortestAngleDelta(yaw.current, target) * (1 - Math.exp(-delta * FISHING_YAW_SPEED))
+      // 기울기도 기본 높이로 되돌려 찌가 늘 같은 자리에 보이게
+      pitch.current *= Math.exp(-delta * MOUSE_LOOK.pitchResetSpeed)
     }
 
     // 1) WASD → 카메라 기준 이동 방향
@@ -248,7 +261,8 @@ export function Player() {
     //    수평 위치는 플레이어에 바로 붙이고, 오프셋(방향·거리·높이)·발 높이(점프)만 부드럽게 따라간다
     const distance = session.zoom
     const rig = cameraRig(distance, CHARACTER_BASE_HEIGHT * look.height)
-    cameraTarget.set(sin * distance, rig.height, cos * distance)
+    const orbit = pitchedOffset(distance, rig.height, rig.lookAtY, pitch.current)
+    cameraTarget.set(sin * orbit.horizontal, orbit.height, cos * orbit.horizontal)
     const c = cam.current
     const k = c.ready ? 1 - Math.exp(-delta * CAMERA_SMOOTH) : 1
     c.ready = true

@@ -7,6 +7,8 @@ import { usePlayerActionKeys } from './input/usePlayerActionKeys'
 import { useWheelZoom } from './input/useWheelZoom'
 import { useKeyboardTracking } from './input/keys'
 import { pressPointer, usePointerRelease } from './input/pointer'
+import { usePointerLock } from './input/pointerLock'
+import { useBackgroundMusic } from './audio/backgroundMusic'
 import { World } from './scene/World'
 import { useFishingStore } from './stores/fishingStore'
 import { useProgressStore } from './stores/progressStore'
@@ -37,6 +39,8 @@ export function Game({ onExit }: GameProps) {
   usePlayerActionKeys()
   const canvasArea = useRef<HTMLDivElement>(null)
   useWheelZoom(canvasArea)
+  usePointerLock(canvasArea)
+  useBackgroundMusic()
 
   // 진행 상황(progressStore)은 저장된 것을 이어 쓰고, 이번 판 상태만 초기화한다
   useEffect(() => {
