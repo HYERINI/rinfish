@@ -1,18 +1,21 @@
-import { OrbitControls } from '@react-three/drei'
+import { Environment, Lightformer, OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { useMemo, useRef, useState } from 'react'
-import { Vector3 } from 'three'
-import type { Group } from 'three'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Object3D } from 'three'
+import type { InstancedMesh } from 'three'
 import { getTankType } from '../data/aquarium'
 import { RARITY_COLOR, RARITY_LABEL, findSpecies } from '../data/fish'
+import { fishLookFor } from '../data/fishLooks'
+import type { TankTypeId } from '../data/types'
 import { isHungry, slotCount } from '../logic/aquarium'
-import { swimPose } from '../logic/aquariumSwim'
-import { FishModel } from '../scene/fishing/FishModel'
+import { swimSeed, tankFloorY } from '../logic/aquariumSwim'
+import { AquariumFish } from '../scene/facilities/AquariumFish'
 import { TankBody } from '../scene/facilities/Aquarium'
+import { FISH_LENGTH } from '../scene/fishing/fishAppearance'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { FishImage } from './FishImage'
-import { button } from './styles'
+import { button, disabledButton } from './styles'
 
 /** 크게 보기 수조 크기 */
 const VIEW_TANK: [number, number, number] = [8, 4, 4]
@@ -20,25 +23,26 @@ const VIEW_TANK: [number, number, number] = [8, 4, 4]
 const VIEW_HALF: [number, number, number] = [3.6, 1.7, 1.6]
 /** 크게 보기 물고기 크기 (몸길이 1.2 × 어종 배율에 곱한다) */
 const VIEW_FISH_SCALE = 0.9
+/** 물방울 개수 */
+const BUBBLES = 36
 
-function ViewFish({ id, speciesId, seed, hungry, sinceFed, onSelect }: {
+/** 어항 종류별 배경 (수조 뒤로 보이는 물빛) */
+const BACKDROP: Record<TankTypeId, string> = {
+  basic: 'linear-gradient(180deg, #2a8fd0 0%, #135c94 55%, #0a3358 100%)',
+  sea: 'linear-gradient(180deg, #1f86d6 0%, #0d4f8f 55%, #072a52 100%)',
+  fresh: 'linear-gradient(180deg, #2a9a9a 0%, #13606a 55%, #0a3540 100%)',
+  cave: 'linear-gradient(180deg, #1c2a6b 0%, #101a45 55%, #070b22 100%)',
+}
+
+/** 물고기 한 마리. 얇은 물고기(가오리 등)도 누르기 쉽게 몸보다 큰 투명 상자로 클릭을 받는다 */
+function ViewFish({ id, speciesId, hungry, sinceFed, onSelect }: {
   id: string
   speciesId: string
-  seed: number
   hungry: boolean
   sinceFed: number
   onSelect: (id: string) => void
 }) {
-  const ref = useRef<Group>(null)
-  const target = useMemo(() => new Vector3(), [])
-  useFrame(({ clock }) => {
-    const fish = ref.current
-    if (!fish) return
-    const pose = swimPose(clock.elapsedTime, seed, VIEW_HALF, hungry, sinceFed)
-    fish.position.lerp(target.set(pose.x, pose.y, pose.z), 0.08)
-    fish.rotation.y = pose.heading
-    fish.rotation.z = pose.tilt
-  })
+  const length = FISH_LENGTH * VIEW_FISH_SCALE * fishLookFor(speciesId).size
   return (
     <group
       onClick={(e) => {
@@ -53,8 +57,72 @@ function ViewFish({ id, speciesId, seed, hungry, sinceFed, onSelect }: {
         document.body.style.cursor = ''
       }}
     >
-      <FishModel ref={ref} speciesId={speciesId} scale={VIEW_FISH_SCALE} />
+      <AquariumFish
+        speciesId={speciesId}
+        half={VIEW_HALF}
+        seed={swimSeed(id)}
+        hungry={hungry}
+        sinceFed={sinceFed}
+        floorY={tankFloorY(VIEW_TANK[1])}
+        scale={VIEW_FISH_SCALE}
+      >
+        {/* 클릭 판정용. 재질만 숨겨서 그리지는 않고 광선 판정은 받는다 */}
+        <mesh>
+          <boxGeometry args={[length * 0.8, length * 0.55, length * 1.05]} />
+          <meshBasicMaterial visible={false} />
+        </mesh>
+      </AquariumFish>
     </group>
+  )
+}
+
+/** 0~1 사이 고정된 값 (i 마다 다름). 렌더마다 바뀌지 않게 Math.random 대신 쓴다 */
+const hash01 = (i: number) => {
+  const k = Math.sin(i * 127.1 + 311.7) * 43758.5453
+  return k - Math.floor(k)
+}
+
+/** 바닥에서 수면으로 천천히 올라가는 물방울. 한 번에 그리는 인스턴스 구 */
+function Bubbles() {
+  const ref = useRef<InstancedMesh>(null)
+  const dummy = useMemo(() => new Object3D(), [])
+  const [w, h, d] = VIEW_TANK
+  const bubbles = useMemo(
+    () =>
+      Array.from({ length: BUBBLES }, (_, i) => {
+        // 절반은 왼쪽 뒤 공기돌에서 줄지어, 나머지는 여기저기서 올라온다
+        const stream = i % 2 === 0
+        return {
+          x: stream ? -w * 0.36 + (hash01(i) - 0.5) * 0.2 : (hash01(i) - 0.5) * (w - 0.6),
+          z: stream ? -d * 0.3 + (hash01(i + 50) - 0.5) * 0.2 : (hash01(i + 50) - 0.5) * (d - 0.6),
+          speed: 0.25 + hash01(i + 100) * 0.35,
+          offset: hash01(i + 150) * h,
+          radius: 0.025 + hash01(i + 200) * 0.05,
+          wobble: hash01(i + 250) * Math.PI * 2,
+        }
+      }),
+    [w, h, d],
+  )
+  useFrame(({ clock }) => {
+    const mesh = ref.current
+    if (!mesh) return
+    const t = clock.elapsedTime
+    const bottom = tankFloorY(h)
+    const rise = h / 2 - 0.1 - bottom
+    bubbles.forEach((b, i) => {
+      const y = bottom + ((t * b.speed + b.offset) % rise)
+      dummy.position.set(b.x + Math.sin(t * 2 + b.wobble) * 0.05, y, b.z + Math.cos(t * 1.7 + b.wobble) * 0.05)
+      dummy.scale.setScalar(b.radius)
+      dummy.updateMatrix()
+      mesh.setMatrixAt(i, dummy.matrix)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+  })
+  return (
+    <instancedMesh ref={ref} args={[undefined, undefined, BUBBLES]} renderOrder={3} frustumCulled={false}>
+      <sphereGeometry args={[1, 10, 8]} />
+      <meshStandardMaterial color="#ffffff" emissive="#bfefff" emissiveIntensity={0.3} transparent opacity={0.45} depthWrite={false} roughness={0.1} />
+    </instancedMesh>
   )
 }
 
@@ -62,6 +130,8 @@ function ViewFish({ id, speciesId, seed, hungry, sinceFed, onSelect }: {
 export function AquariumView() {
   const aquarium = useProgressStore((s) => s.aquarium)
   const playTime = useProgressStore((s) => s.playTime)
+  const feed = useProgressStore((s) => s.feed)
+  const inventory = useProgressStore((s) => s.inventory)
   const setMode = useSessionStore((s) => s.setMode)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const hungry = isHungry(aquarium, playTime)
@@ -70,19 +140,75 @@ export function AquariumView() {
   const selected = aquarium.displayed.find((f) => f.id === selectedId)
   const species = selected ? findSpecies(selected.speciesId) : undefined
   const count = aquarium.displayed.length
+  const junk = inventory.find((f) => findSpecies(f.speciesId)?.rarity === 'junk')
+  const canFeed = count > 0 && (feed > 0 || !!junk)
+  const feedHint = count === 0 ? '전시한 물고기가 없어요' : feed > 0 ? `사료 ${feed}개` : junk ? '사료가 없어 잡어를 줘요' : '사료·잡어가 없어요 (사료는 장비 상점)'
+
+  // 카드가 열려 있으면 ESC 는 카드만 닫는다. 게임 키 처리(useInteractionKeys)보다 먼저 받도록 capture 로 듣는다
+  const cardOpen = selected !== undefined
+  useEffect(() => {
+    if (!cardOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Escape') return
+      e.stopImmediatePropagation()
+      setSelectedId(null)
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [cardOpen])
+
+  // 물고기 위에서 손가락 모양이 된 채로 닫혀도 커서를 되돌린다
+  useLayoutEffect(
+    () => () => {
+      document.body.style.cursor = ''
+    },
+    [],
+  )
+
+  const feedFish = () => {
+    const s = useProgressStore.getState()
+    if (s.feed > 0) s.feedWithPellet()
+    else if (junk) s.feedWithJunk(junk.id)
+  }
 
   return (
-    <div style={{ position: 'absolute', inset: 0, zIndex: 1000, background: '#0b1622', color: '#fff', pointerEvents: 'auto' }}>
-      <Canvas camera={{ position: [0, 0.8, 10], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
-        <ambientLight intensity={1.2} />
-        <directionalLight position={[4, 8, 6]} intensity={2.2} />
-        <TankBody type={aquarium.activeType} size={VIEW_TANK} />
-        {aquarium.displayed.map((fish, i) => (
-          <ViewFish key={fish.id} id={fish.id} speciesId={fish.speciesId} seed={i} hungry={hungry} sinceFed={sinceFed} onSelect={setSelectedId} />
+    <div style={{ position: 'absolute', inset: 0, zIndex: 1000, background: BACKDROP[aquarium.activeType], color: '#fff', pointerEvents: 'auto' }}>
+      <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0.8, 10], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
+        <ambientLight intensity={0.35} color="#d8f1ff" />
+        <hemisphereLight args={['#c8ecff', '#2c5a78', 0.7]} />
+        {/* 장식(Kenney) 재질이 금속(metallic 1)이라 주변광만으로는 옆면이 까맣다. 물빛 환경맵을 만들어 비춘다 (내려받기 없음) */}
+        <Environment resolution={64}>
+          <Lightformer form="rect" intensity={1.4} color="#e8f8ff" position={[0, 5, 0]} rotation-x={Math.PI / 2} scale={[10, 10, 1]} />
+          <Lightformer form="rect" intensity={0.7} color="#4fb3ea" position={[0, 0, -5]} scale={[10, 5, 1]} />
+          <Lightformer form="rect" intensity={0.7} color="#4fb3ea" position={[0, 0, 5]} rotation-y={Math.PI} scale={[10, 5, 1]} />
+          <Lightformer form="rect" intensity={0.5} color="#2a7fb8" position={[-5, 0, 0]} rotation-y={Math.PI / 2} scale={[10, 5, 1]} />
+          <Lightformer form="rect" intensity={0.5} color="#2a7fb8" position={[5, 0, 0]} rotation-y={-Math.PI / 2} scale={[10, 5, 1]} />
+        </Environment>
+        {/* 수면 위에서 내리쬐는 부드러운 빛 */}
+        <directionalLight position={[1, 10, 3]} intensity={1.5} color="#f0fbff" />
+        <pointLight position={[0, VIEW_TANK[1] / 2 + 0.5, 0]} intensity={4} distance={10} color="#9fe3ff" />
+        <TankBody type={aquarium.activeType} size={VIEW_TANK} big />
+        <Bubbles />
+        {aquarium.displayed.map((fish) => (
+          <ViewFish key={fish.id} id={fish.id} speciesId={fish.speciesId} hungry={hungry} sinceFed={sinceFed} onSelect={setSelectedId} />
         ))}
         <OrbitControls enablePan={false} minDistance={4} maxDistance={14} target={[0, 0, 0]} />
       </Canvas>
 
+      <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          style={canFeed ? button : disabledButton}
+          disabled={!canFeed}
+          title={feedHint}
+          onClick={(e) => {
+            e.currentTarget.blur()
+            feedFish()
+          }}
+        >
+          먹이 주기
+        </button>
+        <span style={{ fontSize: 13, opacity: 0.85, background: 'rgba(0,0,0,0.45)', padding: '4px 8px', borderRadius: 6 }}>{feedHint}</span>
+      </div>
       <div style={{ ...topBar, left: '50%', transform: 'translateX(-50%)' }}>
         🐠 어항 Lv{aquarium.level + 1} · {type.name} · 전시 {count}/{slotCount(aquarium)}
         {count > 0 && (hungry ? <b style={{ color: '#ef5350' }}> · 배고파요!</b> : ' · 배불러요')}

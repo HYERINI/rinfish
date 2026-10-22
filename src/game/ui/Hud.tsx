@@ -42,8 +42,6 @@ export function Hud() {
         ))}
       </div>
 
-      <Notice />
-
       {mode === 'rest' && <div style={hint}>벤치에서 쉬는 중… 체력 회복 · E / ESC 일어나기</div>}
 
       {mode === 'explore' && (
@@ -66,9 +64,13 @@ export function Hud() {
   )
 }
 
-/** 쓰러짐·어항 알림. 새 알림이 오면 처음부터 다시 센다 */
-function Notice() {
+/**
+ * 쓰러짐·어항 알림. 패널·어항 크게 보기보다 위 층에 띄워서 어느 화면에서든 보인다 (Game 에서 Panels 다음에 둔다).
+ * 새 알림이 오면 처음부터 다시 센다
+ */
+export function NoticeLayer() {
   const notice = useSessionStore((s) => s.notice)
+  const mode = useSessionStore((s) => s.mode)
   const [hiddenId, setHiddenId] = useState<number | null>(null)
   useEffect(() => {
     if (!notice) return
@@ -78,8 +80,11 @@ function Notice() {
 
   if (!notice || hiddenId === notice.id) return null
   return (
-    <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', padding: '10px 18px', borderRadius: 8, fontSize: 15, maxWidth: '80vw', textAlign: 'center' }}>
-      {notice.text}
+    <div style={{ ...overlayLayer, zIndex: 1001 }}>
+      {/* 크게 보기에서는 위쪽 막대(어항 정보·버튼) 아래에 띄운다 */}
+      <div style={{ position: 'absolute', top: mode === 'aquariumView' ? 68 : 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', padding: '10px 18px', borderRadius: 8, fontSize: 15, maxWidth: '80vw', textAlign: 'center' }}>
+        {notice.text}
+      </div>
     </div>
   )
 }

@@ -10,7 +10,7 @@ import { useFishingStore } from './stores/fishingStore'
 import { useProgressStore } from './stores/progressStore'
 import { useSessionStore } from './stores/sessionStore'
 import { FishingOverlay } from './ui/FishingOverlay'
-import { Hud } from './ui/Hud'
+import { Hud, NoticeLayer } from './ui/Hud'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
 import { Panels } from './ui/Panels'
 
@@ -59,6 +59,7 @@ export function Game({ onExit }: GameProps) {
       <Hud />
       <FishingOverlay />
       <Panels onExit={onExit} />
+      <NoticeLayer />
     </div>
   )
 }
