@@ -5,6 +5,7 @@ import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@re
 import { Vector3, type Group, type Object3D } from 'three'
 import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
+import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
 import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
@@ -231,6 +232,9 @@ export function Player() {
       facing.current = Math.atan2(fx, fz)
     } else if (mode === 'rest') {
       facing.current = BENCH_SEAT.facing
+    } else if (mode === 'cutscene' && session.cooking) {
+      // 요리 연출 중엔 가게를 바라본다
+      facing.current = Math.atan2(COOK_SCENE.site[0] - x, COOK_SCENE.site[1] - z)
     } else if (mode === 'cutscene' && session.cutscene && session.cutscene.zoneId !== 'beach') {
       // 연출 중엔 고치는 곳을 바라보며 구경한다
       const [sx, sz] = REPAIR_PLANS[session.cutscene.zoneId].site
@@ -288,8 +292,10 @@ export function Player() {
     // 7) 수리 연출 중엔 연출 자리를 비추는 카메라로 옮겨 가고, 끝나면 부드럽게 돌아온다
     const cs = session.cutscene
     const cutZone = mode === 'cutscene' && cs && cs.zoneId !== 'beach' ? cs.zoneId : null
+    const cooking = mode === 'cutscene' && session.cooking !== null
     if (cutZone) cut.current.camera = REPAIR_PLANS[cutZone].camera
-    cut.current.blend += (Number(cutZone !== null) - cut.current.blend) * (1 - Math.exp(-delta * CUTSCENE_CAMERA_SMOOTH))
+    else if (cooking) cut.current.camera = COOK_SCENE.camera
+    cut.current.blend += (Number(cutZone !== null || cooking) - cut.current.blend) * (1 - Math.exp(-delta * CUTSCENE_CAMERA_SMOOTH))
     const shot = cut.current.camera
     if (shot && cut.current.blend > 1e-3) {
       const b = cut.current.blend

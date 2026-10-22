@@ -14,7 +14,13 @@ const WORKER_CLIPS: Record<WorkerPose, string> = {
   fix: 'Fixing_Kneeling',
   push: 'Push_Loop',
   cheer: 'Idle_Talking_Loop',
+  idle: 'Idle_Loop',
+  // 서서 칼질: 서 있기 클립 위에 오른팔 내리치기를 덧입힌다
+  chop: 'Idle_Loop',
 }
+
+/** 차림: 수리기사(안전모 + 망치), 수리기사 맨손(안전모), 요리사(조리모 + 앞치마 + 칼) */
+export type WorkerGear = 'hammer' | 'hands' | 'chef'
 const POSES = Object.keys(WORKER_CLIPS) as WorkerPose[]
 const FADE_SPEED = 7
 
@@ -24,8 +30,10 @@ const ALT_URLS = Object.values(OUTFIT_ALT_TEXTURES).map(modelUrl)
 export type WorkerHandle = {
   /** 연출 한 프레임: 위치·방향·자세·말풍선·망치 휘두르기 */
   update(frame: WorkerFrame, delta: number): void
-  /** 망치 머리의 월드 위치 (먼지를 띄울 자리) */
+  /** 망치 머리(요리사는 칼끝)의 월드 위치 (먼지를 띄울 자리) */
   hammerHead(target: Vector3): void
+  /** 오른손 주먹의 월드 위치 (요리사가 생선을 드는 자리) */
+  handPosition(target: Vector3): void
 }
 
 const axis = new Vector3()
@@ -52,10 +60,10 @@ function hammerLift(swing: number): number {
 }
 
 /**
- * 수리기사님 (플레이어와 같은 캐릭터 glb 에 작업복을 입힌다). 노란 안전모를 쓰고 오른손에 망치를 든다.
- * 움직임은 부모(RepairCutscene)가 repairTimeline 으로 계산해서 update 로 넘겨 준다
+ * 수리기사님·요리사 (플레이어와 같은 캐릭터 glb 에 옷을 입힌다). gear 에 따라 안전모+망치 또는 조리모+앞치마+칼.
+ * 움직임은 부모(RepairCutscene·미스터찜)가 순수 타임라인으로 계산해서 update 로 넘겨 준다
  */
-export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: boolean }>(function Worker({ look, hammer }, ref) {
+export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; gear: WorkerGear }>(function Worker({ look, gear }, ref) {
   const { scene, animations } = useGLTF(modelUrl(CHARACTER_FILES[look.gender]))
   const [peasantAlt, rangerAlt] = useTexture(ALT_URLS)
   const altMaps = useMemo(() => {
@@ -79,9 +87,13 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
   const actionsRef = useRef<Record<WorkerPose, AnimationAction> | null>(null)
   useEffect(() => {
     const map = {} as Record<WorkerPose, AnimationAction>
+    const used = new Set<string>()
     for (const pose of POSES) {
-      const clip = animations.find((a) => a.name === WORKER_CLIPS[pose])
-      if (!clip) throw new Error(`수리기사 애니메이션이 없다: ${WORKER_CLIPS[pose]}`)
+      const source = animations.find((a) => a.name === WORKER_CLIPS[pose])
+      if (!source) throw new Error(`수리기사 애니메이션이 없다: ${WORKER_CLIPS[pose]}`)
+      // 같은 클립을 두 자세가 쓰면(서 있기·칼질) 믹서가 같은 손잡이를 돌려주므로 복제해서 따로 섞는다
+      const clip = used.has(source.name) ? source.clone() : source
+      used.add(source.name)
       const action = mixer.clipAction(clip)
       action.setEffectiveWeight(pose === 'walk' ? 1 : 0).play()
       map[pose] = action
@@ -98,6 +110,7 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
   const bones = useMemo(
     () => ({
       head: object.getObjectByName('Head'),
+      chest: object.getObjectByName('spine_03'),
       hand: object.getObjectByName('hand_r'),
       lowerarm: object.getObjectByName('lowerarm_r'),
       upperarm: object.getObjectByName('upperarm_r'),
@@ -108,6 +121,7 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
   // 안전모·망치를 뼈에 붙인다. 기본 자세에서 월드 기준으로 놓을 자리를 정해 뼈 좌표로 옮겨 두면 뼈를 따라 움직인다
   const hat = useRef<Group>(null)
   const tool = useRef<Group>(null)
+  const apron = useRef<Group>(null)
   const toolHead = useRef<Object3D>(null)
   useLayoutEffect(() => {
     object.updateWorldMatrix(true, true)
@@ -121,6 +135,7 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
     }
     attach(hat.current, bones.head, new Vector3(0, 0.12, 0.01))
     attach(tool.current, bones.hand, new Vector3(0, 0, 0))
+    attach(apron.current, bones.chest, new Vector3(0, -0.28, 0.17))
     object.traverse((o) => {
       o.castShadow = true
       o.frustumCulled = false
@@ -129,7 +144,7 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
 
   const root = useRef<Group>(null)
   const bubble = useRef<HTMLDivElement>(null)
-  const anim = useRef({ weights: { walk: 1, fix: 0, push: 0, cheer: 0 } as Record<WorkerPose, number>, bubble: null as string | null })
+  const anim = useRef({ weights: Object.fromEntries(POSES.map((p) => [p, p === 'walk' ? 1 : 0])) as Record<WorkerPose, number>, bubble: null as string | null })
 
   useImperativeHandle(
     ref,
@@ -147,9 +162,9 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
           actions[p].setEffectiveWeight(a.weights[p])
         }
         mixer.update(delta)
-        // 망치질: 클립(무릎 꿇고 고치기) 위에 오른팔을 들었다 내리치는 동작을 덧입힌다
+        // 망치질·칼질: 클립(무릎 꿇고 고치기·서 있기) 위에 오른팔을 들었다 내리치는 동작을 덧입힌다
         if (frame.swing !== null && bones.upperarm && bones.lowerarm) {
-          const lift = hammerLift(frame.swing) * a.weights.fix
+          const lift = hammerLift(frame.swing) * (a.weights.fix + a.weights.chop)
           bendBone(bones.upperarm, object, -lift * 0.8)
           bendBone(bones.lowerarm, object, -lift * 0.6)
         }
@@ -163,6 +178,9 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
       hammerHead(target) {
         toolHead.current?.getWorldPosition(target)
       },
+      handPosition(target) {
+        bones.hand?.getWorldPosition(target)
+      },
     }),
     [bones, mixer, object, rig],
   )
@@ -170,33 +188,75 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; hammer: bo
   return (
     <group ref={root}>
       <primitive object={object} />
-      {/* 노란 안전모 (머리뼈에 붙는다) */}
+      {/* 모자 (머리뼈에 붙는다): 수리기사는 노란 안전모, 요리사는 흰 조리모 */}
       <group ref={hat}>
-        <mesh castShadow scale={[1, 0.78, 1.08]}>
-          <sphereGeometry args={[0.15, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-          <meshStandardMaterial color="#fdd835" roughness={0.45} />
+        {gear === 'chef' ? (
+          <>
+            <mesh position={[0, 0.1, 0]} castShadow>
+              <cylinderGeometry args={[0.125, 0.125, 0.12, 16]} />
+              <meshStandardMaterial color="#fafafa" />
+            </mesh>
+            <mesh position={[0, 0.22, 0]} scale={[1, 0.75, 1]} castShadow>
+              <sphereGeometry args={[0.17, 16, 10]} />
+              <meshStandardMaterial color="#ffffff" />
+            </mesh>
+          </>
+        ) : (
+          <>
+            <mesh castShadow scale={[1, 0.78, 1.08]}>
+              <sphereGeometry args={[0.15, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+              <meshStandardMaterial color="#fdd835" roughness={0.45} />
+            </mesh>
+            <mesh position={[0, 0.005, 0.04]} castShadow>
+              <cylinderGeometry args={[0.19, 0.19, 0.018, 20]} />
+              <meshStandardMaterial color="#fbc02d" roughness={0.5} />
+            </mesh>
+            <mesh position={[0, 0.1, 0]} scale={[0.25, 0.25, 1.1]}>
+              <sphereGeometry args={[0.12, 8, 6]} />
+              <meshStandardMaterial color="#f9a825" />
+            </mesh>
+          </>
+        )}
+      </group>
+      {/* 요리사 앞치마 (가슴뼈에 붙는다) */}
+      <group ref={apron} visible={gear === 'chef'}>
+        <mesh castShadow>
+          <boxGeometry args={[0.36, 0.55, 0.02]} />
+          <meshStandardMaterial color="#c62828" />
         </mesh>
-        <mesh position={[0, 0.005, 0.04]} castShadow>
-          <cylinderGeometry args={[0.19, 0.19, 0.018, 20]} />
-          <meshStandardMaterial color="#fbc02d" roughness={0.5} />
-        </mesh>
-        <mesh position={[0, 0.1, 0]} scale={[0.25, 0.25, 1.1]}>
-          <sphereGeometry args={[0.12, 8, 6]} />
-          <meshStandardMaterial color="#f9a825" />
+        <mesh position={[0, 0.05, 0.012]}>
+          <boxGeometry args={[0.2, 0.12, 0.005]} />
+          <meshStandardMaterial color="#ffcdd2" />
         </mesh>
       </group>
-      {/* 망치 (오른손뼈에 붙는다). 손잡이는 앞쪽(+z)으로 */}
-      <group ref={tool} visible={hammer}>
+      {/* 손 도구 (오른손뼈에 붙는다). 망치 또는 식칼, 손잡이는 앞쪽(+z)으로 */}
+      <group ref={tool} visible={gear !== 'hands'}>
         <group rotation-x={Math.PI / 2}>
-          <mesh position={[0, 0.12, 0]} castShadow>
-            <cylinderGeometry args={[0.018, 0.022, 0.34, 8]} />
-            <meshStandardMaterial color="#8d6e63" />
-          </mesh>
-          <mesh position={[0, 0.28, 0]} rotation-z={Math.PI / 2} castShadow>
-            <boxGeometry args={[0.07, 0.17, 0.07]} />
-            <meshStandardMaterial color="#607d8b" metalness={0.6} roughness={0.35} />
-          </mesh>
-          <object3D ref={toolHead} position={[0, 0.28, 0]} />
+          {gear === 'chef' ? (
+            <>
+              <mesh position={[0, 0.06, 0]} castShadow>
+                <cylinderGeometry args={[0.016, 0.018, 0.12, 8]} />
+                <meshStandardMaterial color="#3e2723" />
+              </mesh>
+              <mesh position={[0, 0.19, -0.03]} castShadow>
+                <boxGeometry args={[0.012, 0.16, 0.08]} />
+                <meshStandardMaterial color="#cfd8dc" metalness={0.8} roughness={0.25} />
+              </mesh>
+              <object3D ref={toolHead} position={[0, 0.24, -0.06]} />
+            </>
+          ) : (
+            <>
+              <mesh position={[0, 0.12, 0]} castShadow>
+                <cylinderGeometry args={[0.018, 0.022, 0.34, 8]} />
+                <meshStandardMaterial color="#8d6e63" />
+              </mesh>
+              <mesh position={[0, 0.28, 0]} rotation-z={Math.PI / 2} castShadow>
+                <boxGeometry args={[0.07, 0.17, 0.07]} />
+                <meshStandardMaterial color="#607d8b" metalness={0.6} roughness={0.35} />
+              </mesh>
+              <object3D ref={toolHead} position={[0, 0.28, 0]} />
+            </>
+          )}
         </group>
       </group>
       <Html position={[0, 2.25, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>

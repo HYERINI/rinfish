@@ -226,6 +226,11 @@ const KIOSK_CSS = `
 .kiosk-detail-text h3 { margin: 4px 0; font-size: 19px; }
 .kiosk-detail-text p { margin: 2px 0; font-size: 13px; color: #4a5866; }
 .kiosk-detail-actions { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
+.kiosk-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-height: 170px; overflow-y: auto; }
+.kiosk-chip { display: flex; flex-direction: column; align-items: center; width: 80px; padding: 3px; border: 3px solid #e3e8ee; border-radius: 10px; background: #f8fafc; cursor: pointer; font-size: 11px; font-weight: 700; color: #1f2933; }
+.kiosk-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 72px; }
+.kiosk-chip.on { border-color: var(--accent); background: #fffdf3; }
+.kiosk-note { margin: 0; font-size: 13px; color: #c62828; text-align: center; }
 .kiosk-combo { display: flex; align-items: center; gap: 4px; }
 .kiosk-qty { display: flex; align-items: center; justify-content: center; gap: 14px; }
 .kiosk-qty button { width: 44px; height: 44px; border-radius: 12px; border: none; background: #e3e8ee; font-size: 24px; font-weight: 800; cursor: pointer; color: #1f2933; }
@@ -260,5 +265,7 @@ const KIOSK_CSS = `
   .kiosk-detail-actions > .kiosk-big { flex: 1 1 40%; padding: 10px 6px; font-size: 16px; }
   .kiosk-detail-actions > .kiosk-qty { flex: 0 0 auto; }
   .kiosk-qty button { width: 36px; height: 36px; font-size: 20px; }
+  .kiosk-chips { max-height: 84px; }
+  .kiosk-chip { width: 66px; }
 }
 `

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { STAMINA } from '../data/balance'
-import { BUFF_LABEL } from '../data/dishes'
+import { BUFF_LABEL, getDish } from '../data/dishes'
 import { MARKET } from '../data/market'
 import { SNACKS } from '../data/snacks'
 import { pressEat } from '../input/usePlayerActionKeys'
+import { finishCooking } from '../scene/cooking/finishCooking'
 import type { Interactable } from '../logic/interaction'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -47,6 +48,7 @@ export function Hud() {
   const nearby = useSessionStore((s) => s.nearby)
   const setMode = useSessionStore((s) => s.setMode)
   const cutscene = useSessionStore((s) => s.cutscene)
+  const cooking = useSessionStore((s) => s.cooking)
 
   const ratio = survival.stamina / STAMINA.max
   return (
@@ -71,6 +73,17 @@ export function Hud() {
       </div>
 
       {/* 연출 중: 위아래 검은 띠(영화처럼) + 자막 */}
+      {/* 요리 연출: 화면 아무 데나 누르거나 E·Space 로 건너뛴다 */}
+      {mode === 'cutscene' && cooking && (
+        <>
+          <div style={{ ...letterbox, top: 0 }} />
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto', cursor: 'pointer' }} onPointerDown={() => finishCooking()} />
+          <div style={{ ...letterbox, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 16 }}>
+            {MARKET.owner}이 {getDish(cooking.dish).name}을(를) 만드는 중…
+            <span style={{ fontSize: 12, opacity: 0.7 }}>클릭·E·Space 건너뛰기</span>
+          </div>
+        </>
+      )}
       {mode === 'cutscene' && cutscene && (
         <>
           <div style={{ ...letterbox, top: 0 }} />

@@ -38,7 +38,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 export function usePlayerActionKeys() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat || isTypingTarget(e.target)) return
+      if (e.repeat || e.defaultPrevented || isTypingTarget(e.target)) return
       if (e.code === ACTION_KEYS.jump) {
         // 탐험 중엔 포커스가 남은 버튼이 Space 로 눌리거나 페이지가 스크롤되지 않게 막는다 (패널에선 그대로 둔다)
         if (useSessionStore.getState().mode === 'explore') e.preventDefault()

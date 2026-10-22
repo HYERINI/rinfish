@@ -79,6 +79,27 @@ export function FoodInHand({ dish }: { dish: FoodId }) {
           </mesh>
         </group>
       )
+    case 'fishSteam':
+    case 'spicySteam':
+    case 'bossSteam':
+    case 'xxlSteam':
+      // 찜 한 그릇 (뚝배기 + 소스 위 생선)
+      return (
+        <group position={[0, 0.04, 0.03]}>
+          <mesh rotation-x={Math.PI}>
+            <sphereGeometry args={[0.075, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color="#4e342e" side={2} />
+          </mesh>
+          <mesh rotation-x={-Math.PI / 2} position={[0, -0.005, 0]}>
+            <circleGeometry args={[0.07, 14]} />
+            <meshStandardMaterial color={dish === 'spicySteam' ? '#e53935' : dish === 'bossSteam' ? '#ff8f00' : '#d7a86e'} />
+          </mesh>
+          <mesh position={[0, 0.012, 0]} scale={[1.6, 0.6, 0.8]}>
+            <sphereGeometry args={[0.025, 8, 6]} />
+            <meshStandardMaterial color="#b0bec5" />
+          </mesh>
+        </group>
+      )
     case 'bowl':
     case 'stew':
       // 작은 그릇 (회덮밥은 흰 밥에 연어, 매운탕은 빨간 국물)

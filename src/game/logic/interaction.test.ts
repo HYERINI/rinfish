@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSameInteractable, resolveKeyAction } from './interaction'
+import { isCookingSkipKey, isSameInteractable, resolveKeyAction } from './interaction'
 
 describe('isSameInteractable', () => {
   it('같은 낚시 포인트면 true, 다른 포인트면 false', () => {
@@ -55,6 +55,11 @@ describe('resolveKeyAction', () => {
     for (const code of ['KeyE', 'Escape', 'Digit1']) expect(resolveKeyAction(code, 'cutscene', gate)).toEqual({ type: 'none' })
     expect(isSameInteractable(gate, { kind: 'zoneGate', zoneId: 'reef' })).toBe(false)
     expect(isSameInteractable(gate, { kind: 'zoneGate', zoneId: 'pond' })).toBe(true)
+  })
+
+  it('요리 연출은 E·Space·Enter·ESC 로 건너뛴다', () => {
+    for (const code of ['KeyE', 'Space', 'Enter', 'Escape']) expect(isCookingSkipKey(code)).toBe(true)
+    expect(isCookingSkipKey('KeyW')).toBe(false)
   })
 
   it('다른 키는 무시한다', () => {

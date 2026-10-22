@@ -25,7 +25,7 @@ import {
 import { NO_BAIT, buyBait as buyBaitRule, consumeBait, type BaitCounts } from '../logic/bait'
 import { normalizeLook } from '../logic/characterLook'
 import { NO_SNACKS, buyAndEatSnack as buyAndEatSnackRule, buySnacks as buySnacksRule, eatSnackFromBag, type SnackCounts, type SnackEatResult } from '../logic/snacks'
-import { cook } from '../logic/cooking'
+import { cook, ingredientsOk } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
 import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
@@ -74,7 +74,8 @@ type ProgressActions = {
   spendCastStamina: () => void
   /** 1초 안팎마다 호출. 플레이 시간·체력·어항 시간을 함께 진행하고 생긴 일을 돌려준다 */
   tick: (seconds: number, ctx: SurvivalTickContext) => TickEvents
-  cookDish: (dishId: DishId, fishId: string) => boolean
+  /** 물고기(한 마리 또는 여러 마리)로 요리해 먹는다. 재료가 안 맞거나 코인이 모자라면 false */
+  cookDish: (dishId: DishId, fishIds: string | string[]) => boolean
   displayFish: (fishId: string) => boolean
   undisplayFish: (fishId: string) => boolean
   buyFeed: () => boolean
@@ -304,14 +305,20 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
         return { fainted: survivalTick.fainted, aquarium: aquariumTick.events }
       },
 
-      cookDish: (dishId, fishId) => {
+      cookDish: (dishId, fishIds) => {
         const s = get()
-        const fish = s.inventory.find((f) => f.id === fishId)
-        const species = fish && findSpecies(fish.speciesId)
-        if (!species) return false
-        const result = cook(s.coins, s.survival, getDish(dishId), species.rarity)
+        const ids = Array.isArray(fishIds) ? fishIds : [fishIds]
+        const picked = ids.flatMap((id) => {
+          const fish = s.inventory.find((f) => f.id === id)
+          const species = fish && findSpecies(fish.speciesId)
+          return fish && species ? [{ id: fish.id, speciesId: fish.speciesId, rarity: species.rarity }] : []
+        })
+        const dish = getDish(dishId)
+        if (picked.length !== ids.length || !ingredientsOk(dish, picked)) return false
+        const result = cook(s.coins, s.survival, dish, picked.map((f) => f.rarity))
         if (!result.ok) return false
-        set({ coins: result.coins, survival: result.survival, inventory: s.inventory.filter((f) => f.id !== fishId) })
+        const used = new Set(ids)
+        set({ coins: result.coins, survival: result.survival, inventory: s.inventory.filter((f) => !used.has(f.id)) })
         return true
       },
 

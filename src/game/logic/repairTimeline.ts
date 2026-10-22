@@ -1,7 +1,7 @@
 import { CAVE_ROCK, HAMMER_TIMING, PUSH_TIMING, type RepairPlan, type Vec2 } from '../data/repair'
 
-/** 기사님 자세. fix = 무릎 꿇고 망치질, push = 바위 밀기, cheer = 다 끝나고 신나서 수다 */
-export type WorkerPose = 'walk' | 'fix' | 'push' | 'cheer'
+/** 기사님·요리사 자세. fix = 무릎 꿇고 망치질, push = 바위 밀기, cheer = 다 끝나고 신나서 수다, chop = 서서 칼질 */
+export type WorkerPose = 'walk' | 'fix' | 'push' | 'cheer' | 'idle' | 'chop'
 
 export type WorkerFrame = {
   x: number

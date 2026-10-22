@@ -45,7 +45,7 @@ export type FishInstance = {
   caughtAtPlayTime: number
 }
 
-export type DishId = 'sashimi' | 'bowl' | 'stew'
+export type DishId = 'fishSteam' | 'spicySteam' | 'bossSteam' | 'xxlSteam' | 'sashimi' | 'bowl' | 'stew'
 /** 먹을 수 있는 것: 물고기 요리 또는 간식. 먹는 동작에서 손에 든 음식을 고른다 */
 export type FoodId = DishId | SnackId
 /** 요리 버프 종류. 같은 종류끼리는 겹치지 않고 남은 시간만 갱신된다 */

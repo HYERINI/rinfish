@@ -15,6 +15,22 @@ export function ItemIcon({ id, size = 64, level = 0 }: { id: ItemIconId; size?: 
   )
 }
 
+/** 찜 냄비 그림: 뚝배기 + 소스 + 물고기 꼬리 + 김 */
+function SteamDish({ sauce, rim = '#4e342e', children }: { sauce: string; rim?: string; children?: ReactNode }) {
+  return (
+    <g>
+      <path d="M8 34 h 48 c 0 14, -10 22, -24 22 s -24 -8 -24 -22 z" fill="#5d4037" stroke={rim} strokeWidth="3" />
+      <ellipse cx="32" cy="34" rx="24" ry="7" fill={sauce} />
+      <path d="M38 33 l 10 -9 l 2 12 z" fill="#90a4ae" stroke="#546e7a" strokeWidth="1.5" />
+      <ellipse cx="26" cy="34" rx="9" ry="4" fill="#b0bec5" />
+      <circle cx="21" cy="33" r="1.2" fill="#000" />
+      <path d="M2 38 h 6 M56 38 h 6" stroke="#3e2723" strokeWidth="4" strokeLinecap="round" />
+      <path d="M22 24 c -3 -4, 3 -6, 0 -10 M32 22 c -3 -4, 3 -6, 0 -10 M42 24 c -3 -4, 3 -6, 0 -10" stroke="#cfd8dc" strokeWidth="2" fill="none" opacity="0.9" />
+      {children}
+    </g>
+  )
+}
+
 /** 장비 단계 색: 나무·나일론 → 은색 → 금색 */
 const TIER = ['#a1887f', '#90caf9', '#ffd54f']
 
@@ -153,6 +169,30 @@ const ICONS: Record<ItemIconId, (level: number) => ReactNode> = {
       <rect x="22" y="8" width="20" height="4" rx="2" fill="#b0bec5" />
       <path d="M34 18 l -8 14 h 6 l -4 14 l 10 -17 h -6 l 4 -11 z" fill="#ffeb3b" stroke="#f57f17" strokeWidth="1" />
       <rect x="24" y="14" width="4" height="36" rx="2" fill="#fff" opacity="0.25" />
+    </g>
+  ),
+  fishSteam: () => <SteamDish sauce="#d7a86e" />,
+  spicySteam: () => (
+    <SteamDish sauce="#e53935">
+      <path d="M40 30 q 6 -2 8 4 q -6 4 -8 -4 z" fill="#2e7d32" />
+      <path d="M22 33 q 4 -6 9 -2" stroke="#b71c1c" strokeWidth="3" fill="none" strokeLinecap="round" />
+    </SteamDish>
+  ),
+  bossSteam: () => (
+    <SteamDish sauce="#ff8f00" rim="#ffd54f">
+      <path d="M24 12 l 4 6 l 4 -8 l 4 8 l 4 -6 l -2 9 h -12 z" fill="#ffd54f" stroke="#f57f17" strokeWidth="1.5" />
+    </SteamDish>
+  ),
+  xxlSteam: () => (
+    <g>
+      <ellipse cx="32" cy="46" rx="30" ry="12" fill="#eceff1" stroke="#90a4ae" strokeWidth="2" />
+      <path d="M6 42 C 10 22, 54 22, 58 42 z" fill="#6d4c41" />
+      <ellipse cx="22" cy="36" rx="4" ry="2.5" fill="#fff" />
+      <circle cx="21" cy="36" r="1.4" fill="#000" />
+      <path d="M58 40 l 6 -6 v 12 z" fill="#5d4037" />
+      <path d="M14 30 q 18 -10 36 0" stroke="#ff7043" strokeWidth="3" fill="none" />
+      <text x="32" y="58" textAnchor="middle" fontSize="9" fontWeight="900" fill="#c62828">8인분</text>
+      <path d="M20 14 c -3 -4, 3 -6, 0 -10 M32 12 c -3 -4, 3 -6, 0 -10 M44 14 c -3 -4, 3 -6, 0 -10" stroke="#b0bec5" strokeWidth="2" fill="none" />
     </g>
   ),
   none: () => (

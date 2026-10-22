@@ -33,6 +33,11 @@ export type KeyAction =
   | { type: 'closePanel' }
   | { type: 'selectBait'; bait: BaitId | null }
 
+/** 요리 연출을 건너뛰는 키 (E·Space·Enter·ESC). 수리 연출은 건너뛰지 않는다 */
+export function isCookingSkipKey(code: string): boolean {
+  return code === 'KeyE' || code === 'Space' || code === 'Enter' || code === 'Escape'
+}
+
 /** panelLocked: 지금 패널을 닫으면 안 된다 (처음 캐릭터를 만드는 중) */
 export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable | null, panelLocked = false): KeyAction {
   // 연출 중엔 아무 키도 받지 않는다 (끝나면 저절로 탐험으로 돌아온다)

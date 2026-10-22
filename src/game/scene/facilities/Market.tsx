@@ -4,7 +4,7 @@ import { MARKET } from '../../data/market'
 import { FACILITY } from '../../data/zones'
 import { ASSET } from '../assets'
 import { Prop } from '../Prop'
-import { Visitor } from '../Visitor'
+import { CookingStation } from '../cooking/CookingStation'
 import { InteractionZone } from './InteractionZone'
 import { ShopSign } from './ShopSign'
 
@@ -24,11 +24,10 @@ export function Market() {
       <Prop url={ASSET.stove} height={1} position={[1.1, 0, 0]} />
       <Prop url={ASSET.potStew} height={0.35} position={[1.1, 1, 0]} />
       <Prop url={ASSET.cuttingBoard} height={0.06} position={[-0.6, 1, 0]} />
-      <Prop url={ASSET.fish} height={0.15} position={[-0.6, 1.06, 0]} rotationY={0.4} />
       <Prop url={ASSET.sushi} height={0.12} position={[0.1, 1, 0.1]} />
       <Prop url={ASSET.bowlBroth} height={0.18} position={[-1.3, 1, 0.1]} />
-      {/* 요리사 */}
-      <Visitor url={ASSET.visitorB} position={[0, 0, -0.9]} clip="interact-right" />
+      {/* 사장님 배정빈과 도마 위 생선·냄비 김·다 된 요리 (주문하면 요리 연출) */}
+      <CookingStation />
       {/* 기둥과 줄무늬 천막 */}
       {[-1.8, 1.8].map((x) => (
         <mesh key={x} position={[x, 1.3, -1.2]} castShadow>
@@ -47,7 +46,7 @@ export function Market() {
       <Html center position={[0, 3.85, -0.4]} zIndexRange={[100, 0]} style={sign}>
         🍲 {MARKET.name}
       </Html>
-      <Html center position={[0, 1.95, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
+      <Html center position={[0, 2.45, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
         {MARKET.owner}
       </Html>
       <InteractionZone position={[0, 1, 1.2]} halfSize={[2.2, 1.5, 1.2]} target={{ kind: 'market' }} />

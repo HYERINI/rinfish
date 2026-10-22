@@ -93,7 +93,7 @@ function Crew({ zoneId }: { zoneId: Exclude<ZoneId, 'beach'> }) {
     <>
       {plan.workers.map((_, i) => (
         <Suspense key={i} fallback={null}>
-          <Worker ref={(h) => void (workers.current[i] = h)} look={WORKER_LOOKS[i % WORKER_LOOKS.length]} hammer={plan.kind === 'hammer'} />
+          <Worker ref={(h) => void (workers.current[i] = h)} look={WORKER_LOOKS[i % WORKER_LOOKS.length]} gear={plan.kind === 'hammer' ? 'hammer' : 'hands'} />
         </Suspense>
       ))}
       {Array.from({ length: DUST_COUNT }, (_, n) => (

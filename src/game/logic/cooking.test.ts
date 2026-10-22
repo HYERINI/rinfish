@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DISH_POTENCY, STAMINA } from '../data/balance'
 import { getDish } from '../data/dishes'
-import { cook, dishEffect } from './cooking'
+import { cook, dishEffect, eligibleFish, ingredientsOk, menuVisible, type Ingredient } from './cooking'
 import { FRESH_SURVIVAL, type Survival } from './stamina'
 
 const hungry: Survival = { stamina: 10, graceLeft: null, buffs: [] }
@@ -49,5 +49,44 @@ describe('cook', () => {
   it('약화 상태에서 먹으면 정상으로 돌아온다', () => {
     const result = cook(10, { stamina: 0, graceLeft: 20, buffs: [] }, getDish('sashimi'), 'junk')
     expect(result.ok && result.survival.graceLeft).toBeNull()
+  })
+})
+
+describe('찜 메뉴와 재료', () => {
+  const f = (id: string, speciesId: string, rarity: Ingredient['rarity']): Ingredient => ({ id, speciesId, rarity })
+  const sardine = f('a', 'sleepy-sardine', 'common')
+  const mackerel = f('b', 'chatty-mackerel', 'common')
+  const rare = f('c', 'sunglasses-mackerel', 'rare')
+  const xxl = f('d', 'eelgas-baejeongbin', 'rare')
+
+  it('물고기찜은 일반만, 대왕찜은 희귀 이상, 매콤 해물찜은 아무거나 두 마리', () => {
+    expect(eligibleFish(getDish('fishSteam'), [sardine, rare]).map((x) => x.id)).toEqual(['a'])
+    expect(eligibleFish(getDish('bossSteam'), [sardine, rare]).map((x) => x.id)).toEqual(['c'])
+    expect(ingredientsOk(getDish('spicySteam'), [sardine, rare])).toBe(true)
+    expect(ingredientsOk(getDish('spicySteam'), [sardine])).toBe(false)
+    expect(ingredientsOk(getDish('spicySteam'), [sardine, sardine])).toBe(false)
+  })
+
+  it('여러 마리면 희귀도 배율을 평균한다', () => {
+    const e = dishEffect(getDish('spicySteam'), ['common', 'rare'])
+    expect(e.heal).toBe(Math.round(50 * (DISH_POTENCY.common + DISH_POTENCY.rare) / 2))
+  })
+
+  it('비밀 메뉴 XXL배정빈찜은 XXL배정빈이 있을 때만 보이고, 사장님 반응이 따로 있다', () => {
+    const secret = getDish('xxlSteam')
+    expect(menuVisible(secret, [sardine, mackerel, rare])).toBe(false)
+    expect(menuVisible(secret, [sardine, xxl])).toBe(true)
+    expect(ingredientsOk(secret, [rare])).toBe(false)
+    expect(ingredientsOk(secret, [xxl])).toBe(true)
+    expect(secret.chefLine).toContain('양심')
+    expect(menuVisible(getDish('fishSteam'), [])).toBe(true)
+  })
+
+  it('메뉴: 물고기찜 10/30, 매콤 해물찜 25/50+텐션, 대왕찜 40/80+릴', () => {
+    expect([getDish('fishSteam'), getDish('spicySteam'), getDish('bossSteam')].map((d) => [d.cookFee, d.heal, d.buff?.kind ?? null])).toEqual([
+      [10, 30, null],
+      [25, 50, 'tension'],
+      [40, 80, 'reel'],
+    ])
   })
 })
