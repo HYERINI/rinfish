@@ -23,7 +23,7 @@ describe('sellPrice', () => {
 
 describe('gearStats', () => {
   it('기본 장비 능력치', () => {
-    expect(gearStats(START)).toEqual({ maxTension: 100, reelSpeed: 8, shockAbsorb: 1 })
+    expect(gearStats(START)).toEqual({ maxTension: 100, reelSpeed: 6, shockAbsorb: 1 })
   })
 })
 

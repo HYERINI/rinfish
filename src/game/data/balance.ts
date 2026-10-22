@@ -4,14 +4,14 @@ type Range = [number, number]
 
 /** 텐션 줄다리기 */
 export const FIGHT = {
-  startDistance: 60,
+  startDistance: 25,
   /** 이 거리까지 멀어지면 물고기가 도망간다 */
-  escapeDistance: 100,
+  escapeDistance: 45,
   startTension: 30,
   /** 감는 동안 초당 오르는 텐션 */
-  reelTensionRate: 30,
+  reelTensionRate: 18,
   /** 손을 뗀 동안 초당 내려가는 텐션 */
-  relaxRate: 40,
+  relaxRate: 55,
   /** 텐션이 이보다 낮은 상태가 slackEscapeTime 초 이어지면 바늘이 빠진다 */
   slackThreshold: 5,
   slackEscapeTime: 2.5,

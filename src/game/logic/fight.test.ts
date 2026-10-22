@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { activePattern, createFight, stepFight, type FightState } from './fight'
 import { fixedRng } from './rng'
+import { FIGHT } from '../data/balance'
 import type { GearStats } from '../data/types'
 
 const rng = fixedRng(0.5)
@@ -28,8 +29,9 @@ describe('stepFight', () => {
   })
 
   it('낚싯줄 단계가 높으면 더 오래 버틴다', () => {
-    const lv1 = runUntilDone(createFight(weakFish, GEAR_LV1, rng), true)
-    const lv3 = runUntilDone(createFight(weakFish, { ...GEAR_LV1, maxTension: 190 }, rng), true)
+    // 계속 감기만 하면 결국 끊어진다. 끊어지기 전에 잡히지 않게 감기 속도를 0으로 두고 텐션만 본다
+    const lv1 = runUntilDone(createFight(weakFish, { ...GEAR_LV1, reelSpeed: 0 }, rng), true)
+    const lv3 = runUntilDone(createFight(weakFish, { ...GEAR_LV1, reelSpeed: 0, maxTension: 190 }, rng), true)
     expect(lv3.outcome).toBe('snapped')
     expect(lv3.elapsed).toBeGreaterThan(lv1.elapsed)
   })
@@ -76,8 +78,8 @@ describe('stepFight', () => {
 describe('activePattern', () => {
   it('전설(mixed)은 남은 거리에 따라 돌진 → 지구전 → 변덕으로 바뀐다', () => {
     const base = createFight({ strength: 10, pattern: 'mixed' }, GEAR_LV1, rng)
-    expect(activePattern({ ...base, distance: 60 })).toBe('dasher')
-    expect(activePattern({ ...base, distance: 30 })).toBe('endurance')
-    expect(activePattern({ ...base, distance: 10 })).toBe('erratic')
+    expect(activePattern({ ...base, distance: FIGHT.startDistance })).toBe('dasher')
+    expect(activePattern({ ...base, distance: FIGHT.startDistance * 0.5 })).toBe('endurance')
+    expect(activePattern({ ...base, distance: FIGHT.startDistance * 0.15 })).toBe('erratic')
   })
 })

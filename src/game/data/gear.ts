@@ -28,9 +28,9 @@ export const GEAR: Record<GearSlot, GearDef> = {
     name: '릴',
     description: '감는 속도',
     levels: [
-      { label: '나무 릴', price: 0, value: 8 },
-      { label: '스피닝 릴', price: 120, value: 11 },
-      { label: '전동 릴', price: 400, value: 15 },
+      { label: '나무 릴', price: 0, value: 6 },
+      { label: '스피닝 릴', price: 120, value: 8 },
+      { label: '전동 릴', price: 400, value: 10 },
     ],
   },
   rod: {
