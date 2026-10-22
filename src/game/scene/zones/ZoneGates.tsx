@@ -6,7 +6,7 @@ import { CanvasTexture, SRGBColorSpace, type Group, type Mesh, type MeshStandard
 import { CAVE_ROCK, HAMMER_TIMING, REPAIR_PLANS } from '../../data/repair'
 import { BARRIER_COLLIDER_HEIGHT, FENCE_Z, INLAND_WATER_Y, ZONES, type ZoneDef } from '../../data/zones'
 import { repairTimeline } from '../../logic/repairTimeline'
-import { isZoneOpen } from '../../logic/zoneUnlock'
+import { isZoneOpen, unlockHint } from '../../logic/zoneUnlock'
 import { useProgressStore } from '../../stores/progressStore'
 import { InteractionZone } from '../facilities/InteractionZone'
 import { cutsceneTime } from './cutsceneClock'
@@ -24,6 +24,8 @@ export function ZoneGates() {
 }
 
 function ZoneGate({ zone, open }: { zone: ZoneDef; open: boolean }) {
+  // 문 이름표 둘째 줄: 어떻게 여는지와 지금 모은 만큼
+  const hint = useProgressStore((s) => unlockHint(zone, { coins: s.coins, dexCount: Object.keys(s.dex).length, lineLevel: s.gear.line, unlocked: s.unlockedZones }))
   const { xFrom, xTo } = zone.gate!
   const width = xTo - xFrom
   const cx = (xFrom + xTo) / 2
@@ -42,7 +44,8 @@ function ZoneGate({ zone, open }: { zone: ZoneDef; open: boolean }) {
           </RigidBody>
           {/* Html: 3D 위치에 일반 HTML을 띄운다 (한글 표시용) */}
           <Html center position={[cx, 3, FENCE_Z]} zIndexRange={[100, 0]} style={gateLabel}>
-            잠김 · {zone.name} — {zone.unlockLabel}
+            <div>🔒 {zone.name} — {zone.unlockLabel}</div>
+            {hint && <div style={{ marginTop: 3, fontSize: 12, color: hint.startsWith('✅') ? '#a5d6a7' : '#ffe082' }}>{hint}</div>}
           </Html>
           <InteractionZone position={[cx, 1, FENCE_Z + 2]} halfSize={[width / 2, 1.5, 1.7]} target={{ kind: 'zoneGate', zoneId: zone.id }} />
         </>
@@ -419,7 +422,8 @@ const gateLabel = {
   whiteSpace: 'nowrap' as const,
   background: 'rgba(0,0,0,0.6)',
   color: '#fff',
-  padding: '4px 8px',
-  borderRadius: 6,
+  padding: '5px 10px',
+  borderRadius: 8,
   fontSize: 13,
+  textAlign: 'center' as const,
 }

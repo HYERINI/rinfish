@@ -49,3 +49,48 @@ export function unlockZone(zone: ZoneDef, ctx: UnlockContext): UnlockResult {
   if (status.state !== 'ready') return { ok: false, status }
   return { ok: true, coins: ctx.coins - status.cost, unlocked: [...ctx.unlocked, zone.id] }
 }
+
+/** 입구마다 부르는 이름 (다리·보트·바위) */
+function gateNoun(zone: ZoneDef): string {
+  if (zone.unlock?.kind === 'repair') return zone.unlock.target === 'bridge' ? '다리' : '보트'
+  return '바위'
+}
+
+/** 잠긴 문 이름표 둘째 줄: 어떻게 여는지와 지금 얼마나 모였는지. 열렸으면 null */
+export function unlockHint(zone: ZoneDef, ctx: UnlockContext): string | null {
+  const status = unlockStatus(zone, ctx)
+  const noun = gateNoun(zone)
+  if (status.state === 'open') return null
+  if (status.state === 'ready') return status.cost > 0 ? `✅ 수리비 ${status.cost}코인 준비 완료! ${noun} 앞으로 가서 E` : `✅ 조건 달성! ${noun} 앞으로 가서 E`
+  if (status.reason === 'coins') return `🔨 수리비 ${status.cost}코인 (지금 ${ctx.coins}/${status.cost}) · 모이면 ${noun} 앞에서 E`
+  return `🪨 ${status.progress} 채우면 수리기사님이 ${noun}를 치워 줘요`
+}
+
+/** 다음 목표를 고르는 순서: 싼 다리 → 보트 → 동굴 */
+const GOAL_ORDER: ZoneId[] = ['pond', 'reef', 'cave']
+
+export type Goal = { zoneId: ZoneId; title: string; detail: string; ratio: number }
+
+/**
+ * 화면 위에 띄울 "다음 목표". 아직 안 열린 구역을 순서대로 보고 첫 번째 것의 할 일을 알려 준다.
+ * 모두 열렸으면 null
+ */
+export function nextGoal(ctx: UnlockContext): Goal | null {
+  for (const id of GOAL_ORDER) {
+    const zone = ZONES.find((z) => z.id === id)
+    if (!zone?.unlock) continue
+    const status = unlockStatus(zone, ctx)
+    if (status.state === 'open') continue
+    const noun = gateNoun(zone)
+    const u = zone.unlock
+    if (u.kind === 'repair') {
+      const ratio = Math.min(1, ctx.coins / u.price)
+      if (status.state === 'ready') return { zoneId: id, title: `${zone.name} 열기`, detail: `${noun} 앞으로 가서 E → 수리비 ${u.price}코인 내기`, ratio }
+      return { zoneId: id, title: `${zone.name} 열기`, detail: `물고기를 잡아 판매함에 팔고 코인 모으기 (${ctx.coins}/${u.price})`, ratio }
+    }
+    const ratio = (Math.min(ctx.dexCount, u.minDex) / u.minDex + Math.min(ctx.lineLevel + 1, u.minLineLevel) / u.minLineLevel) / 2
+    if (status.state === 'ready') return { zoneId: id, title: `${zone.name} 열기`, detail: `${noun} 앞으로 가서 E → 수리기사님 부르기`, ratio: 1 }
+    return { zoneId: id, title: `${zone.name} 열기`, detail: `${clearProgress(u.minDex, u.minLineLevel, ctx.dexCount, ctx.lineLevel)} (도감은 새 물고기, 낚싯줄은 장비 상점)`, ratio }
+  }
+  return null
+}

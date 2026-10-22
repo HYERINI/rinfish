@@ -14,6 +14,7 @@ import { useFishingStore } from './stores/fishingStore'
 import { useProgressStore } from './stores/progressStore'
 import { useSessionStore } from './stores/sessionStore'
 import { FishingOverlay } from './ui/FishingOverlay'
+import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
 import { LoadingScreen } from './ui/LoadingScreen'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
@@ -65,6 +66,7 @@ export function Game({ onExit }: GameProps) {
       </div>
       <WeaknessOverlay />
       <Hud />
+      <GoalTracker />
       <FishingOverlay />
       <Panels onExit={onExit} />
       <NoticeLayer />

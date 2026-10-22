@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getZone } from '../data/zones'
-import { clearProgress, isZoneOpen, openFishingSpots, unlockStatus, unlockZone, type UnlockContext } from './zoneUnlock'
+import { clearProgress, isZoneOpen, nextGoal, openFishingSpots, unlockHint, unlockStatus, unlockZone, type UnlockContext } from './zoneUnlock'
 
 const ctx = (p: Partial<UnlockContext> = {}): UnlockContext => ({ coins: 0, dexCount: 0, lineLevel: 0, unlocked: [], ...p })
 
@@ -57,3 +57,32 @@ describe('clearProgress', () => {
     expect(clearProgress(8, 3, 20, 5)).toBe('도감 8/8 · 낚싯줄 Lv3/3')
   })
 })
+
+describe('unlockHint', () => {
+  it('어떻게 여는지와 지금 모은 만큼을 보여 주고, 열리면 없다', () => {
+    expect(unlockHint(getZone('pond'), ctx({ coins: 120 }))).toContain('지금 120/300')
+    expect(unlockHint(getZone('pond'), ctx({ coins: 300 }))).toContain('다리 앞으로 가서 E')
+    expect(unlockHint(getZone('reef'), ctx({ coins: 0 }))).toContain('보트 앞에서 E')
+    expect(unlockHint(getZone('cave'), ctx({ dexCount: 5, lineLevel: 1 }))).toContain('도감 5/8 · 낚싯줄 Lv2/3')
+    expect(unlockHint(getZone('cave'), ctx({ dexCount: 8, lineLevel: 2 }))).toContain('바위 앞으로 가서 E')
+    expect(unlockHint(getZone('pond'), ctx({ unlocked: ['pond'] }))).toBeNull()
+  })
+})
+
+describe('nextGoal', () => {
+  it('처음엔 코인을 모아 연못 다리를 고치는 것부터', () => {
+    const g = nextGoal(ctx({ coins: 120 }))
+    expect(g?.zoneId).toBe('pond')
+    expect(g?.detail).toContain('120/300')
+    expect(g?.ratio).toBeCloseTo(0.4)
+  })
+  it('코인이 모이면 다리 앞으로 가라고 한다', () => {
+    expect(nextGoal(ctx({ coins: 300 }))?.detail).toContain('다리 앞으로 가서 E')
+  })
+  it('연못이 열리면 보트, 그다음 동굴, 다 열리면 없다', () => {
+    expect(nextGoal(ctx({ unlocked: ['pond'] }))?.zoneId).toBe('reef')
+    expect(nextGoal(ctx({ unlocked: ['pond', 'reef'], dexCount: 3 }))?.detail).toContain('도감 3/8')
+    expect(nextGoal(ctx({ unlocked: ['pond', 'reef', 'cave'] }))).toBeNull()
+  })
+})
+
