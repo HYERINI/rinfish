@@ -15,7 +15,7 @@ describe('fishLooks', () => {
   it('같은 모델을 쓰는 어종은 색·크기·소품 중 하나 이상이 다르다', () => {
     const seen = new Map<string, string>()
     for (const [id, look] of Object.entries(FISH_LOOKS)) {
-      const key = `${look.model}|${look.tint ?? ''}|${look.glow ?? ''}|${look.size}|${look.accessory ?? ''}`
+      const key = `${look.model}|${look.tint ?? ''}|${look.glow ?? ''}|${look.size}|${look.stretch?.join(',') ?? ''}|${look.accessories?.join(',') ?? ''}`
       expect(seen.has(key), `${id} 와 ${seen.get(key)} 가 똑같이 생겼다`).toBe(false)
       seen.set(key, id)
     }

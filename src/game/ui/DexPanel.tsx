@@ -22,6 +22,7 @@ export function DexPanel() {
                   <strong>{species.name}</strong>
                   <div style={{ color: RARITY_COLOR[species.rarity] }}>{RARITY_LABEL[species.rarity]}</div>
                   <div style={{ opacity: 0.8, margin: '4px 0' }}>{species.description}</div>
+                  {species.trivia && <div style={trivia}>{species.trivia}</div>}
                   <div>
                     최대 {entry.maxWeight}kg · {entry.count}마리
                   </div>
@@ -39,3 +40,6 @@ export function DexPanel() {
     </Panel>
   )
 }
+
+/** 쓸데없는 스탯 한 줄 */
+const trivia = { color: '#ffe082', fontSize: 12, margin: '0 0 4px' } as const

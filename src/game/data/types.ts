@@ -8,6 +8,8 @@ export type FishSpecies = {
   id: string
   name: string
   description: string
+  /** 도감·결과 카드에서 설명 아래 한 줄로 보여 주는 쓸데없는 스탯 */
+  trivia?: string
   zones: ZoneId[]
   rarity: Rarity
   pattern: FightPattern

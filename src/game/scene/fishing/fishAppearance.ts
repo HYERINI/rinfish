@@ -7,21 +7,25 @@ import {
   Group,
   Matrix4,
   Mesh,
-  MeshStandardMaterial,
   OctahedronGeometry,
   Quaternion,
+  Source,
   SphereGeometry,
   TorusGeometry,
   Vector3,
   type Bone,
-  type BufferGeometry,
   type Material,
+  type MeshStandardMaterial,
   type Object3D,
+  type Texture,
 } from 'three'
 import type { FishAccessoryKind, FishLook, FishModelId } from '../../data/fishLooks'
 import { restBox } from '../modelBounds'
+import { glasses, HALF_PI, mat, part, SIDES, type Vec3 } from './accessoryKit'
+import { anchorPoint, BODY_Z, sectionAt, type Anchor, type FishShape, type Section } from './fishShape'
+import { HIDES_PART, STUDY_ACCESSORIES, type StudyAccessoryKind } from './studyAccessories'
 
-type Vec3 = [number, number, number]
+export type { FishShape } from './fishShape'
 
 // ─── 색·발광 ────────────────────────────────────────────────
 
@@ -36,10 +40,44 @@ const isEye = (name: string) => /eye/i.test(name)
 /** 지느러미는 머리 모양을 잴 때 뺀다 (등지느러미·가시가 머리 위로 높이 솟은 모델이 있다) */
 const isFin = (name: string) => /fin/i.test(name)
 
+const grayCache = new WeakMap<Texture, Texture>()
+
+/**
+ * 텍스처의 흑백 사본 (밝기 차이만 남기고, 가장 밝은 곳이 1·가장 어두운 곳도 TINT_FLOOR 이상). 모델 텍스처마다 한 번 만든다.
+ * 그림을 그릴 수 없는 곳(테스트)이나 그림이 아직 없으면 원래 텍스처를 쓴다
+ */
+function grayTexture(texture: Texture): Texture {
+  const cached = grayCache.get(texture)
+  if (cached) return cached
+  const image = texture.image as CanvasImageSource & { width: number; height: number }
+  if (typeof document === 'undefined' || !image?.width) return texture
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return texture
+  ctx.drawImage(image, 0, 0)
+  const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const d = pixels.data
+  let max = 1
+  for (let i = 0; i < d.length; i += 4) max = Math.max(max, 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2])
+  for (let i = 0; i < d.length; i += 4) {
+    const l = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / max
+    d[i] = d[i + 1] = d[i + 2] = 255 * (TINT_FLOOR + (1 - TINT_FLOOR) * l)
+  }
+  ctx.putImageData(pixels, 0, 0)
+  // clone 은 그림(source)을 원본과 같이 쓰므로 새 source 를 단다
+  const gray = texture.clone()
+  gray.source = new Source(canvas)
+  gray.needsUpdate = true
+  grayCache.set(texture, gray)
+  return gray
+}
+
 /**
  * 물고기 모델에 생김새(색·발광)를 입힌다. 같은 모델을 쓰는 다른 어종과 색이 섞이지 않도록 재질을 인스턴스마다 복제한다.
  * 색은 원래 색에 그냥 곱하면 어두운 모델(메기 등)이 새까매지므로, 부위별 밝기 차이만 남기고 색을 tint 로 바꾼다.
- * 텍스처 재질은 색이 텍스처에 곱해지므로 tint 를 그대로 쓴다. 눈은 그대로 둔다
+ * 텍스처 재질(고등어·오징어의 색 아틀라스)은 텍스처를 흑백으로 바꾼 사본에 tint 를 곱한다 (원래 텍스처 색이 섞이지 않게). 눈은 그대로 둔다
  */
 export function applyFishLook(object: Object3D, look: FishLook): void {
   const clones = new Map<Material, MeshStandardMaterial>()
@@ -61,8 +99,10 @@ export function applyFishLook(object: Object3D, look: FishLook): void {
     const tint = new Color(look.tint)
     const brightest = Math.max(1e-4, ...materials.filter((m) => !m.map).map((m) => luminance(m.color)))
     for (const m of materials) {
-      if (m.map) m.color.copy(tint)
-      else m.color.copy(tint).multiplyScalar(TINT_FLOOR + (1 - TINT_FLOOR) * (luminance(m.color) / brightest))
+      if (m.map) {
+        m.map = grayTexture(m.map)
+        m.color.copy(tint)
+      } else m.color.copy(tint).multiplyScalar(TINT_FLOOR + (1 - TINT_FLOOR) * (luminance(m.color) / brightest))
     }
   }
   if (look.glow) {
@@ -82,33 +122,18 @@ export const FISH_LENGTH = 1.2
 /** 머리가 +z 가 아닌 모델을 돌리는 각도(y축). 고등어 모델만 머리가 -x 쪽이다 */
 const MODEL_YAW: Partial<Record<FishModelId, number>> = { mackerel: Math.PI / 2 }
 
-/** 몸의 한 단면(z 위치)에서 위·아래 끝과 옆으로 반폭 */
-type Section = { top: number; bottom: number; half: number }
-
-/**
- * 몸길이 1.2 로 맞춘 물고기의 머리 모양. 소품을 모델마다 머리에 맞게 놓고 크기를 맞추는 데 쓴다.
- * eye: 두 눈을 합친 영역 (x 는 바깥 면, 반지름 r), sections: z 위치별 단면 (앞이 +z)
- */
-export type FishShape = {
-  eye: { x: number; y: number; z: number; r: number }
-  sections: { z: number; s: Section }[]
-}
-
 /** 단면을 재는 간격 */
 const SECTION_STEP = 0.05
 
-/** z 위치에서 가장 가까운 단면 */
-export function sectionAt(shape: FishShape, z: number): Section {
-  let best = shape.sections[0]
-  for (const c of shape.sections) if (Math.abs(c.z - z) < Math.abs(best.z - z)) best = c
-  return best.s
+/** 눈이 따로 없는 모델(송어·고등어·가오리·오징어)은 머리 앞쪽 이 자리(z)에 이 크기(r)의 눈이 있다고 본다. 가오리는 납작해서 작게 */
+const FALLBACK_EYE = { z: 0.4, r: 0.06 }
+const MODEL_FALLBACK_EYE: Partial<Record<FishModelId, { z: number; r: number }>> = {
+  manta: { z: 0.42, r: 0.035 },
+  // 오징어는 몸통(머리 +z)이 앞이고 눈은 다리 바로 앞에 있다
+  squid: { z: -0.2, r: 0.065 },
 }
 
-/** 눈이 따로 없는 모델(송어·고등어·가오리)은 머리 앞쪽 이 자리(z)에 이 크기(r)의 눈이 있다고 본다. 가오리는 납작해서 작게 */
-const FALLBACK_EYE = { z: 0.4, r: 0.06 }
-const MODEL_FALLBACK_EYE: Partial<Record<FishModelId, { z: number; r: number }>> = { manta: { z: 0.42, r: 0.035 } }
-
-function measureShape(object: Object3D, model: FishModelId, scale: number, offset: Vector3): FishShape {
+function measureShape(object: Object3D, model: FishModelId, scale: Vector3, offset: Vector3): FishShape {
   const eyeMin = new Vector3(Infinity, Infinity, Infinity)
   const eyeMax = new Vector3(-Infinity, -Infinity, -Infinity)
   const bins = new Map<number, Section>()
@@ -121,7 +146,7 @@ function measureShape(object: Object3D, model: FishModelId, scale: number, offse
     if (isFin(name)) return
     const pos = mesh.geometry.attributes.position
     for (let i = 0; i < pos.count; i++) {
-      v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld).multiplyScalar(scale).add(offset)
+      v.fromBufferAttribute(pos, i).applyMatrix4(mesh.matrixWorld).multiply(scale).add(offset)
       if (eye) {
         eyeMin.min(v)
         eyeMax.max(v)
@@ -156,52 +181,24 @@ function measureShape(object: Object3D, model: FishModelId, scale: number, offse
 }
 
 /**
- * 모델을 머리 +z 로 돌리고, 몸길이 FISH_LENGTH 로 맞추고 가운데를 원점에 두는 배율·이동과 그때의 머리 모양을 돌려준다.
- * 돌림은 object 자신에 넣는다 (부모가 배율·이동을 맡는다)
+ * 모델을 머리 +z 로 돌리고(look.rotate), 몸 비율(look.stretch)을 곱한 뒤 가장 긴 쪽을 FISH_LENGTH 로 맞추고 가운데를 원점에 두는
+ * 축별 배율·이동과 그때의 몸 모양을 돌려준다. 돌림은 object 자신에 넣는다 (부모가 배율·이동을 맡는다)
  */
-export function fitFish(object: Object3D, model: FishModelId): { scale: number; offset: Vector3; shape: FishShape } {
-  object.rotation.y = MODEL_YAW[model] ?? 0
+export function fitFish(object: Object3D, look: Pick<FishLook, 'model' | 'stretch' | 'rotate'>): { scale: Vector3; offset: Vector3; shape: FishShape } {
+  const [rx, ry, rz] = look.rotate ?? [0, 0, 0]
+  object.rotation.set(rx, ry + (MODEL_YAW[look.model] ?? 0), rz)
   const box = restBox(object)
-  const size = box.getSize(new Vector3())
-  const scale = FISH_LENGTH / Math.max(size.x, size.y, size.z)
-  const offset = box.getCenter(new Vector3()).multiplyScalar(-scale)
-  return { scale, offset, shape: measureShape(object, model, scale, offset) }
+  const stretch = new Vector3(...(look.stretch ?? [1, 1, 1]))
+  const size = box.getSize(new Vector3()).multiply(stretch)
+  const scale = stretch.multiplyScalar(FISH_LENGTH / Math.max(size.x, size.y, size.z))
+  const offset = box.getCenter(new Vector3()).multiply(scale).negate()
+  return { scale, offset, shape: measureShape(object, look.model, scale, offset) }
 }
 
 // ─── 소품 ───────────────────────────────────────────────────
 
-type MatOptions = { metal?: number; rough?: number; glow?: string; opacity?: number }
-
-function mat(color: string, { metal = 0, rough = 0.6, glow, opacity }: MatOptions = {}) {
-  const m = new MeshStandardMaterial({ color, metalness: metal, roughness: rough })
-  if (glow) {
-    m.emissive.set(glow)
-    m.emissiveIntensity = 1.2
-  }
-  if (opacity !== undefined) {
-    m.transparent = true
-    m.opacity = opacity
-    m.depthWrite = false
-    m.side = DoubleSide
-  }
-  return m
-}
-
-function part(geometry: BufferGeometry, material: Material, position: Vec3 = [0, 0, 0], rotation: Vec3 = [0, 0, 0], scale: Vec3 = [1, 1, 1]) {
-  const mesh = new Mesh(geometry, material)
-  mesh.position.set(...position)
-  mesh.rotation.set(...rotation)
-  mesh.scale.set(...scale)
-  return mesh
-}
-
-const HALF_PI = Math.PI / 2
-const SIDES = [-1, 1] as const
-
-/** 소품을 어디에 붙이는지: 눈 높이(eye), 머리 꼭대기(top), 몸통 가운데(body) */
-type Anchor = 'eye' | 'top' | 'body'
-
-const ANCHOR: Record<FishAccessoryKind, Anchor> = {
+/** 예전부터 있던 소품을 붙이는 자리 */
+const ANCHOR: Record<Exclude<FishAccessoryKind, StudyAccessoryKind>, Anchor> = {
   sunglasses: 'eye',
   roundGlasses: 'eye',
   eyepatch: 'eye',
@@ -217,47 +214,17 @@ const ANCHOR: Record<FishAccessoryKind, Anchor> = {
   selfieStick: 'body',
 }
 
-/** 몸통 소품(구명튜브·셀카봉)을 두는 z 위치 */
-const BODY_Z = 0.05
+/** 소품을 붙이는 자리 */
+const anchorOf = (kind: FishAccessoryKind): Anchor => (kind in STUDY_ACCESSORIES ? STUDY_ACCESSORIES[kind as StudyAccessoryKind].anchor : ANCHOR[kind as keyof typeof ANCHOR])
 
-/** 소품 기본 위치(몸길이 1.2 물고기, 가운데가 원점, 머리 +z). 모델의 눈·머리 위치에서 정한다. look.accessoryAt 가 있으면 그걸 쓴다 */
-export function accessoryPosition(look: FishLook, shape: FishShape): Vec3 {
-  if (look.accessoryAt) return look.accessoryAt
-  if (!look.accessory) return [0, 0, 0]
-  const { eye } = shape
-  switch (ANCHOR[look.accessory]) {
-    case 'eye':
-      return [0, eye.y, eye.z]
-    case 'top': {
-      // 눈보다 조금 뒤, 머리 꼭대기
-      const z = eye.z - eye.r
-      return [0, sectionAt(shape, z).top - 0.02, z]
-    }
-    case 'body': {
-      const s = sectionAt(shape, BODY_Z)
-      return [0, (s.top + s.bottom) / 2, BODY_Z]
-    }
-  }
+/** 소품 기본 위치(몸길이 1.2 물고기, 가운데가 원점, 머리 +z). 모델의 눈·머리 위치에서 정한다 */
+export function accessoryPosition(kind: FishAccessoryKind, shape: FishShape): Vec3 {
+  return anchorPoint(anchorOf(kind), shape)
 }
 
 /** 소품을 붙이는 자리 기준 단면 (머리 둘레 소품의 크기용) */
-function headSection(shape: FishShape) {
+function headSection(shape: FishShape): Section {
   return sectionAt(shape, shape.eye.z)
-}
-
-/** 양옆 눈을 덮는 안경 (선글라스·동그란 안경 공용). 렌즈는 눈 바깥에, 코걸이는 얼굴 앞을 가로지른다 */
-function glasses(shape: FishShape, frame: Material, lens: (x: number, r: number) => Mesh[]): Group {
-  const { x, r } = shape.eye
-  const lx = x + 0.012
-  const g = new Group()
-  for (const side of SIDES) {
-    g.add(...lens(side * lx, r))
-    // 다리: 렌즈에서 뒤로
-    g.add(part(new BoxGeometry(0.014, 0.018, 0.22), frame, [side * (lx - 0.01), r * 0.3, -r - 0.1]))
-  }
-  // 코걸이: 렌즈 앞쪽 끝을 잇는다
-  g.add(part(new BoxGeometry(lx * 2, 0.022, 0.022), frame, [0, r * 0.3, r * 0.9]))
-  return g
 }
 
 function crownRing(radius: number): Group {
@@ -279,7 +246,7 @@ function crownRing(radius: number): Group {
 
 type Builder = (shape: FishShape) => Group
 
-const BUILDERS: Record<FishAccessoryKind, Builder> = {
+const BUILDERS: Record<Exclude<FishAccessoryKind, StudyAccessoryKind>, Builder> = {
   sunglasses: (shape) => {
     const frame = mat('#111111', { rough: 0.3 })
     const lens = mat('#20242e', { metal: 0.7, rough: 0.12 })
@@ -492,7 +459,14 @@ const BUILDERS: Record<FishAccessoryKind, Builder> = {
  * 원점이 붙이는 자리(accessoryPosition)다. 크기는 모델의 머리 모양(shape)에 맞춘다
  */
 export function buildAccessory(kind: FishAccessoryKind, shape: FishShape): Group {
-  const g = BUILDERS[kind](shape)
+  let g: Group
+  if (kind in STUDY_ACCESSORIES) {
+    // 스터디원 소품은 물고기 좌표 그대로 만들어서 붙이는 자리만큼 되돌린다
+    g = new Group()
+    const inner = STUDY_ACCESSORIES[kind as StudyAccessoryKind].build(shape)
+    inner.position.set(...accessoryPosition(kind, shape)).negate()
+    g.add(inner)
+  } else g = BUILDERS[kind as keyof typeof BUILDERS](shape)
   g.name = `accessory:${kind}`
   g.traverse((o) => {
     o.castShadow = true
@@ -500,8 +474,8 @@ export function buildAccessory(kind: FishAccessoryKind, shape: FishShape): Group
   return g
 }
 
-/** 소품을 붙일 뼈: 이름이 머리(Head·Face)인 뼈, 없으면 붙일 자리에서 가장 가까운 뼈. 뼈가 없는 모델은 null */
-function headBone(object: Object3D, at: Vector3, toFitted: Matrix4): Bone | null {
+/** 소품을 붙일 뼈: 이름이 머리(Head·Face)인 뼈(preferHead), 없으면 붙일 자리에서 가장 가까운 뼈. 뼈가 없는 모델은 null */
+function headBone(object: Object3D, at: Vector3, toFitted: Matrix4, preferHead = true): Bone | null {
   let named: Bone | null = null
   let nearest: Bone | null = null
   let best = Infinity
@@ -516,29 +490,65 @@ function headBone(object: Object3D, at: Vector3, toFitted: Matrix4): Bone | null
       nearest = bone
     }
   })
-  return named ?? nearest
+  return (preferHead ? named : null) ?? nearest
+}
+
+/** 몸길이를 맞춘 좌표의 matrix 를 parent 아래 local 로 옮겨 붙인다 */
+function attach(child: Object3D, fitted: Matrix4, parent: Object3D, toFitted: Matrix4) {
+  const local = new Matrix4().multiplyMatrices(toFitted, parent.matrixWorld).invert().multiply(fitted)
+  local.decompose(child.position, child.quaternion, child.scale)
+  parent.add(child)
 }
 
 /**
- * 물고기 모델(복제본)에 생김새를 입힌다: 색·발광, 머리 +z 로 돌리기, 소품 만들어 붙이기.
- * 돌려준 scale·offset 은 부모 group 에 넣어 몸길이 1.2·가운데 원점으로 맞춘다.
- * 소품은 머리 뼈의 자식으로 붙여서 헤엄치는 애니메이션에 머리와 함께 움직인다 (아직 배율·이동을 넣지 않은 object 에 호출한다)
+ * 물고기 모델(복제본)에 생김새를 입힌다: 색·발광, 머리 +z 로 돌리기·몸 비율, 소품 만들어 붙이기.
+ * 돌려준 scale(축별)·offset 은 부모 group 에 넣어 몸길이 1.2·가운데 원점으로 맞춘다.
+ * 소품은 머리 뼈의 자식으로 붙여서 헤엄치는 애니메이션에 머리와 함께 움직인다. 몸 전체를 덮는 소품(털)은 덩어리마다
+ * 가까운 뼈에 붙인다 (아직 배율·이동을 넣지 않은 object 에 호출한다). accessories 는 붙인 소품 전부 (정리용)
  */
-export function dressFish(object: Object3D, look: FishLook): { scale: number; offset: Vector3; accessory: Group | null } {
+export function dressFish(object: Object3D, look: FishLook): { scale: Vector3; offset: Vector3; accessories: Object3D[] } {
   applyFishLook(object, look)
-  const { scale, offset, shape } = fitFish(object, look.model)
-  if (!look.accessory) return { scale, offset, accessory: null }
+  const { scale, offset, shape } = fitFish(object, look)
+  const kinds = look.accessories ?? []
+  const accessories: Object3D[] = []
+  if (!kinds.length) return { scale, offset, accessories }
 
-  const accessory = buildAccessory(look.accessory, shape)
-  const at = new Vector3(...accessoryPosition(look, shape))
+  // 소품이 대신하는 원래 부위는 숨긴다
+  const hidden = new Set(kinds.map((k) => HIDES_PART[k]).filter(Boolean))
+  object.traverse((o) => {
+    const mesh = o as Mesh
+    if (!mesh.isMesh) return
+    const name = materialName(mesh)
+    if ((hidden.has('eyes') && isEye(name)) || (hidden.has('fins') && isFin(name))) mesh.visible = false
+  })
+
   // 몸길이를 맞춘 좌표 = toFitted × (object 기준 좌표). object 는 아직 부모가 없어 matrixWorld 가 곧 object 기준이다
-  const toFitted = new Matrix4().compose(offset, new Quaternion(), new Vector3().setScalar(scale))
+  const toFitted = new Matrix4().compose(offset, new Quaternion(), scale)
   object.updateWorldMatrix(false, true)
-  const parent = headBone(object, at, toFitted) ?? object
-  const local = toFitted.multiply(parent.matrixWorld).invert().multiply(new Matrix4().makeTranslation(at))
-  local.decompose(accessory.position, accessory.quaternion, accessory.scale)
-  parent.add(accessory)
-  return { scale, offset, accessory }
+  const center = new Vector3()
+  kinds.forEach((kind, i) => {
+    const accessory = buildAccessory(kind, shape)
+    const at = new Vector3(...(i === 0 && look.accessoryAt ? look.accessoryAt : accessoryPosition(kind, shape)))
+    // 몸 전체에 퍼진 부품(털 덩어리)은 저마다 가까운 뼈로
+    accessory.position.copy(at)
+    accessory.updateMatrixWorld(true)
+    const spread: Object3D[] = []
+    accessory.traverse((o) => {
+      if (o.userData.spread) spread.push(o)
+    })
+    for (const piece of spread) {
+      const fitted = piece.matrixWorld.clone()
+      const mesh = piece as Mesh
+      mesh.geometry.computeBoundingBox()
+      mesh.geometry.boundingBox!.getCenter(center).applyMatrix4(fitted)
+      piece.removeFromParent()
+      attach(piece, fitted, headBone(object, center, toFitted, false) ?? object, toFitted)
+      accessories.push(piece)
+    }
+    attach(accessory, new Matrix4().makeTranslation(at), headBone(object, at, toFitted) ?? object, toFitted)
+    accessories.push(accessory)
+  })
+  return { scale, offset, accessories }
 }
 
 /** applyFishLook 이 복제한 재질을 정리한다 (지오메트리는 모델 캐시와 공유하므로 두고) */

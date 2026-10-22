@@ -23,6 +23,8 @@ const VIEW_TANK: [number, number, number] = [8, 4, 4]
 const VIEW_HALF: [number, number, number] = [3.6, 1.7, 1.6]
 /** 크게 보기 물고기 크기 (몸길이 1.2 × 어종 배율에 곱한다) */
 const VIEW_FISH_SCALE = 0.9
+/** 크게 보기 물고기 몸길이 상한 (XXL 처럼 아주 큰 어종도 수조 안에 들어가게) */
+const VIEW_MAX_LENGTH = 2.4
 /** 물방울 개수 */
 const BUBBLES = 36
 
@@ -42,7 +44,7 @@ function ViewFish({ id, speciesId, hungry, sinceFed, onSelect }: {
   sinceFed: number
   onSelect: (id: string) => void
 }) {
-  const length = FISH_LENGTH * VIEW_FISH_SCALE * fishLookFor(speciesId).size
+  const length = Math.min(FISH_LENGTH * VIEW_FISH_SCALE * fishLookFor(speciesId).size, VIEW_MAX_LENGTH)
   return (
     <group
       onClick={(e) => {
@@ -65,6 +67,7 @@ function ViewFish({ id, speciesId, hungry, sinceFed, onSelect }: {
         sinceFed={sinceFed}
         floorY={tankFloorY(VIEW_TANK[1])}
         scale={VIEW_FISH_SCALE}
+        maxLength={VIEW_MAX_LENGTH}
       >
         {/* 클릭 판정용. 재질만 숨겨서 그리지는 않고 광선 판정은 받는다 */}
         <mesh>

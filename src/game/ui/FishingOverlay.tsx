@@ -124,6 +124,7 @@ function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: '
         <div style={{ color: RARITY_COLOR[species.rarity] }}>{RARITY_LABEL[species.rarity]}</div>
         <div style={{ margin: '8px 0' }}>{caught.weight}kg</div>
         <div style={{ opacity: 0.8, fontSize: 14 }}>{species.description}</div>
+        {species.trivia && <div style={{ color: '#ffe082', fontSize: 13, marginTop: 4 }}>{species.trivia}</div>}
       </>
     )
   } else {

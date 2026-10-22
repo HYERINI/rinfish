@@ -5,7 +5,7 @@
 - 제작: Quaternius (Animated Cute Fish Pack 등)
 - 라이선스: CC0 1.0 (퍼블릭 도메인, 표기 의무 없음)
 - 배포처: https://poly.pizza/m/<ID> (각 모델 페이지에서 "Licence: CC0 1.0" 확인, 2026-10-22). 파일은 그 페이지의 glb 그대로
-- 머리가 +z (고등어 mackerel.glb 만 -x 라서 코드에서 돌린다). 애니메이션 클립 이름은 아래 표
+- 머리가 +z (고등어 mackerel.glb 만 -x 라서 코드에서 돌린다. 오징어 squid.glb 는 위로 서 있어서 어종 생김새에서 돌린다). 애니메이션 클립 이름은 아래 표
 
 | 파일 | Poly Pizza ID | 원래 이름 | 애니메이션 |
 | --- | --- | --- | --- |
@@ -31,6 +31,7 @@
 | fish/anglerfish.glb | MRjSlwCjHM | Anglerfish | Fish_Armature |
 | fish/manta.glb | yzD8b7ZHZm | Manta ray | Armature\|Swim |
 | fish/betta.glb | Vg8IlYjdZi | Betta | Fish_Armature |
+| fish/squid.glb | gReSPnGdkr | Squid (음식 재료 모델, "Licence: CC0 1.0" 확인 2026-10-22) | 없음 (정적). 서 있는 모델이라 fishLooks 의 rotate 로 눕힌다 |
 
 - 예전에 쓰던 clownfish(769fHo3eEB)·shark(sZR8AMLMz5)·swordfish(7hMOlBjln0)·dolphin(3LzFgI3GLO)은 더 안 써서 지웠다
 

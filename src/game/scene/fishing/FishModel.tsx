@@ -1,5 +1,6 @@
 import { useGLTF, useAnimations } from '@react-three/drei'
-import { forwardRef, Suspense, useEffect, useLayoutEffect, useMemo } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { forwardRef, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { Group } from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { fishLookFor, type FishLook } from '../../data/fishLooks'
@@ -8,11 +9,15 @@ import { fishModelUrl } from './fishModels'
 
 // 모델이 많아 미리 받지 않는다. 처음 나올 때 받는다 (받는 동안은 빈 group)
 
+/** 휘청거림(look.wobble) 속도와 세기 1 일 때 좌우로 흔드는 각도(라디안) */
+const WOBBLE_SPEED = 8
+const WOBBLE_ANGLE = 0.25
+
 function Model({ look }: { look: FishLook }) {
   const { scene, animations } = useGLTF(fishModelUrl(look.model))
   // 같은 모델이 여러 마리 나올 수 있으니 인스턴스마다 복제한다 (뼈대·재질 포함). 그다음 어종 생김새(색·소품)를 입히고
   // 몸길이 1.2·가운데 원점으로 맞추는 배율·이동을 받는다
-  const { object, scale, offset, accessory } = useMemo(() => {
+  const { object, scale, offset, accessories } = useMemo(() => {
     const object = cloneSkinned(scene)
     return { object, ...dressFish(object, look) }
   }, [scene, look])
@@ -27,9 +32,9 @@ function Model({ look }: { look: FishLook }) {
   useEffect(
     () => () => {
       disposeFishMaterials(object)
-      if (accessory) disposeObject(accessory)
+      for (const a of accessories) disposeObject(a)
     },
-    [object, accessory],
+    [object, accessories],
   )
 
   useEffect(() => {
@@ -54,9 +59,14 @@ function Model({ look }: { look: FishLook }) {
  */
 export const FishModel = forwardRef<Group, { speciesId: string | null; scale?: number }>(function FishModel({ speciesId, scale = 1 }, ref) {
   const look = fishLookFor(speciesId)
+  const body = useRef<Group>(null)
+  // 휘청거리는 어종: 몸 전체를 좌우로 흔든다 (사진에는 넣지 않는다)
+  useFrame(({ clock }) => {
+    if (body.current) body.current.rotation.y = look.wobble ? Math.sin(clock.elapsedTime * WOBBLE_SPEED) * look.wobble * WOBBLE_ANGLE : 0
+  })
   return (
     <group ref={ref} scale={scale}>
-      <group scale={look.size}>
+      <group ref={body} scale={look.size}>
         <Suspense fallback={null}>
           <Model key={speciesId ?? ''} look={look} />
         </Suspense>

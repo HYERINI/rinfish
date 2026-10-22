@@ -1,4 +1,4 @@
-import { AmbientLight, Box3, DirectionalLight, Group, OrthographicCamera, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from 'three'
+import { AmbientLight, Box3, DirectionalLight, Group, OrthographicCamera, type Object3D, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { fishLookFor, type FishModelId } from '../../data/fishLooks'
 import { restBox } from '../modelBounds'
@@ -50,18 +50,21 @@ async function renderThumbnail(speciesId: string): Promise<string> {
   scene.add(sun)
 
   // 3D 장면(FishModel)과 같은 생김새·배치: 색·소품을 입히고 몸길이를 맞춘다
-  const { scale, offset, accessory } = dressFish(model, look)
-  model.scale.setScalar(scale)
-  model.position.copy(offset)
+  const { scale, offset, accessories } = dressFish(model, look)
+  // 배율은 축별이라 모델 자신의 돌림(머리 +z 맞추기)보다 바깥 group 에 넣는다 (FishModel 과 같은 구조)
+  const fitted = new Group()
+  fitted.scale.copy(scale)
+  fitted.position.copy(offset)
+  fitted.add(model)
   const fish = new Group()
-  fish.add(model)
+  fish.add(fitted)
   // 머리(+z)가 화면 오른쪽(+x)을 보게 돌린다
   fish.rotation.set(THUMB_TILT[look.model] ?? 0, Math.PI / 2, 0)
   scene.add(fish)
 
   // 물고기가 화면을 꽉 채우도록 경계 상자에 맞춘 직교 카메라. 소품(셀카봉·왕관 등)이 크게 튀어나와도
   // 물고기가 작아 보이지 않도록, 소품은 몸 둘레 조금 바깥(ACCESSORY_ROOM)까지만 틀에 넣는다
-  const box = framingBox(fish, accessory)
+  const box = framingBox(fish, accessories)
   const size = box.getSize(new Vector3())
   const center = box.getCenter(new Vector3())
   const aspect = WIDTH / HEIGHT
@@ -77,12 +80,12 @@ async function renderThumbnail(speciesId: string): Promise<string> {
 }
 
 /** 몸을 기준으로 잡은 틀. 소품은 몸 둘레 ACCESSORY_ROOM 만큼까지만 반영한다 */
-function framingBox(fish: Group, accessory: Group | null): Box3 {
-  if (!accessory?.parent) return restBox(fish)
-  const parent = accessory.parent
-  parent.remove(accessory)
+function framingBox(fish: Group, accessories: Object3D[]): Box3 {
+  if (!accessories.length) return restBox(fish)
+  const parents = accessories.map((a) => a.parent)
+  for (const a of accessories) a.removeFromParent()
   const body = restBox(fish)
-  parent.add(accessory)
+  accessories.forEach((a, i) => parents[i]?.add(a))
   const room = body.getSize(new Vector3()).multiplyScalar(ACCESSORY_ROOM)
   const limit = body.clone().expandByVector(room)
   return restBox(fish).intersect(limit).union(body)

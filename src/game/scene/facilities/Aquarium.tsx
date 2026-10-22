@@ -19,6 +19,8 @@ const STAND = 0.8
 const VISITOR_URLS = [ASSET.visitorA, ASSET.visitorB, ASSET.visitorC]
 /** 분당 입장료 몇 코인마다 구경꾼 1명 (최대 VISITOR_URLS × 2명) */
 const INCOME_PER_VISITOR = 3
+/** 물고기 몸길이 상한 (수조 폭·깊이 대비). 아주 큰 어종도 수조 안에 들어가게 */
+const MAX_FISH_LENGTH = { width: 0.4, depth: 0.75 }
 
 export function Aquarium() {
   const aquarium = useProgressStore((s) => s.aquarium)
@@ -53,6 +55,7 @@ export function Aquarium() {
             hungry={hungry}
             sinceFed={playTime - aquarium.lastFedAt}
             floorY={tankFloorY(h)}
+            maxLength={Math.min(w * MAX_FISH_LENGTH.width, d * MAX_FISH_LENGTH.depth)}
           />
         ))}
       </group>

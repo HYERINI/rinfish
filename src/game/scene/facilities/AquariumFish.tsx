@@ -3,7 +3,9 @@ import { useMemo, useRef, type ReactNode } from 'react'
 import { Vector3 } from 'three'
 import type { Group } from 'three'
 import { swimPose } from '../../logic/aquariumSwim'
+import { fishLookFor } from '../../data/fishLooks'
 import { localRestBox } from '../modelBounds'
+import { FISH_LENGTH } from '../fishing/fishAppearance'
 import { FishModel } from '../fishing/FishModel'
 
 /** 어항 안 물고기 크기 (FishModel 기본 몸길이 1.2 에 곱한다) */
@@ -24,12 +26,15 @@ type Props = {
   floorY: number
   /** 몸길이 배율 (기본: 게임 속 작은 어항 크기) */
   scale?: number
+  /** 몸길이 상한. 아주 큰 어종(XXL)이 수조를 뚫고 나가지 않게 이 길이로 줄인다 */
+  maxLength?: number
   /** 물고기와 같이 움직이는 것 (클릭 판정용 투명 메시 등) */
   children?: ReactNode
 }
 
 /** 어항 안을 8자로 헤엄친다. 배고프면 바닥에 가라앉고, 먹이를 주면 수면으로 몰려든다. 게임 속 어항과 크게 보기가 같이 쓴다 */
-export function AquariumFish({ speciesId, half, seed, hungry, sinceFed, floorY, scale = FISH_SCALE, children }: Props) {
+export function AquariumFish({ speciesId, half, seed, hungry, sinceFed, floorY, scale: baseScale = FISH_SCALE, maxLength = Infinity, children }: Props) {
+  const scale = Math.min(baseScale, maxLength / (FISH_LENGTH * fishLookFor(speciesId).size))
   const ref = useRef<Group>(null)
   const model = useRef<Group>(null)
   /** 옆으로 누웠을 때 위아래 반 두께 (모델의 좌우 반폭). 모델을 받은 뒤 한 번 잰다 */

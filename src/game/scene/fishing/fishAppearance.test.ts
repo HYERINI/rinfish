@@ -57,10 +57,40 @@ describe('applyFishLook', () => {
 describe('fitFish', () => {
   it('몸길이 1.2 로 맞추고 눈 자리를 잰다', () => {
     const { root } = toyFish()
-    const { scale, shape } = fitFish(root, 'tuna')
-    expect(scale).toBeCloseTo(0.6)
+    const { scale, shape } = fitFish(root, { model: 'tuna' })
+    expect(scale.x).toBeCloseTo(0.6)
+    expect(scale.z).toBeCloseTo(0.6)
     expect(shape.eye.z).toBeCloseTo(0.7 * 0.6)
     expect(shape.eye.x).toBeCloseTo(0.45 * 0.6)
+  })
+
+  it('stretch 는 몸 비율만 바꾸고 가장 긴 쪽은 1.2 로 다시 맞춘다', () => {
+    const { root } = toyFish()
+    const { scale, shape } = fitFish(root, { model: 'tuna', stretch: [0.5, 1.5, 1] })
+    // 상자 0.6 × 0.8 × 2 → 0.3 × 1.2 × 2: 길이 2 가 1.2 로
+    expect(scale.z).toBeCloseTo(0.6)
+    expect(scale.x).toBeCloseTo(0.3)
+    expect(scale.y).toBeCloseTo(0.9)
+    const mid = shape.sections.reduce((a, b) => (Math.abs(b.z) < Math.abs(a.z) ? b : a)).s
+    expect(mid.half).toBeCloseTo(0.3 * 0.3)
+    expect(mid.top - mid.bottom).toBeCloseTo(0.8 * 0.9)
+  })
+
+  it('stretch 로 높이가 길이보다 커지면 높이를 1.2 로 맞춘다', () => {
+    const { root } = toyFish()
+    const { scale } = fitFish(root, { model: 'tuna', stretch: [1, 4, 1] })
+    expect(0.8 * scale.y).toBeCloseTo(1.2)
+    expect(scale.x / scale.y).toBeCloseTo(0.25)
+  })
+
+  it('rotate 로 모델을 돌린 뒤 잰다 (세운 모델을 눕힌다)', () => {
+    // 상자를 y 로 세워 둔 모델: x 축으로 90° 돌리면 원래 +y 가 +z(머리)로 간다
+    const standing = new Group()
+    standing.add(new Mesh(new BoxGeometry(0.4, 2, 0.3), new MeshStandardMaterial({ name: 'Main' })))
+    const { scale, shape } = fitFish(standing, { model: 'squid', rotate: [Math.PI / 2, 0, 0] })
+    expect(scale.x).toBeCloseTo(0.6)
+    const zs = shape.sections.map((c) => c.z)
+    expect(Math.max(...zs) - Math.min(...zs)).toBeGreaterThan(1.1)
   })
 })
 
@@ -68,10 +98,12 @@ describe('buildAccessory', () => {
   const kinds: FishAccessoryKind[] = [
     'sunglasses', 'eyepatch', 'crown', 'frogCrown', 'roundGlasses', 'headband', 'nightcap',
     'lifebuoy', 'spaceHelmet', 'ninjaMask', 'dreadlocks', 'crystal', 'selfieStick',
+    'spoons', 'googlyEyes', 'sadBrows', 'digit3', 'digits31', 'darkCircles', 'priceTag3', 'furPerm',
+    'bossChain', 'bossScar', 'bread', 'grandpaBeard', 'magnifierGlasses', 'sheepTowel', 'cane', 'bowlCut',
   ]
   it.each(kinds)('%s 를 기본 도형으로 만든다', (kind) => {
     const { root } = toyFish()
-    const { shape } = fitFish(root, 'tuna')
+    const { shape } = fitFish(root, { model: 'tuna' })
     const g = buildAccessory(kind, shape)
     let meshes = 0
     g.traverse((o) => {
@@ -84,16 +116,33 @@ describe('buildAccessory', () => {
 describe('dressFish', () => {
   it('소품을 머리 뼈에 붙여 헤엄칠 때 머리와 함께 움직이게 한다', () => {
     const { root } = toyFish()
-    const look: FishLook = { model: 'tuna', size: 1, accessory: 'crown' }
-    const { accessory } = dressFish(root, look)
-    expect(accessory?.parent?.name).toBe('Head')
+    const look: FishLook = { model: 'tuna', size: 1, accessories: ['crown'] }
+    const { accessories } = dressFish(root, look)
+    expect(accessories[0].parent?.name).toBe('Head')
+  })
+
+  it('소품 여러 개를 모두 붙인다', () => {
+    const { root } = toyFish()
+    const { accessories } = dressFish(root, { model: 'tuna', size: 1, accessories: ['crown', 'sunglasses', 'cane'] })
+    expect(accessories.map((a) => a.name)).toEqual(['accessory:crown', 'accessory:sunglasses', 'accessory:cane'])
+    for (const a of accessories) expect(a.parent).not.toBeNull()
+  })
+
+  it('왕눈이는 원래 눈을, 털은 지느러미를 숨긴다', () => {
+    const { root, eyes } = toyFish()
+    dressFish(root, { model: 'tuna', size: 1, accessories: ['googlyEyes'] })
+    root.traverse((o) => {
+      const mesh = o as Mesh
+      if (mesh.isMesh && (mesh.material as Material).name === eyes.name) expect(mesh.visible).toBe(false)
+    })
   })
 
   it('accessoryAt 를 주면 그 자리(몸길이 1.2 기준)에 놓인다', () => {
     const { root } = toyFish()
-    const { scale, offset, accessory } = dressFish(root, { model: 'tuna', size: 1, accessory: 'crown', accessoryAt: [0, 0.3, 0.2] })
+    const { scale, offset, accessories } = dressFish(root, { model: 'tuna', size: 1, accessories: ['crown'], accessoryAt: [0, 0.3, 0.2] })
+    const accessory = accessories[0]
     const holder = new Group()
-    holder.scale.setScalar(scale)
+    holder.scale.copy(scale)
     holder.position.copy(offset)
     holder.add(root)
     holder.updateWorldMatrix(false, true)

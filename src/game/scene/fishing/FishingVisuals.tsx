@@ -25,6 +25,8 @@ const REEL_BACK_TIME = 0.6
 const SHADOW_DEPTH = 0.35
 
 const RARITY_SIZE: Record<Rarity, number> = { junk: 0.45, common: 0.7, rare: 0.95, epic: 1.3, legendary: 1.9 }
+/** 낚싯대에 매달린 물고기에 반영하는 어종 몸길이 배율(look.size) 상한. XXL 처럼 아주 큰 어종이 발판까지 늘어지지 않게 */
+const MAX_HOOKED_LOOK_SIZE = 1.6
 
 /** 물고기 크기: 등급 기본 크기에 무게(어종 범위 안에서의 위치)를 조금 더한다 */
 function fishSize(speciesId: string, weight?: number): number {
@@ -162,7 +164,8 @@ export function FishingVisuals() {
         const k = since / JUMP_TIME
         arcPoint(m.endFrom, tmp, k, 2.2, fish.current.position)
         if (k >= 1) fish.current.position.x += Math.sin(t * 2.5) * 0.08 // 매달려 대롱대롱
-        const size = fishSize(state.speciesId, state.weight)
+        const lookSize = fishLookFor(state.speciesId).size
+        const size = fishSize(state.speciesId, state.weight) * Math.min(1, MAX_HOOKED_LOOK_SIZE / lookSize)
         fish.current.scale.setScalar(size)
         fish.current.rotation.order = 'YXZ' // 몸을 먼저 세우고(x) 그다음 바다 쪽으로 돌린다(y)
         // 날아오는 동안은 공중제비, 매달린 뒤엔 옆모습이 카메라를 향하게 돌려 둔다
