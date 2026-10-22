@@ -35,28 +35,28 @@ export type FishAccessoryKind =
 
 export type FishLook = {
   model: FishModelId
-  /** 재질에 곱하는 색 */
+  /** 몸 색. 부위별 밝기 차이는 남기고 이 색으로 물들인다 (눈은 그대로) */
   tint?: string
   /** 스스로 빛나는 색 (발광) */
   glow?: string
   /** 몸길이 배율 (기본 1) */
   size: number
   accessory?: FishAccessoryKind
-  /** 소품 위치 보정 [x, y, z] (몸길이 1.2로 맞춘 물고기 기준, 머리 +z). 없으면 소품 기본 위치 */
+  /** 소품 위치 [x, y, z] (몸길이 1.2로 맞춘 물고기 기준, 머리 +z). 없으면 모델의 눈·머리 위치에서 정한 기본 위치 */
   accessoryAt?: [number, number, number]
 }
 
 export const DEFAULT_FISH_LOOK: FishLook = { model: 'blue-tang', size: 1 }
 
 export const FISH_LOOKS: Record<string, FishLook> = {
-  'sleepy-sardine': { model: 'cardinal', tint: '#b0c4d4', size: 0.8 },
+  'sleepy-sardine': { model: 'cardinal', tint: '#8fa3b5', size: 0.8 },
   'chatty-mackerel': { model: 'tang', size: 0.9 },
   'bubble-puffer': { model: 'puffer', size: 0.9 },
-  'sunglasses-mackerel': { model: 'blue-tang', tint: '#5c6b75', size: 1, accessory: 'sunglasses' },
+  'sunglasses-mackerel': { model: 'blue-tang', tint: '#7d9bb5', size: 1, accessory: 'sunglasses' },
   'selfie-flyingfish': { model: 'yellow-tang', size: 0.9, accessory: 'selfieStick' },
   'lifeguard-flounder': { model: 'flatfish', size: 1.1, accessory: 'lifebuoy' },
-  'firefly-minnow': { model: 'tetra', glow: '#c6ff00', size: 0.7 },
-  'ribbit-catfish': { model: 'armored-catfish', tint: '#8d6e63', size: 1 },
+  'firefly-minnow': { model: 'tetra', glow: '#c6ff00', size: 0.8 },
+  'ribbit-catfish': { model: 'armored-catfish', tint: '#4e5a26', size: 1 },
   'rainbow-trout': { model: 'trout', size: 1 },
   'moss-carp': { model: 'koi', tint: '#7cb342', size: 1.2 },
   'professor-crucian': { model: 'blue-goldfish', tint: '#a1887f', size: 0.9, accessory: 'roundGlasses' },
@@ -66,10 +66,10 @@ export const FISH_LOOKS: Record<string, FishLook> = {
   'disco-jelly': { model: 'blobfish', tint: '#e1bee7', glow: '#ff4fd8', size: 0.9 },
   'pirate-tuna': { model: 'tuna', size: 1.3, accessory: 'eyepatch' },
   'thunder-eel': { model: 'goblin-shark', tint: '#ffee58', glow: '#ffd600', size: 1.2 },
-  'reggae-lionfish': { model: 'lionfish', size: 1, accessory: 'dreadlocks' },
+  'reggae-lionfish': { model: 'lionfish', size: 1, accessory: 'dreadlocks', accessoryAt: [0, 0.02, 0.2] },
   'astronaut-angler': { model: 'anglerfish', size: 1.2, accessory: 'spaceHelmet' },
-  'ninja-ray': { model: 'manta', tint: '#263238', size: 1.3, accessory: 'ninjaMask' },
-  'golden-crown-carp': { model: 'goldfish', tint: '#ffd54f', glow: '#ff8f00', size: 1.5, accessory: 'crown' },
+  'ninja-ray': { model: 'manta', tint: '#7d88a8', size: 1.3, accessory: 'ninjaMask' },
+  'golden-crown-carp': { model: 'goldfish', tint: '#ffd54f', glow: '#ff8f00', size: 1.2, accessory: 'crown' },
   'crystal-eye-cavefish': { model: 'betta', tint: '#e0f7fa', size: 1, accessory: 'crystal' },
   'lost-anchovy': { model: 'mackerel', tint: '#b0bec5', size: 0.6 },
 }

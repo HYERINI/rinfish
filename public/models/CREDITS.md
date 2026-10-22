@@ -1,18 +1,38 @@
 # 3D 모델 출처
 
-- 제작: Quaternius (Animated Fish Bundle 등)
-- 라이선스: CC0 1.0 (퍼블릭 도메인, 표기 의무 없음)
-- 배포처: https://poly.pizza (각 모델 페이지에서 CC0 1.0 확인)
+## 물고기 (fish/*.glb)
 
-| 파일 | Poly Pizza ID |
-| --- | --- |
-| clownfish.glb | 769fHo3eEB |
-| blue-tang.glb | TQaMo8GTJl |
-| puffer.glb | UKHtgpxTOk |
-| tuna.glb | 1tycAcvSVW |
-| shark.glb | sZR8AMLMz5 |
-| swordfish.glb | 7hMOlBjln0 |
-| dolphin.glb | 3LzFgI3GLO |
+- 제작: Quaternius (Animated Cute Fish Pack 등)
+- 라이선스: CC0 1.0 (퍼블릭 도메인, 표기 의무 없음)
+- 배포처: https://poly.pizza/m/<ID> (각 모델 페이지에서 "Licence: CC0 1.0" 확인, 2026-10-22). 파일은 그 페이지의 glb 그대로
+- 머리가 +z (고등어 mackerel.glb 만 -x 라서 코드에서 돌린다). 애니메이션 클립 이름은 아래 표
+
+| 파일 | Poly Pizza ID | 원래 이름 | 애니메이션 |
+| --- | --- | --- | --- |
+| fish/puffer.glb | UKHtgpxTOk | Pufferfish | Fish_Armature (Swimming_Fast 등 6개) |
+| fish/tuna.glb | 1tycAcvSVW | Tuna | Fish_Armature |
+| fish/blue-tang.glb | TQaMo8GTJl | Blue Tang | Fish_Armature |
+| fish/cardinal.glb | YyZyVhg2Jq | Cardinal Fish | Fish_Armature |
+| fish/tang.glb | D36zsP5ESu | Tang | Fish_Armature |
+| fish/tetra.glb | l6AhogdZHe | Tetra | Fish_Armature |
+| fish/armored-catfish.glb | mtd9QK5yCe | Armored Catfish | Fish_Armature |
+| fish/trout.glb | XWl86YFtpF | Fish | Armature\|Swim |
+| fish/koi.glb | qyGtRmhgzl | Koi | Fish_Armature |
+| fish/red-snapper.glb | BRKfDKwPTv | Red Snapper | Fish_Armature |
+| fish/blobfish.glb | 7Jh8vsARfN | Blobfish | Fish_Armature |
+| fish/goblin-shark.glb | JQrBevTzgD | Goblin Shark | Fish_Armature |
+| fish/goldfish.glb | qS6CgsWFAh | Goldfish | Fish_Armature |
+| fish/mackerel.glb | uassUTYYae | Fish Mackerel | 없음 (정적) |
+| fish/yellow-tang.glb | CrDlkPLon0 | Yellow Tang | Fish_Armature |
+| fish/flatfish.glb | X5EjEA6fMF | Flatfish | Fish_Armature |
+| fish/blue-goldfish.glb | imxZBHZ1yS | Blue Goldfish | Fish_Armature |
+| fish/flowerhorn.glb | ExfO0SGWmf | Flower Horn | Fish_Armature |
+| fish/lionfish.glb | czsz9Baw86 | Lionfish | Fish_Armature |
+| fish/anglerfish.glb | MRjSlwCjHM | Anglerfish | Fish_Armature |
+| fish/manta.glb | yzD8b7ZHZm | Manta ray | Armature\|Swim |
+| fish/betta.glb | Vg8IlYjdZi | Betta | Fish_Armature |
+
+- 예전에 쓰던 clownfish(769fHo3eEB)·shark(sZR8AMLMz5)·swordfish(7hMOlBjln0)·dolphin(3LzFgI3GLO)은 더 안 써서 지웠다
 
 ## 플레이어 캐릭터 (fisherman.glb)
 
