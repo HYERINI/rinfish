@@ -3,6 +3,7 @@ import { AQUARIUM } from '../data/balance'
 import { RARITY_COLOR, findSpecies } from '../data/fish'
 import { incomePerSecond, isHungry, slotCount } from '../logic/aquarium'
 import { useProgressStore } from '../stores/progressStore'
+import { useSessionStore } from '../stores/sessionStore'
 import { Panel } from './Panel'
 import { button, disabledButton } from './styles'
 
@@ -11,6 +12,7 @@ const section = { margin: '16px 0 6px', fontSize: 15 } as const
 
 export function AquariumPanel() {
   const s = useProgressStore()
+  const setMode = useSessionStore((st) => st.setMode)
   const { aquarium, playTime, coins, feed, inventory } = s
   const hungry = isHungry(aquarium, playTime)
   const nextLevel = TANK_LEVELS[aquarium.level + 1]
@@ -27,6 +29,12 @@ export function AquariumPanel() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button style={button} onClick={(e) => {
+              e.currentTarget.blur()
+              setMode('aquariumView')
+            }}>
+          🔍 크게 보기
+        </button>
         <button style={income > 0 ? button : disabledButton} disabled={income === 0} onClick={(e) => {
               e.currentTarget.blur()
               s.claimAquariumIncome()

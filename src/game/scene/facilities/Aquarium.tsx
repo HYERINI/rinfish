@@ -41,21 +41,7 @@ export function Aquarium() {
       </RigidBody>
 
       <group position={[0, STAND + h / 2, 0]}>
-        {/* 물과 유리. 물은 안쪽, 유리는 바깥 테두리 */}
-        <mesh renderOrder={1}>
-          <boxGeometry args={[w - 0.05, h - 0.1, d - 0.05]} />
-          <meshStandardMaterial color={type.water} transparent opacity={type.waterOpacity} depthWrite={false} />
-        </mesh>
-        <mesh renderOrder={2}>
-          <boxGeometry args={[w, h, d]} />
-          <meshPhysicalMaterial color="#ffffff" transparent opacity={0.12} roughness={0.05} metalness={0} depthWrite={false} />
-        </mesh>
-        {/* 바닥 */}
-        <mesh position={[0, -h / 2 + 0.06, 0]} receiveShadow>
-          <boxGeometry args={[w - 0.05, 0.12, d - 0.05]} />
-          <meshStandardMaterial color={type.floor} />
-        </mesh>
-        <TankDecor type={aquarium.activeType} w={w} h={h} d={d} />
+        <TankBody type={aquarium.activeType} size={level.size} />
         {aquarium.displayed.map((fish, i) => (
           <AquariumFish
             key={fish.id}
@@ -90,6 +76,31 @@ export function Aquarium() {
       </Html>
       <InteractionZone position={[0, 1, d / 2 + 1]} halfSize={[w / 2 + 0.5, 1.5, 1.2]} target={{ kind: 'aquarium' }} />
     </group>
+  )
+}
+
+/** 물·유리·바닥·장식. 원점이 수조 가운데다. 게임 속 어항과 크게 보기가 같이 쓴다 */
+export function TankBody({ type, size }: { type: TankTypeId; size: [number, number, number] }) {
+  const [w, h, d] = size
+  const look = getTankType(type)
+  return (
+    <>
+      {/* 물과 유리. 물은 안쪽, 유리는 바깥 테두리 */}
+      <mesh renderOrder={1}>
+        <boxGeometry args={[w - 0.05, h - 0.1, d - 0.05]} />
+        <meshStandardMaterial color={look.water} transparent opacity={look.waterOpacity} depthWrite={false} />
+      </mesh>
+      <mesh renderOrder={2}>
+        <boxGeometry args={[w, h, d]} />
+        <meshPhysicalMaterial color="#ffffff" transparent opacity={0.12} roughness={0.05} metalness={0} depthWrite={false} />
+      </mesh>
+      {/* 바닥 */}
+      <mesh position={[0, -h / 2 + 0.06, 0]} receiveShadow>
+        <boxGeometry args={[w - 0.05, 0.12, d - 0.05]} />
+        <meshStandardMaterial color={look.floor} />
+      </mesh>
+      <TankDecor type={type} w={w} h={h} d={d} />
+    </>
   )
 }
 

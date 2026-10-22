@@ -1,6 +1,7 @@
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { AquariumPanel } from './AquariumPanel'
+import { AquariumView } from './AquariumView'
 import { CharacterCreator } from './CharacterCreator'
 import { DexPanel } from './DexPanel'
 import { GearShopPanel } from './GearShopPanel'
@@ -25,6 +26,8 @@ export function Panels({ onExit }: { onExit?: () => void }) {
       return <MarketPanel />
     case 'aquarium':
       return <AquariumPanel />
+    case 'aquariumView':
+      return <AquariumView />
     case 'wardrobe':
       return <CharacterCreator firstTime={!look} />
     default:
