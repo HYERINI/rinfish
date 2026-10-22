@@ -6,7 +6,8 @@ import { BAIT_IDS, type BaitId } from '../data/bait'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
 import { findSpecies } from '../data/fish'
-import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId } from '../data/types'
+import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId, ZoneId } from '../data/types'
+import { ZONES } from '../data/zones'
 import {
   EMPTY_AQUARIUM,
   buyExpansion,
@@ -25,6 +26,7 @@ import { normalizeLook } from '../logic/characterLook'
 import { cook } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
+import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
 import { FRESH_SURVIVAL, faintPenalty, spendStamina, tickSurvival, type Survival, type SurvivalTickContext } from '../logic/stamina'
 
 export const SAVE_KEY = 'fishing-island-save-v1'
@@ -51,6 +53,8 @@ type ProgressData = {
   bait: BaitCounts
   /** 낚시할 때 쓸 미끼. null 이면 미끼 없이 */
   selectedBait: BaitId | null
+  /** 연 구역 (해변은 처음부터 열려 있어 넣지 않는다) */
+  unlockedZones: ZoneId[]
 }
 
 
@@ -84,6 +88,8 @@ type ProgressActions = {
   selectBait: (id: BaitId | null) => void
   /** 던질 때 미끼 1개를 쓴다 */
   spendBait: (id: BaitId) => void
+  /** 구역 열기. 조건이 맞으면 코인을 내고 바로 저장한다(연출은 보여 주기만 한다). 못 열면 false */
+  unlockZone: (id: ZoneId) => boolean
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -98,6 +104,7 @@ export const INITIAL_PROGRESS: ProgressData = {
   aquarium: EMPTY_AQUARIUM,
   bait: NO_BAIT,
   selectedBait: null,
+  unlockedZones: [],
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -196,6 +203,13 @@ function readBait(v: unknown, fallback: BaitCounts): BaitCounts {
   const counts = { ...fallback }
   for (const id of BAIT_IDS) counts[id] = readCount(v[id], fallback[id])
   return counts
+}
+
+const LOCKABLE_ZONES = ZONES.filter((z) => z.unlock).map((z) => z.id)
+
+function readUnlockedZones(v: unknown): ZoneId[] {
+  if (!Array.isArray(v)) return []
+  return LOCKABLE_ZONES.filter((id) => v.includes(id))
 }
 
 function readSelectedBait(v: unknown): BaitId | null {
@@ -354,6 +368,16 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
 
       spendBait: (id) => set((s) => ({ bait: consumeBait(s.bait, id) })),
 
+      unlockZone: (id) => {
+        const s = get()
+        const zone = ZONES.find((z) => z.id === id)
+        if (!zone) return false
+        const result = unlockZoneRule(zone, { coins: s.coins, dexCount: Object.keys(s.dex).length, lineLevel: s.gear.line, unlocked: s.unlockedZones })
+        if (!result.ok) return false
+        set({ coins: result.coins, unlockedZones: result.unlocked })
+        return true
+      },
+
       resetProgress: () => set({ ...INITIAL_PROGRESS }),
     }),
     {
@@ -376,6 +400,7 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           aquarium: readAquarium(saved.aquarium, current.aquarium),
           bait: readBait(saved.bait, current.bait),
           selectedBait: readSelectedBait(saved.selectedBait),
+          unlockedZones: readUnlockedZones(saved.unlockedZones),
         }
       },
     },

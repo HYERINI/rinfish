@@ -48,6 +48,15 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Digit2', 'shop', null)).toEqual({ type: 'none' })
   })
 
+  it('잠긴 구역 문 앞에서 E 는 여는 창, 연출 중엔 E·ESC·숫자 키 모두 무시', () => {
+    const gate = { kind: 'zoneGate' as const, zoneId: 'pond' as const }
+    expect(resolveKeyAction('KeyE', 'explore', gate)).toEqual({ type: 'openMode', mode: 'unlock' })
+    expect(resolveKeyAction('Escape', 'unlock', gate)).toEqual({ type: 'closePanel' })
+    for (const code of ['KeyE', 'Escape', 'Digit1']) expect(resolveKeyAction(code, 'cutscene', gate)).toEqual({ type: 'none' })
+    expect(isSameInteractable(gate, { kind: 'zoneGate', zoneId: 'reef' })).toBe(false)
+    expect(isSameInteractable(gate, { kind: 'zoneGate', zoneId: 'pond' })).toBe(true)
+  })
+
   it('다른 키는 무시한다', () => {
     expect(resolveKeyAction('KeyW', 'explore', spot)).toEqual({ type: 'none' })
   })

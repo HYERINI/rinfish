@@ -14,6 +14,13 @@ export const WATER_Y = -0.3
 /** 연못·동굴 호수처럼 섬 위에 있는 물의 수면 높이 */
 export const INLAND_WATER_Y = 0.03
 
+/**
+ * 구역 여는 방법
+ * - repair: 코인을 내고 수리기사님께 다리·보트 수리를 맡긴다
+ * - clear: 도감 종 수와 낚싯줄 단계(화면 Lv, 1부터)를 채우면 수리기사님들이 바위를 치워 준다
+ */
+export type ZoneUnlock = { kind: 'repair'; target: 'bridge' | 'boat'; price: number } | { kind: 'clear'; minDex: number; minLineLevel: number }
+
 export type ZoneDef = {
   id: ZoneId
   name: string
@@ -22,14 +29,22 @@ export type ZoneDef = {
   unlockLabel: string
   /** 울타리에서 이 구역으로 들어가는 문의 x 범위. 해변은 null */
   gate: { xFrom: number; xTo: number } | null
+  /** 여는 방법. 해변은 처음부터 열려 있어 null */
+  unlock: ZoneUnlock | null
 }
 
 export const ZONES: ZoneDef[] = [
-  { id: 'beach', name: '선착장 해변', color: '#e9d8a6', unlockLabel: '', gate: null },
-  { id: 'pond', name: '숲속 연못', color: '#81c784', unlockLabel: '무너진 다리를 고쳐야 해요', gate: { xFrom: -18, xTo: -10 } },
-  { id: 'cave', name: '동굴 지하호수', color: '#5d4037', unlockLabel: '바위로 막혀 있어요', gate: { xFrom: -4, xTo: 4 } },
-  { id: 'reef', name: '암초 앞바다', color: '#4fc3f7', unlockLabel: '부서진 보트를 고쳐야 해요', gate: { xFrom: 10, xTo: 18 } },
+  { id: 'beach', name: '선착장 해변', color: '#e9d8a6', unlockLabel: '', gate: null, unlock: null },
+  { id: 'pond', name: '숲속 연못', color: '#81c784', unlockLabel: '무너진 다리를 고쳐야 해요', gate: { xFrom: -18, xTo: -10 }, unlock: { kind: 'repair', target: 'bridge', price: 300 } },
+  { id: 'cave', name: '동굴 지하호수', color: '#5d4037', unlockLabel: '바위로 막혀 있어요', gate: { xFrom: -4, xTo: 4 }, unlock: { kind: 'clear', minDex: 8, minLineLevel: 3 } },
+  { id: 'reef', name: '암초 앞바다', color: '#4fc3f7', unlockLabel: '부서진 보트를 고쳐야 해요', gate: { xFrom: 10, xTo: 18 }, unlock: { kind: 'repair', target: 'boat', price: 800 } },
 ]
+
+export function getZone(id: ZoneId): ZoneDef {
+  const zone = ZONES.find((z) => z.id === id)
+  if (!zone) throw new Error(`알 수 없는 구역: ${id}`)
+  return zone
+}
 
 export type FishingSpot = {
   id: string

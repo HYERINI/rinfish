@@ -1,6 +1,5 @@
-import { Html } from '@react-three/drei'
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier'
-import { BARRIER_COLLIDER_HEIGHT, FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, ZONES, type ZoneDef } from '../data/zones'
+import { BARRIER_COLLIDER_HEIGHT, FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, ZONES } from '../data/zones'
 import { Ocean } from './Ocean'
 
 export function Island() {
@@ -57,11 +56,9 @@ export function Island() {
         </mesh>
       ))}
 
+      {/* 문(gate) 자리의 다리·보트·바위와 잠긴 벽은 zones/ZoneGates 가 그린다 */}
       {fenceSegments().map(([from, to]) => (
         <FenceWall key={from} from={from} to={to} />
-      ))}
-      {ZONES.map((zone) => (
-        <Gate key={zone.id} zone={zone} />
       ))}
     </>
   )
@@ -92,35 +89,4 @@ function FenceWall({ from, to }: { from: number; to: number }) {
       </mesh>
     </RigidBody>
   )
-}
-
-/** 잠긴 구역 입구. 1차-B에서 해금되면 사라지게 만든다 */
-function Gate({ zone }: { zone: ZoneDef }) {
-  if (!zone.gate) return null
-  const { xFrom, xTo } = zone.gate
-  const width = xTo - xFrom
-  return (
-    <RigidBody type="fixed" colliders={false} position={[(xFrom + xTo) / 2, 1, FENCE_Z]}>
-      {/* 보이는 문보다 훨씬 높은 보이지 않는 벽 (점프로 못 넘게). 바닥은 땅(y=0)에 맞춘다 */}
-      <CuboidCollider args={[width / 2, BARRIER_COLLIDER_HEIGHT.gate / 2, 0.3]} position={[0, BARRIER_COLLIDER_HEIGHT.gate / 2 - 1, 0]} />
-      <mesh castShadow>
-        <boxGeometry args={[width, 2, 0.6]} />
-        <meshStandardMaterial color={zone.color} transparent opacity={0.7} />
-      </mesh>
-      {/* Html: 3D 위치에 일반 HTML을 띄운다 (한글 표시용) */}
-      <Html center position={[0, 2, 0]} zIndexRange={[100, 0]} style={gateLabel}>
-        잠김 · {zone.name} — {zone.unlockLabel}
-      </Html>
-    </RigidBody>
-  )
-}
-
-const gateLabel = {
-  pointerEvents: 'none' as const,
-  whiteSpace: 'nowrap' as const,
-  background: 'rgba(0,0,0,0.6)',
-  color: '#fff',
-  padding: '4px 8px',
-  borderRadius: 6,
-  fontSize: 13,
 }

@@ -8,6 +8,7 @@ import { GearShopPanel } from './GearShopPanel'
 import { MarketPanel } from './MarketPanel'
 import { MenuPanel } from './MenuPanel'
 import { SellPanel } from './SellPanel'
+import { UnlockPanel } from './UnlockPanel'
 
 /** 현재 mode에 맞는 패널 하나를 띄운다 */
 export function Panels({ onExit }: { onExit?: () => void }) {
@@ -28,6 +29,8 @@ export function Panels({ onExit }: { onExit?: () => void }) {
       return <AquariumPanel />
     case 'aquariumView':
       return <AquariumView />
+    case 'unlock':
+      return <UnlockPanel />
     case 'wardrobe':
       return <CharacterCreator firstTime={!look} />
     default:

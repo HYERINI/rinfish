@@ -13,6 +13,8 @@ import { Island } from './Island'
 import { IslandDecor } from './decor/IslandDecor'
 import { Player } from './Player'
 import { PlayTimeTicker } from './PlayTimeTicker'
+import { RepairCutscene } from './zones/RepairCutscene'
+import { ZoneGates } from './zones/ZoneGates'
 
 preloadFacilityAssets()
 
@@ -35,6 +37,8 @@ export function World() {
       />
       <Island />
       <IslandDecor />
+      <ZoneGates />
+      <RepairCutscene />
       <Player />
       <FishingSpots />
       <SellBox />

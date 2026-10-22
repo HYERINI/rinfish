@@ -279,4 +279,31 @@ describe('progressStore', () => {
     expect(store().bait).toEqual({ worm: 4, shrimp: 0, lure: 0 })
     expect(store().selectedBait).toBeNull()
   })
+
+  it('다리는 코인을 내고 열고, 동굴은 도감·낚싯줄 조건이 맞아야 열린다', () => {
+    expect(store().unlockZone('pond')).toBe(false)
+    useProgressStore.setState({ coins: 320 })
+    expect(store().unlockZone('pond')).toBe(true)
+    expect(store().coins).toBe(20)
+    expect(store().unlockedZones).toEqual(['pond'])
+    expect(store().unlockZone('pond')).toBe(false)
+
+    expect(store().unlockZone('cave')).toBe(false)
+    const ids = ['sleepy-sardine', 'chatty-mackerel', 'bubble-puffer', 'sunglasses-mackerel', 'selfie-flyingfish', 'lifeguard-flounder', 'firefly-minnow', 'ribbit-catfish']
+    for (const id of ids) store().addCatch(id, 1)
+    useProgressStore.setState({ gear: { line: 2, reel: 0, rod: 0 } })
+    expect(store().unlockZone('cave')).toBe(true)
+    expect(store().coins).toBe(20)
+    expect(store().unlockedZones).toEqual(['pond', 'cave'])
+  })
+
+  it('연 구역이 없는 예전 저장본은 모두 잠김, 모르는 구역·해변은 버린다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().unlockedZones).toEqual([])
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { unlockedZones: ['reef', 'beach', 'moon', 'reef', 3] }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().unlockedZones).toEqual(['reef'])
+  })
 })

@@ -6,7 +6,7 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { button, hint, overlayLayer } from './styles'
 
-const PROMPT: Record<Interactable['kind'], string> = {
+const PROMPT: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
   fishingSpot: 'E  낚시하기',
   sellBox: 'E  물고기 팔기',
   gearShop: 'E  장비 상점',
@@ -14,6 +14,23 @@ const PROMPT: Record<Interactable['kind'], string> = {
   bench: 'E  앉아서 쉬기',
   aquarium: 'E  어항',
   wardrobe: 'E  옷장 (꾸미기)',
+}
+
+const GATE_PROMPT: Record<string, string> = {
+  pond: 'E  무너진 다리 살펴보기',
+  reef: 'E  부서진 보트 살펴보기',
+  cave: 'E  바위 살펴보기',
+}
+
+function promptFor(target: Interactable): string {
+  return target.kind === 'zoneGate' ? (GATE_PROMPT[target.zoneId] ?? 'E  살펴보기') : PROMPT[target.kind]
+}
+
+/** 연출 중 아래 자막 */
+const CUTSCENE_CAPTION: Record<string, string> = {
+  pond: '수리기사님들이 다리를 고치는 중…',
+  reef: '수리기사님들이 보트를 고치는 중…',
+  cave: '수리기사님들이 바위를 치우는 중…',
 }
 
 /** 알림을 띄워 두는 시간 */
@@ -25,11 +42,12 @@ export function Hud() {
   const mode = useSessionStore((s) => s.mode)
   const nearby = useSessionStore((s) => s.nearby)
   const setMode = useSessionStore((s) => s.setMode)
+  const cutscene = useSessionStore((s) => s.cutscene)
 
   const ratio = survival.stamina / STAMINA.max
   return (
     <div style={overlayLayer}>
-      <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 18, width: 200 }}>
+      <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 18, width: 200, display: mode === 'cutscene' ? 'none' : undefined }}>
         <strong>코인 {coins}</strong>
         <div style={{ fontSize: 13, marginTop: 6 }}>체력 {Math.ceil(survival.stamina)}</div>
         <div style={{ height: 8, background: '#333', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
@@ -41,6 +59,14 @@ export function Hud() {
           </div>
         ))}
       </div>
+
+      {/* 연출 중: 위아래 검은 띠(영화처럼) + 자막 */}
+      {mode === 'cutscene' && cutscene && (
+        <>
+          <div style={{ ...letterbox, top: 0 }} />
+          <div style={{ ...letterbox, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{CUTSCENE_CAPTION[cutscene.zoneId]}</div>
+        </>
+      )}
 
       {mode === 'rest' && <div style={hint}>벤치에서 쉬는 중… 체력 회복 · E / ESC 일어나기</div>}
 
@@ -54,7 +80,7 @@ export function Hud() {
               메뉴 (ESC)
             </button>
           </div>
-          {nearby && <div style={hint}>{PROMPT[nearby.kind]}</div>}
+          {nearby && <div style={hint}>{promptFor(nearby)}</div>}
           <div style={{ position: 'absolute', bottom: 16, left: 16, opacity: 0.7, fontSize: 13 }}>
             WASD 이동 · Shift 달리기 · Space 점프 · 1~5 감정 표현 · 휠 확대 · 마우스 드래그로 카메라 회전
           </div>
@@ -63,6 +89,8 @@ export function Hud() {
     </div>
   )
 }
+
+const letterbox = { position: 'absolute' as const, left: 0, right: 0, height: '9vh', background: '#000', opacity: 0.85 }
 
 /**
  * 쓰러짐·어항 알림. 패널·어항 크게 보기보다 위 층에 띄워서 어느 화면에서든 보인다 (Game 에서 Panels 다음에 둔다).

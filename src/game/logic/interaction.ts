@@ -1,7 +1,11 @@
 import { BAITS, NO_BAIT_KEY, type BaitId } from '../data/bait'
+import type { ZoneId } from '../data/types'
 
-/** 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중 */
-export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe' | 'aquariumView'
+/**
+ * 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중,
+ * unlock = 잠긴 구역 문 앞에서 여는 창, cutscene = 수리기사님 연출 (조작 없음)
+ */
+export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe' | 'aquariumView' | 'unlock' | 'cutscene'
 
 /** E 키로 상호작용할 수 있는 대상 */
 export type Interactable =
@@ -12,10 +16,12 @@ export type Interactable =
   | { kind: 'bench' }
   | { kind: 'aquarium' }
   | { kind: 'wardrobe' }
+  | { kind: 'zoneGate'; zoneId: ZoneId }
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
   if (a.kind === 'fishingSpot' && b.kind === 'fishingSpot') return a.spotId === b.spotId
+  if (a.kind === 'zoneGate' && b.kind === 'zoneGate') return a.zoneId === b.zoneId
   return true
 }
 
@@ -29,6 +35,8 @@ export type KeyAction =
 
 /** panelLocked: 지금 패널을 닫으면 안 된다 (처음 캐릭터를 만드는 중) */
 export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable | null, panelLocked = false): KeyAction {
+  // 연출 중엔 아무 키도 받지 않는다 (끝나면 저절로 탐험으로 돌아온다)
+  if (mode === 'cutscene') return { type: 'none' }
   if (code === 'Escape') {
     if (panelLocked) return { type: 'none' }
     if (mode === 'aquariumView') return { type: 'openMode', mode: 'aquarium' }
@@ -60,6 +68,8 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
         return { type: 'openMode', mode: 'wardrobe' }
       case 'bench':
         return { type: 'openMode', mode: 'rest' }
+      case 'zoneGate':
+        return { type: 'openMode', mode: 'unlock' }
     }
   }
   return { type: 'none' }

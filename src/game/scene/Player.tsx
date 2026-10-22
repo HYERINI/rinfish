@@ -4,6 +4,7 @@ import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@re
 import { Vector3, type Group, type Object3D } from 'three'
 import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
+import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
 import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
@@ -85,11 +86,15 @@ const GROUND_PROBE = 0.15
 const GROUNDED_MAX_VY = 1
 /** 카메라 거리·높이·방향(플레이어 기준 오프셋)이 따라가는 빠르기. 수평 위치는 플레이어에 바로 붙는다 */
 const CAMERA_SMOOTH = 5
+/** 수리 연출 카메라로 넘어가고 돌아오는 빠르기 */
+const CUTSCENE_CAMERA_SMOOTH = 2.5
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
 const cameraTarget = new Vector3()
 const grip = new Vector3()
+const lookTarget = new Vector3()
+const cutLook = new Vector3()
 
 export function Player() {
   const body = useRef<RapierRigidBody>(null)
@@ -112,6 +117,8 @@ export function Player() {
    * 위치 전체를 늦게 따라가면 가까이 당긴 채 카메라 쪽으로 걸을 때 카메라가 몸을 뚫는다
    */
   const cam = useRef({ offset: new Vector3(), lookY: 0, feetY: 0, ready: false })
+  /** 수리 연출 카메라 비율(0 = 보통 카메라, 1 = 연출 자리)과 마지막 연출 카메라 (끝난 뒤 부드럽게 돌아오도록 기억한다) */
+  const cut = useRef<{ blend: number; camera: RepairPlan['camera'] | null }>({ blend: 0, camera: null })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
 
   // 탐험 중 마우스 드래그로 카메라 회전
@@ -210,6 +217,10 @@ export function Player() {
       facing.current = Math.atan2(fx, fz)
     } else if (mode === 'rest') {
       facing.current = BENCH_SEAT.facing
+    } else if (mode === 'cutscene' && session.cutscene && session.cutscene.zoneId !== 'beach') {
+      // 연출 중엔 고치는 곳을 바라보며 구경한다
+      const [sx, sz] = REPAIR_PLANS[session.cutscene.zoneId].site
+      facing.current = Math.atan2(sx - x, sz - z)
     } else if (moveDir.lengthSq() > 0) {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
@@ -256,7 +267,20 @@ export function Player() {
     c.lookY += (rig.lookAtY - c.lookY) * k
     c.feetY += (p.y + FOOT_Y - c.feetY) * k
     camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
-    camera.lookAt(x, c.feetY + c.lookY, z)
+    lookTarget.set(x, c.feetY + c.lookY, z)
+
+    // 7) 수리 연출 중엔 연출 자리를 비추는 카메라로 옮겨 가고, 끝나면 부드럽게 돌아온다
+    const cs = session.cutscene
+    const cutZone = mode === 'cutscene' && cs && cs.zoneId !== 'beach' ? cs.zoneId : null
+    if (cutZone) cut.current.camera = REPAIR_PLANS[cutZone].camera
+    cut.current.blend += (Number(cutZone !== null) - cut.current.blend) * (1 - Math.exp(-delta * CUTSCENE_CAMERA_SMOOTH))
+    const shot = cut.current.camera
+    if (shot && cut.current.blend > 1e-3) {
+      const b = cut.current.blend
+      camera.position.lerp(cutLook.fromArray(shot.position), b)
+      lookTarget.lerp(cutLook.fromArray(shot.lookAt), b)
+    }
+    camera.lookAt(lookTarget)
   })
 
   return (

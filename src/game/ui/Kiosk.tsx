@@ -47,7 +47,7 @@ export function Kiosk({ title, accent, coins, tabs, tab, onTab, cards, selectedI
   const setMode = useSessionStore((s) => s.setMode)
   return (
     <div className="kiosk" style={{ ['--accent' as string]: accent }}>
-      <style>{KIOSK_CSS}</style>
+      <KioskStyle />
       <header className="kiosk-head">
         <h2>{title}</h2>
         <span className="kiosk-coins">
@@ -162,6 +162,11 @@ export function BigButton({ label, sub, disabled, onClick, tone = 'buy' }: { lab
       {sub && <small>{sub}</small>}
     </button>
   )
+}
+
+/** 키오스크 class 스타일. Kiosk 밖에서 BigButton 등만 쓸 때도 넣는다 */
+export function KioskStyle() {
+  return <style>{KIOSK_CSS}</style>
 }
 
 function CoinDot() {
