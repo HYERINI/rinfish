@@ -39,6 +39,15 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'menu', null)).toEqual({ type: 'closePanel' })
   })
 
+  it('낚시 중 1~3은 미끼, 0은 미끼 없이. 탐험·패널에선 숫자 키를 받지 않는다(감정 표현)', () => {
+    expect(resolveKeyAction('Digit1', 'fishing', spot)).toEqual({ type: 'selectBait', bait: 'worm' })
+    expect(resolveKeyAction('Digit3', 'fishing', spot)).toEqual({ type: 'selectBait', bait: 'lure' })
+    expect(resolveKeyAction('Digit0', 'fishing', spot)).toEqual({ type: 'selectBait', bait: null })
+    expect(resolveKeyAction('Digit5', 'fishing', spot)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit1', 'explore', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit2', 'shop', null)).toEqual({ type: 'none' })
+  })
+
   it('다른 키는 무시한다', () => {
     expect(resolveKeyAction('KeyW', 'explore', spot)).toEqual({ type: 'none' })
   })

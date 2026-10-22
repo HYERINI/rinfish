@@ -1,3 +1,5 @@
+import { BAITS, NO_BAIT_KEY, type BaitId } from '../data/bait'
+
 /** 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중 */
 export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe' | 'aquariumView'
 
@@ -23,6 +25,7 @@ export type KeyAction =
   | { type: 'openMode'; mode: Mode }
   | { type: 'stopFishing' }
   | { type: 'closePanel' }
+  | { type: 'selectBait'; bait: BaitId | null }
 
 /** panelLocked: 지금 패널을 닫으면 안 된다 (처음 캐릭터를 만드는 중) */
 export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable | null, panelLocked = false): KeyAction {
@@ -32,6 +35,12 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
     if (mode === 'explore') return { type: 'openMode', mode: 'menu' }
     if (mode === 'fishing') return { type: 'stopFishing' }
     return { type: 'closePanel' }
+  }
+  // 낚시 중 숫자 키는 미끼 고르기 (탐험 중 숫자 키는 감정 표현이라 여기서 받지 않는다)
+  if (mode === 'fishing') {
+    if (code === NO_BAIT_KEY) return { type: 'selectBait', bait: null }
+    const bait = BAITS.find((b) => b.key === code)
+    if (bait) return { type: 'selectBait', bait: bait.id }
   }
   // 벤치에 앉아 있으면 E로도 일어난다
   if (code === 'KeyE' && mode === 'rest') return { type: 'closePanel' }

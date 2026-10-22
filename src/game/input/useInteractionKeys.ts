@@ -25,6 +25,9 @@ export function useInteractionKeys() {
         case 'closePanel':
           session.setMode('explore')
           break
+        case 'selectBait':
+          useProgressStore.getState().selectBait(action.bait)
+          break
         case 'none':
           break
       }

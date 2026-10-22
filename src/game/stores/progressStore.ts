@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { TANK_LEVELS, TANK_TYPES } from '../data/aquarium'
 import { AQUARIUM, STAMINA } from '../data/balance'
+import { BAIT_IDS, type BaitId } from '../data/bait'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
 import { findSpecies } from '../data/fish'
@@ -19,6 +20,7 @@ import {
   type AquariumEvent,
   type AquariumState,
 } from '../logic/aquarium'
+import { NO_BAIT, buyBait as buyBaitRule, consumeBait, type BaitCounts } from '../logic/bait'
 import { normalizeLook } from '../logic/characterLook'
 import { cook } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
@@ -45,6 +47,10 @@ type ProgressData = {
   /** 보유 사료 개수 */
   feed: number
   aquarium: AquariumState
+  /** 미끼별 보유 개수 */
+  bait: BaitCounts
+  /** 낚시할 때 쓸 미끼. null 이면 미끼 없이 */
+  selectedBait: BaitId | null
 }
 
 
@@ -73,6 +79,11 @@ type ProgressActions = {
   buyTankType: (typeId: TankTypeId) => boolean
   selectTankType: (typeId: TankTypeId) => void
   setLook: (look: CharacterLook) => void
+  /** qty 개를 산다. 코인이 모자라면 false */
+  buyBait: (id: BaitId, qty: number) => boolean
+  selectBait: (id: BaitId | null) => void
+  /** 던질 때 미끼 1개를 쓴다 */
+  spendBait: (id: BaitId) => void
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -85,6 +96,8 @@ export const INITIAL_PROGRESS: ProgressData = {
   survival: FRESH_SURVIVAL,
   feed: 0,
   aquarium: EMPTY_AQUARIUM,
+  bait: NO_BAIT,
+  selectedBait: null,
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -176,6 +189,17 @@ function readAquarium(v: unknown, fallback: AquariumState): AquariumState {
 
 function readCount(v: unknown, fallback: number): number {
   return Number.isInteger(v) && (v as number) >= 0 ? (v as number) : fallback
+}
+
+function readBait(v: unknown, fallback: BaitCounts): BaitCounts {
+  if (!isRecord(v)) return fallback
+  const counts = { ...fallback }
+  for (const id of BAIT_IDS) counts[id] = readCount(v[id], fallback[id])
+  return counts
+}
+
+function readSelectedBait(v: unknown): BaitId | null {
+  return BAIT_IDS.includes(v as BaitId) ? (v as BaitId) : null
 }
 
 // persist: 상태를 localStorage에 자동 저장하고, 새로고침하면 다시 불러온다
@@ -319,6 +343,17 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
 
       setLook: (look) => set({ look: normalizeLook(look) }),
 
+      buyBait: (id, qty) => {
+        const result = buyBaitRule(get().coins, get().bait, id, qty)
+        if (!result.ok) return false
+        set({ coins: result.coins, bait: result.counts })
+        return true
+      },
+
+      selectBait: (id) => set({ selectedBait: id }),
+
+      spendBait: (id) => set((s) => ({ bait: consumeBait(s.bait, id) })),
+
       resetProgress: () => set({ ...INITIAL_PROGRESS }),
     }),
     {
@@ -339,6 +374,8 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           survival: readSurvival(saved.survival, current.survival),
           feed: readCount(saved.feed, current.feed),
           aquarium: readAquarium(saved.aquarium, current.aquarium),
+          bait: readBait(saved.bait, current.bait),
+          selectedBait: readSelectedBait(saved.selectedBait),
         }
       },
     },

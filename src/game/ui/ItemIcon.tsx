@@ -1,0 +1,129 @@
+import type { ReactNode } from 'react'
+import type { BaitId } from '../data/bait'
+import type { DishId, GearSlot } from '../data/types'
+
+/** 상점 카드에 그리는 물건 그림 종류 (물고기는 FishImage) */
+export type ItemIconId = BaitId | GearSlot | DishId | 'feed' | 'none'
+
+/** 작은 SVG 그림. 64×64 칸에 그려서 size 로 늘린다 */
+export function ItemIcon({ id, size = 64, level = 0 }: { id: ItemIconId; size?: number; /** 장비 단계(0부터). 단계마다 색이 달라진다 */ level?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden style={{ display: 'block' }}>
+      {ICONS[id](level)}
+    </svg>
+  )
+}
+
+/** 장비 단계 색: 나무·나일론 → 은색 → 금색 */
+const TIER = ['#a1887f', '#90caf9', '#ffd54f']
+
+const ICONS: Record<ItemIconId, (level: number) => ReactNode> = {
+  worm: () => (
+    <g>
+      <ellipse cx="32" cy="50" rx="22" ry="5" fill="#6d4c41" opacity="0.5" />
+      <path d="M10 40 C 16 26, 24 50, 32 36 S 46 24, 54 34" fill="none" stroke="#e57373" strokeWidth="9" strokeLinecap="round" />
+      <path d="M10 40 C 16 26, 24 50, 32 36 S 46 24, 54 34" fill="none" stroke="#f8bbd0" strokeWidth="2" strokeDasharray="2 5" strokeLinecap="round" />
+      <circle cx="53" cy="32" r="1.6" fill="#3e2723" />
+    </g>
+  ),
+  shrimp: () => (
+    <g>
+      <path d="M46 16 C 30 12, 14 22, 16 38 C 18 50, 32 54, 40 46" fill="none" stroke="#ff8a65" strokeWidth="12" strokeLinecap="round" />
+      {[0, 1, 2, 3].map((i) => (
+        <path key={i} d={`M${20 + i * 6} ${22 + i * 5} l 6 -3`} stroke="#ffccbc" strokeWidth="2" />
+      ))}
+      <path d="M40 46 l 8 6 l -2 -10 z" fill="#ff7043" />
+      <circle cx="44" cy="16" r="2" fill="#3e2723" />
+      <path d="M48 14 C 56 8, 60 12, 62 6 M48 17 C 58 16, 60 20, 63 16" stroke="#bf360c" strokeWidth="1.5" fill="none" />
+    </g>
+  ),
+  lure: () => (
+    <g>
+      <path d="M8 32 C 18 18, 40 18, 50 32 C 40 46, 18 46, 8 32 z" fill="#26c6da" stroke="#00838f" strokeWidth="2" />
+      <path d="M8 32 C 18 26, 36 26, 50 32 C 36 38, 18 38, 8 32 z" fill="#ffee58" opacity="0.8" />
+      <circle cx="16" cy="29" r="3" fill="#fff" />
+      <circle cx="16" cy="29" r="1.5" fill="#000" />
+      <path d="M50 32 l 8 -6 l 0 12 z" fill="#ef5350" />
+      <path d="M30 42 c 0 8, 6 10, 8 6" stroke="#9e9e9e" strokeWidth="2" fill="none" />
+      <path d="M38 48 l 2 -4" stroke="#9e9e9e" strokeWidth="2" />
+      <circle cx="44" cy="22" r="2" fill="#fff" opacity="0.9" />
+    </g>
+  ),
+  line: (level) => (
+    <g>
+      <circle cx="32" cy="32" r="22" fill={TIER[level] ?? TIER[0]} stroke="#455a64" strokeWidth="3" />
+      <circle cx="32" cy="32" r="8" fill="#eceff1" stroke="#455a64" strokeWidth="2" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <circle key={i} cx="32" cy="32" r={11 + i * 2.2} fill="none" stroke="#fff" strokeWidth="0.8" opacity="0.7" />
+      ))}
+      <path d="M54 32 C 60 40, 58 50, 62 60" stroke="#eceff1" strokeWidth="1.5" fill="none" />
+    </g>
+  ),
+  reel: (level) => (
+    <g>
+      <rect x="14" y="20" width="28" height="26" rx="12" fill={TIER[level] ?? TIER[0]} stroke="#37474f" strokeWidth="3" />
+      <circle cx="28" cy="33" r="6" fill="#eceff1" stroke="#37474f" strokeWidth="2" />
+      <path d="M42 33 h 10" stroke="#37474f" strokeWidth="4" />
+      <rect x="50" y="26" width="6" height="14" rx="3" fill="#ef5350" />
+      <path d="M24 46 v 8 h 18" stroke="#37474f" strokeWidth="4" fill="none" />
+    </g>
+  ),
+  rod: (level) => (
+    <g>
+      <path d="M10 56 L 54 8" stroke={TIER[level] ?? TIER[0]} strokeWidth="5" strokeLinecap="round" />
+      <path d="M10 56 L 20 45" stroke="#3e2723" strokeWidth="8" strokeLinecap="round" />
+      <circle cx="22" cy="44" r="5" fill="#90a4ae" stroke="#37474f" strokeWidth="2" />
+      <path d="M54 8 C 58 24, 58 34, 56 46" stroke="#eceff1" strokeWidth="1.5" fill="none" />
+      <path d="M56 46 c -4 0, -4 6, 0 6" stroke="#9e9e9e" strokeWidth="2" fill="none" />
+    </g>
+  ),
+  feed: () => (
+    <g>
+      <path d="M16 18 h 32 l 4 38 h -40 z" fill="#ffcc80" stroke="#8d6e63" strokeWidth="2.5" />
+      <path d="M16 18 l 4 -8 h 24 l 4 8" fill="#ffe0b2" stroke="#8d6e63" strokeWidth="2.5" />
+      <ellipse cx="32" cy="36" rx="9" ry="5" fill="#4fc3f7" />
+      <path d="M41 36 l 5 -4 v 8 z" fill="#4fc3f7" />
+      <circle cx="28" cy="35" r="1.2" fill="#000" />
+      {[0, 1, 2].map((i) => (
+        <circle key={i} cx={24 + i * 8} cy="50" r="2.4" fill="#a1887f" />
+      ))}
+    </g>
+  ),
+  sashimi: () => (
+    <g>
+      <ellipse cx="32" cy="42" rx="26" ry="10" fill="#eceff1" stroke="#90a4ae" strokeWidth="2" />
+      {[0, 1, 2, 3].map((i) => (
+        <path key={i} d={`M${14 + i * 9} 42 q 6 -14 12 -2 z`} fill="#ff8a65" stroke="#fff" strokeWidth="1.5" />
+      ))}
+      <path d="M48 34 c 4 -6, 8 -4, 8 0" fill="#66bb6a" />
+    </g>
+  ),
+  bowl: () => (
+    <g>
+      <path d="M8 30 h 48 c 0 16, -12 24, -24 24 s -24 -8 -24 -24 z" fill="#5d4037" stroke="#3e2723" strokeWidth="2" />
+      <ellipse cx="32" cy="30" rx="24" ry="7" fill="#fafafa" />
+      {[0, 1, 2].map((i) => (
+        <path key={i} d={`M${16 + i * 10} 30 q 5 -10 10 0 z`} fill="#ff7043" />
+      ))}
+      <circle cx="42" cy="26" r="3" fill="#66bb6a" />
+      <path d="M44 8 L 30 26 M50 10 L 34 27" stroke="#bcaaa4" strokeWidth="2.5" strokeLinecap="round" />
+    </g>
+  ),
+  stew: () => (
+    <g>
+      <rect x="8" y="26" width="48" height="26" rx="8" fill="#455a64" stroke="#263238" strokeWidth="2" />
+      <ellipse cx="32" cy="27" rx="24" ry="6" fill="#e53935" />
+      <circle cx="24" cy="26" r="3" fill="#fff59d" />
+      <circle cx="38" cy="27" r="3.5" fill="#fafafa" />
+      <path d="M44 25 l 4 -2" stroke="#2e7d32" strokeWidth="2.5" />
+      <path d="M4 34 h 6 M54 34 h 6" stroke="#263238" strokeWidth="4" strokeLinecap="round" />
+      <path d="M22 18 c -3 -4, 3 -6, 0 -10 M32 18 c -3 -4, 3 -6, 0 -10 M42 18 c -3 -4, 3 -6, 0 -10" stroke="#eceff1" strokeWidth="2" fill="none" opacity="0.8" />
+    </g>
+  ),
+  none: () => (
+    <g>
+      <path d="M32 8 v 30 c 0 10, -12 10, -12 2" stroke="#b0bec5" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <circle cx="32" cy="8" r="3" fill="#b0bec5" />
+    </g>
+  ),
+}

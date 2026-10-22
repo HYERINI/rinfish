@@ -1,3 +1,4 @@
+import type { BaitId } from '../data/bait'
 import { getSpecies } from '../data/fish'
 import type { GearStats, ZoneId } from '../data/types'
 import { createBite, hook, stepBite, type BiteState } from './bite'
@@ -22,7 +23,8 @@ export type FishingInput = {
   pressed: boolean
 }
 
-export type FishingContext = { zone: ZoneId; gear: GearStats; mods?: FightMods; rng: Rng }
+/** bait: 던질 때 쓰는 미끼 (없으면 미끼 없이). 미끼를 줄이는 일은 스토어가 한다 */
+export type FishingContext = { zone: ZoneId; gear: GearStats; mods?: FightMods; rng: Rng; bait?: BaitId | null }
 
 export function startFishing(): FishingState {
   return { stage: 'aiming', holding: false, holdTime: 0 }
@@ -35,7 +37,7 @@ export function stepFishing(state: FishingState, input: FishingInput, dt: number
       if (!state.holding) return state
       // 손을 뗀 순간 던진다. 어떤 물고기가 올지는 이때 정해진다
       const castPower = castPowerFromHold(state.holdTime)
-      const species = rollSpecies(ctx.zone, castPower, ctx.rng)
+      const species = rollSpecies(ctx.zone, castPower, ctx.rng, ctx.bait ?? null)
       return { stage: 'waiting', castPower, speciesId: species.id, bite: createBite(ctx.rng) }
     }
     case 'waiting': {

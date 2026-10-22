@@ -255,4 +255,28 @@ describe('progressStore', () => {
     await useProgressStore.persist.rehydrate()
     expect(store().look).toMatchObject({ gender: 'female', beard: false, hair: DEFAULT_LOOK.hair })
   })
+
+  it('미끼를 사고, 고르고, 던질 때 1개씩 쓴다', () => {
+    expect(store().buyBait('lure', 1)).toBe(false)
+    useProgressStore.setState({ coins: 100 })
+    expect(store().buyBait('shrimp', 3)).toBe(true)
+    expect(store().coins).toBe(40)
+    expect(store().bait.shrimp).toBe(3)
+    store().selectBait('shrimp')
+    store().spendBait('shrimp')
+    expect(store().bait.shrimp).toBe(2)
+    expect(store().selectedBait).toBe('shrimp')
+  })
+
+  it('미끼가 없는 예전 저장본은 0개·미끼 없이, 깨진 값은 걸러 낸다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().bait).toEqual({ worm: 0, shrimp: 0, lure: 0 })
+    expect(store().selectedBait).toBeNull()
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { bait: { worm: 4, shrimp: -2, lure: 'x', gold: 9 }, selectedBait: 'gold' }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().bait).toEqual({ worm: 4, shrimp: 0, lure: 0 })
+    expect(store().selectedBait).toBeNull()
+  })
 })
