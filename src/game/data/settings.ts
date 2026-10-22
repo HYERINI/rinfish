@@ -23,8 +23,9 @@ export const MOUSE_LOOK = {
   minSensitivity: 0.0005,
   maxSensitivity: 0.008,
   /** 위아래 기울기(pitch) 범위 (라디안). 양수 = 카메라가 더 위에서 내려다본다 */
-  minPitch: -0.3,
-  maxPitch: 0.4,
+  // 아래로는 땅에 붙어 올려다볼 만큼, 위로는 거의 머리 위에서 내려다볼 만큼 (넘어가지 않게 pitchedOffset 이 한 번 더 막는다)
+  minPitch: -1.0,
+  maxPitch: 1.2,
   /** 카메라가 땅을 뚫지 않게 지키는 최소 높이 (발 기준 m) */
   minCameraHeight: 0.3,
   /** 낚시 중엔 기울기를 0으로 천천히 되돌린다 (빠르기) */

@@ -142,7 +142,10 @@ export function Player() {
         yaw.current = next.yaw
         pitch.current = next.pitch
       } else if (isPointerDown()) {
-        yaw.current -= e.movementX * MOUSE_LOOK.dragSensitivity
+        // 드래그: 좌우로 돌리고 위아래로 기울인다 (감도는 드래그용, 위아래 반전 설정은 그대로 따른다)
+        const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, MOUSE_LOOK.dragSensitivity, useSettingsStore.getState().invertY)
+        yaw.current = next.yaw
+        pitch.current = next.pitch
       }
     }
     window.addEventListener('pointermove', onMove)
