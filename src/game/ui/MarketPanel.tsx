@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { BUFF_LABEL, DISHES, getDish } from '../data/dishes'
 import { RARITY_COLOR, RARITY_LABEL, findSpecies } from '../data/fish'
 import type { DishId } from '../data/types'
+import { pressEat } from '../input/usePlayerActionKeys'
 import { dishEffect } from '../logic/cooking'
 import { useProgressStore } from '../stores/progressStore'
+import { useSessionStore } from '../stores/sessionStore'
 import { FishImage } from './FishImage'
 import { ItemIcon } from './ItemIcon'
 import { BigButton, Kiosk, KioskDetail } from './Kiosk'
-import { useFlash } from './useFlash'
 
 /** 어시장 키오스크: 요리(탭) → 재료 물고기(카드) → 먹기. 희귀한 물고기일수록 효과가 크다 */
 export function MarketPanel() {
@@ -16,7 +17,6 @@ export function MarketPanel() {
   const stamina = useProgressStore((s) => s.survival.stamina)
   const [dishId, setDishId] = useState<DishId>('sashimi')
   const [fishId, setFishId] = useState<string | null>(null)
-  const [toast, flash] = useFlash()
   const dish = getDish(dishId)
 
   const rows = inventory.flatMap((fish) => {
@@ -70,8 +70,10 @@ export function MarketPanel() {
               disabled={!affordable}
               onClick={() => {
                 if (useProgressStore.getState().cookDish(dish.id, chosen.fish.id)) {
-                  flash(`냠냠! ${effectText(chosen.effect.heal, chosen.effect.buff)}`)
-                  setFishId(null)
+                  // 창을 닫고 캐릭터가 바로 먹는 모습을 보여 준다
+                  useSessionStore.getState().notify(`냠냠! ${chosen.species.name} ${dish.name} · ${effectText(chosen.effect.heal, chosen.effect.buff)}`)
+                  useSessionStore.getState().setMode('explore')
+                  pressEat(dish.id)
                 }
               }}
             />
@@ -80,7 +82,6 @@ export function MarketPanel() {
           <KioskDetail image={<ItemIcon id={dish.id} size={110} />} title={dish.name} lines={[dish.description, `조리비 ${dish.cookFee} 코인`, '보관함에 물고기가 있어야 만들 수 있어요']} />
         )
       }
-      toast={toast}
     />
   )
 }

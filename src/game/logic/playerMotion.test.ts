@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
+import { CAMERA_ZOOM, EAT, MOVE, PLAYER_BODY } from '../data/balance'
 import { BARRIER_COLLIDER_HEIGHT } from '../data/zones'
 import { IDLE_ACTION, cameraRig, maxJumpHeight, moveSpeed, nextAction, rodVisible, shouldFaceCamera, type MotionInput, type PlayerAction } from './playerMotion'
 
@@ -155,6 +155,37 @@ describe('shouldFaceCamera', () => {
     expect(shouldFaceCamera('explore', close, idle, { ...IDLE_ACTION, airborne: true })).toBe(false)
     expect(shouldFaceCamera('explore', close, idle, { ...IDLE_ACTION, emote: 'roll' })).toBe(false)
     expect(shouldFaceCamera('explore', close, idle, { ...IDLE_ACTION, emote: 'dance' })).toBe(true)
+  })
+})
+
+describe('nextAction: 먹기', () => {
+  it('먹기 시작하면 EAT.duration 동안 먹다가 저절로 끝난다', () => {
+    const a = nextAction(IDLE_ACTION, input({ eatPressed: 'stew', now: 10 }), length)
+    expect(a).toMatchObject({ eat: 'stew', eatAt: 10 })
+    expect(nextAction(a, input({ now: 10 + EAT.duration - 0.05 }), length).eat).toBe('stew')
+    expect(nextAction(a, input({ now: 10 + EAT.duration }), length).eat).toBeNull()
+  })
+
+  it('움직이거나 뛰거나 감정 표현을 하면 바로 멈춘다', () => {
+    const eating: PlayerAction = { ...IDLE_ACTION, eat: 'bowl', eatAt: 10 }
+    expect(nextAction(eating, input({ moving: true, now: 10.2 }), length).eat).toBeNull()
+    expect(nextAction(eating, input({ jumpPressed: true, now: 10.2 }), length).eat).toBeNull()
+    expect(nextAction(eating, input({ emotePressed: 'dance', now: 10.2 }), length)).toMatchObject({ eat: null, emote: 'dance' })
+  })
+
+  it('먹기 시작하면 감정 표현을 멈추고, 공중이나 탐험이 아닐 땐 먹지 않는다', () => {
+    const dancing: PlayerAction = { ...IDLE_ACTION, emote: 'dance', emoteAt: 9 }
+    expect(nextAction(dancing, input({ eatPressed: 'sashimi' }), length)).toMatchObject({ eat: 'sashimi', emote: null })
+    expect(nextAction(IDLE_ACTION, input({ eatPressed: 'sashimi', grounded: false }), length).eat).toBeNull()
+    expect(nextAction({ ...IDLE_ACTION, eat: 'bowl', eatAt: 10 }, input({ mode: 'market', now: 10.1 }), length).eat).toBeNull()
+  })
+
+  it('먹을 땐 멀리 있어도 바로 카메라 쪽으로 돌아선다 (먹는 얼굴이 보이게)', () => {
+    expect(shouldFaceCamera('explore', CAMERA_ZOOM.max, 0, { ...IDLE_ACTION, eat: 'bowl', eatAt: 10 })).toBe(true)
+  })
+
+  it('먹는 동안엔 낚싯대를 숨긴다', () => {
+    expect(rodVisible('explore', 10, { ...IDLE_ACTION, eat: 'bowl', eatAt: 10 })).toBe(false)
   })
 })
 

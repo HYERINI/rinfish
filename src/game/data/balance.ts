@@ -179,3 +179,9 @@ export const CAMERA_ZOOM = {
   /** 이 거리보다 가까우면 낚시 중이 아닐 때 낚싯대를 숨긴다 (화면을 가린다) */
   hideRodBelow: 3,
 }
+
+/**
+ * 음식 먹는 동작(초). duration 동안 오른손에 든 음식을 입으로 가져가 냠냠 먹는다.
+ * raiseTime: 손을 올리고 내리는 시간, biteEvery: 한 입 베어 무는 간격
+ */
+export const EAT = { duration: 1.8, raiseTime: 0.3, biteEvery: 0.45 }

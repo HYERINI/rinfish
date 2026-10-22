@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
@@ -19,6 +20,7 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { fishingFx } from './fishing/fishingFx'
+import { FoodInHand } from './FoodInHand'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 
 /** 다른 컴포넌트(낚싯줄 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
@@ -75,6 +77,15 @@ function rodAngle(fishing: FishingState | null, now: number): number {
   }
 }
 
+const yumStyle = {
+  whiteSpace: 'nowrap' as const,
+  color: '#fff',
+  fontSize: 18,
+  fontWeight: 900,
+  textShadow: '0 0 3px #e65100, 2px 2px 0 #e65100',
+  animation: 'yum-bob 0.45s ease-in-out infinite alternate',
+}
+
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
 /**
@@ -120,6 +131,9 @@ export function Player() {
   /** 수리 연출 카메라 비율(0 = 보통 카메라, 1 = 연출 자리)과 마지막 연출 카메라 (끝난 뒤 부드럽게 돌아오도록 기억한다) */
   const cut = useRef<{ blend: number; camera: RepairPlan['camera'] | null }>({ blend: 0, camera: null })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
+  /** 먹고 있는 요리 (손에 든 음식과 "냠냠") */
+  const eating = useSessionStore((s) => s.playerAction.eat)
+  const food = useRef<Group>(null)
 
   // 탐험 중 마우스 드래그로 카메라 회전
   useEffect(() => {
@@ -251,6 +265,8 @@ export function Player() {
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
+        // 먹는 음식도 같은 손에 든다
+        if (food.current) food.current.position.copy(grip)
       }
     }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
@@ -300,6 +316,17 @@ export function Player() {
           </mesh>
           <object3D ref={rodTip} position={[0, 2, 0]} />
         </group>
+        {eating && (
+          <>
+            <group ref={food}>
+              <FoodInHand dish={eating} />
+            </group>
+            <Html position={[0, 1.15, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+              <style>{'@keyframes yum-bob { from { transform: translateY(0) scale(1) } to { transform: translateY(-6px) scale(1.12) } }'}</style>
+              <div style={yumStyle}>냠냠</div>
+            </Html>
+          </>
+        )}
       </group>
     </RigidBody>
   )

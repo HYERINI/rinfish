@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED } from '../data/characters'
-import { aimWeights, characterPose, clipTimeScale, leanBack, poseClips } from './characterPose'
+import { aimWeights, characterPose, clipTimeScale, eatArm, leanBack, poseClips } from './characterPose'
 import { createFight } from './fight'
 import type { FishingState } from './fishingSession'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
@@ -136,5 +137,27 @@ describe('점프·질주·감정 표현', () => {
   it('새 자세는 같은 이름의 클립 하나로 그린다', () => {
     expect(poseClips('sprint', 0)).toEqual([['sprint', 1]])
     expect(poseClips('roll', 0)).toEqual([['roll', 1]])
+  })
+})
+
+describe('먹기 자세', () => {
+  const eating: PlayerAction = { ...IDLE_ACTION, eat: 'stew', eatAt: 10 }
+
+  it('먹는 중이면 eat 자세(서 있기 클립 위에 팔), 감정 표현·점프·낚시·앉기가 먼저다', () => {
+    expect(characterPose(null, 0, false, false, eating, 10.5)).toBe('eat')
+    expect(poseClips('eat', 0)).toEqual([['idle', 1]])
+    expect(characterPose(null, 0, true, false, eating, 10.5)).toBe('sit')
+    expect(characterPose(null, 0, false, false, { ...eating, airborne: true, jumpAt: 10.4 }, 10.5)).toBe('jumpStart')
+  })
+
+  it('팔은 처음에 올라가고 중간엔 다 올라간 채 냠냠 들썩이다가 끝에 내려온다', () => {
+    expect(eatArm(IDLE_ACTION, 10)).toEqual({ raise: 0, chew: 0 })
+    expect(eatArm(eating, 10).raise).toBe(0)
+    expect(eatArm(eating, 10 + EAT.raiseTime / 2).raise).toBeCloseTo(0.5)
+    const mid = [0.6, 0.7, 0.8, 0.9, 1].map((t) => eatArm(eating, 10 + t))
+    for (const m of mid) expect(m.raise).toBe(1)
+    expect(Math.max(...mid.map((m) => m.chew)) - Math.min(...mid.map((m) => m.chew))).toBeGreaterThan(0.3)
+    expect(eatArm(eating, 10 + EAT.duration - 0.01).raise).toBeLessThan(0.1)
+    expect(eatArm(eating, 10 + EAT.duration).raise).toBe(0)
   })
 })

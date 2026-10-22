@@ -5,7 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { CHARACTER_CLIPS, CHARACTER_FILES, ONE_SHOT_CLIPS, OUTFIT_ALT_TEXTURES, type CharacterClip } from '../data/characters'
 import { EMOTES, type EmoteId } from '../data/emotes'
 import type { CharacterLook, OutfitId } from '../data/types'
-import { CHARACTER_POSES, characterPose, clipTimeScale, leanBack, poseClips, type CharacterPose } from '../logic/characterPose'
+import { CHARACTER_POSES, characterPose, clipTimeScale, eatArm, leanBack, poseClips, type CharacterPose } from '../logic/characterPose'
 import type { FishingState } from '../logic/fishingSession'
 import type { PlayerAction } from '../logic/playerMotion'
 import { applyLook, measureLift, prepareCharacter } from './characterAppearance'
@@ -78,14 +78,20 @@ function firstPosition(clip: AnimationClip | undefined, name: string): Vector3 {
   return new Vector3().fromArray(track.values, 0)
 }
 
-/** 뼈를 모델 기준 x축(오른쪽 → 왼쪽 축)으로 더 돌린다. 음수면 뒤로 젖혀진다 */
-function bendBone(bone: Object3D, root: Object3D, angle: number) {
+/** 뼈를 모델 기준 x축(오른쪽 → 왼쪽 축)으로 더 돌린다. 음수면 뒤로 젖혀진다. modelAxis 로 다른 축(모델 기준)을 줄 수 있다 */
+function bendBone(bone: Object3D, root: Object3D, angle: number, modelAxis: 'x' | 'y' = 'x') {
   root.getWorldQuaternion(rootQ)
   bone.parent!.getWorldQuaternion(parentQ)
-  // 모델의 x축을 뼈의 부모 좌표계로 옮겨서 그 축으로 돌린다
-  axis.set(1, 0, 0).applyQuaternion(rootQ).applyQuaternion(parentQ.invert())
+  // 모델의 축을 뼈의 부모 좌표계로 옮겨서 그 축으로 돌린다
+  axis.set(modelAxis === 'x' ? 1 : 0, modelAxis === 'y' ? 1 : 0, 0).applyQuaternion(rootQ).applyQuaternion(parentQ.invert())
   bone.quaternion.premultiply(turn.setFromAxisAngle(axis, angle))
 }
+
+/**
+ * 먹을 때 오른팔 각도(라디안). 위팔을 앞으로 들고 안쪽으로 모은 뒤 팔꿈치를 굽히면 주먹이 입 앞에 온다.
+ * chew 만큼 팔꿈치를 살짝 펴서 한 입씩 베어 무는 것처럼 들썩인다 (캐릭터 미리보기로 맞춘 값)
+ */
+const EAT_ARM = { upperForward: -1.0, upperInward: 0.28, elbow: -1.25, chewOpen: 0.3 }
 
 const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Model({ look }, ref) {
   const { scene, animations } = useGLTF(modelUrl(CHARACTER_FILES[look.gender]))
@@ -145,6 +151,8 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
     () => ({
       spine: object.getObjectByName('spine_01'),
       hand: object.getObjectByName('hand_r'),
+      upperarm: object.getObjectByName('upperarm_r'),
+      lowerarm: object.getObjectByName('lowerarm_r'),
       knuckle: object.getObjectByName('middle_01_r'),
       pelvis: object.getObjectByName('pelvis'),
       root: object.getObjectByName('root'),
@@ -234,6 +242,14 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
         if (bones.spine && a.lean > 1e-3) {
           const heave = Math.sin(now * 7) * 0.08 * Math.min(1, a.lean * 4)
           bendBone(bones.spine, object, -(a.lean + heave))
+        }
+
+        // 3-1) 먹기: 서 있기 클립 위에 오른팔을 입으로 가져간다
+        const arm = eatArm(action, now)
+        if (arm.raise > 1e-3 && bones.upperarm && bones.lowerarm) {
+          bendBone(bones.upperarm, object, EAT_ARM.upperForward * arm.raise)
+          bendBone(bones.upperarm, object, EAT_ARM.upperInward * arm.raise, 'y')
+          bendBone(bones.lowerarm, object, (EAT_ARM.elbow + EAT_ARM.chewOpen * arm.chew) * arm.raise)
         }
 
         // 4) 끌려갈 땐 물 쪽으로 질질 미끄러진다. 허우적대는 건 클립(Push_Loop)이 보여 준다.

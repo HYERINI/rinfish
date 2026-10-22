@@ -1,3 +1,4 @@
+import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED, type CharacterClip } from '../data/characters'
 import type { FishingState } from './fishingSession'
 import { EMOTES, type EmoteId } from '../data/emotes'
@@ -8,6 +9,7 @@ import { IDLE_ACTION, type PlayerAction } from './playerMotion'
  * - aim: 두 손으로 낚싯대를 쥐고 낚싯대 각도에 맞춰 팔을 올리고 내린다
  * - tug: aim 자세 그대로 뒤로 젖혀 버틴다 (상체 젖힘은 scene 에서 덧입힌다)
  * - dragged: 물고기가 당기면 앞으로 끌려가며 허우적댄다
+ * - eat: 서서 오른손에 든 음식을 입으로 가져가 먹는다 (서 있기 클립 위에 팔을 덧돌린다. eatArm 참고)
  */
 export type CharacterPose =
   | 'idle'
@@ -25,6 +27,7 @@ export type CharacterPose =
   | 'jumpStart'
   | 'jumpLoop'
   | 'jumpLand'
+  | 'eat'
   | EmoteId
 
 export const CHARACTER_POSES: CharacterPose[] = [
@@ -43,6 +46,7 @@ export const CHARACTER_POSES: CharacterPose[] = [
   'jumpStart',
   'jumpLoop',
   'jumpLand',
+  'eat',
   ...EMOTES.map((e) => e.id),
 ]
 
@@ -69,6 +73,7 @@ export function characterPose(fishing: FishingState | null, speed: number, resti
   if (!fishing) {
     if (action.airborne) return now - action.jumpAt < JUMP_POSE.startTime ? 'jumpStart' : 'jumpLoop'
     if (action.emote) return action.emote
+    if (action.eat) return 'eat'
     if (speed < WALK_MIN_SPEED) {
       if (now - action.landedAt < JUMP_POSE.landTime) return 'jumpLand'
       return standingUp ? 'standUp' : 'idle'
@@ -117,9 +122,25 @@ export function poseClips(pose: CharacterPose, rodAngle: number, sitEntering = f
       return [[sitEntering ? 'sitEnter' : 'sitIdle', 1]]
     case 'standUp':
       return [['sitExit', 1]]
+    case 'eat':
+      return [['idle', 1]]
     default:
       return [[pose, 1]]
   }
+}
+
+/**
+ * 먹는 동안 오른팔: raise 는 음식을 입으로 올린 정도(0~1, 처음·끝 raiseTime 동안 부드럽게 오르내린다),
+ * chew 는 한 입 베어 무는 들썩임(0~1, biteEvery 마다). 먹고 있지 않으면 둘 다 0
+ */
+export function eatArm(action: PlayerAction, now: number): { raise: number; chew: number } {
+  if (!action.eat) return { raise: 0, chew: 0 }
+  const t = now - action.eatAt
+  if (t < 0 || t >= EAT.duration) return { raise: 0, chew: 0 }
+  const k = Math.min(1, t / EAT.raiseTime, (EAT.duration - t) / EAT.raiseTime)
+  const raise = k * k * (3 - 2 * k)
+  const chew = raise >= 1 ? 0.5 - 0.5 * Math.cos(((t - EAT.raiseTime) / EAT.biteEvery) * Math.PI * 2) : 0
+  return { raise, chew }
 }
 
 /** 클립 재생 속도. 걷기·뛰기는 실제 이동 속도에 맞추고, 나머지는 과장되게 빠르거나 느리게 */
