@@ -2,10 +2,12 @@ import { useGLTF, useTexture } from '@react-three/drei'
 import { forwardRef, Suspense, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react'
 import { AnimationMixer, LoopOnce, Quaternion, SRGBColorSpace, Vector3, type AnimationAction, type AnimationClip, type Object3D, type Texture } from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
-import { CHARACTER_CLIPS, CHARACTER_FILES, OUTFIT_ALT_TEXTURES, type CharacterClip } from '../data/characters'
+import { CHARACTER_CLIPS, CHARACTER_FILES, ONE_SHOT_CLIPS, OUTFIT_ALT_TEXTURES, type CharacterClip } from '../data/characters'
+import { EMOTES, type EmoteId } from '../data/emotes'
 import type { CharacterLook, OutfitId } from '../data/types'
 import { CHARACTER_POSES, characterPose, clipTimeScale, leanBack, poseClips, type CharacterPose } from '../logic/characterPose'
 import type { FishingState } from '../logic/fishingSession'
+import type { PlayerAction } from '../logic/playerMotion'
 import { applyLook, measureLift, prepareCharacter } from './characterAppearance'
 
 /**
@@ -19,9 +21,12 @@ export type SeatShape = { surfaceY: number; backrestZ: number }
 export type PlayerModelHandle = {
   /**
    * 자세 고르기 → 애니메이션 섞기 → 줄다리기 상체 젖힘 덧입히기.
+   * 동작 상태(action: 감정 표현·점프)와 수평 속도만 보고 그리므로, 다른 사람 캐릭터도 그 사람의 값으로 똑같이 그릴 수 있다.
    * seat 을 주면 앉아 있는 동안(앉기·일어나기 중엔 그만큼만) 골반을 그 자리에 붙인다
    */
-  update(delta: number, now: number, fishing: FishingState | null, speed: number, rodAngle: number, resting: boolean, seat?: SeatShape): void
+  update(delta: number, now: number, fishing: FishingState | null, action: PlayerAction, speed: number, rodAngle: number, resting: boolean, seat?: SeatShape): void
+  /** 감정 표현 한 번의 재생 시간(초). 한 번짜리 감정 표현이 언제 끝나는지 정할 때 쓴다 */
+  emoteLength(id: EmoteId): number
   /** 낚싯대를 쥔 손(주먹 가운데)의 월드 위치 */
   gripPosition(target: Vector3): void
 }
@@ -111,12 +116,16 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
   const actionsRef = useRef<Record<CharacterClip, AnimationAction> | null>(null)
   useEffect(() => {
     const map = {} as Record<CharacterClip, AnimationAction>
+    const used = new Set<string>()
     for (const [key, name] of Object.entries(CHARACTER_CLIPS) as [CharacterClip, string][]) {
-      const clip = animations.find((a) => a.name === name)
-      if (!clip) throw new Error(`캐릭터 애니메이션이 없다: ${name}`)
+      const source = animations.find((a) => a.name === name)
+      if (!source) throw new Error(`캐릭터 애니메이션이 없다: ${name}`)
+      // 같은 클립을 두 동작이 쓰면(잡았을 때 춤·춤 감정 표현) 믹서가 같은 손잡이를 돌려주므로 복제해서 따로 섞는다
+      const clip = used.has(name) ? source.clone() : source
+      used.add(name)
       const action = mixer.clipAction(clip)
-      if (key === 'fallBack' || key === 'sitEnter' || key === 'sitExit') {
-        // 넘어지기·앉기·일어나기는 한 번만, 끝난 자세로 멈춘다
+      if (ONE_SHOT_CLIPS.includes(key)) {
+        // 넘어지기·앉기·일어나기·점프·한 번짜리 감정 표현은 한 번만, 끝난 자세로 멈춘다
         action.setLoop(LoopOnce, 1)
         action.clampWhenFinished = true
       }
@@ -159,6 +168,8 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
     /** 앉기 시작 / 일어나기 시작 시각 */
     sitAt: -1,
     standAt: -1,
+    /** 지금 재생 중인 감정 표현을 시작한 시각. 같은 감정 표현을 다시 누르면 처음부터 */
+    emoteAt: Number.NaN,
   })
 
   useLayoutEffect(() => {
@@ -171,16 +182,20 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
   useImperativeHandle(
     ref,
     () => ({
-      update(delta, now, fishing, speed, rodAngle, resting, seat) {
+      update(delta, now, fishing, action, speed, rodAngle, resting, seat) {
         const actions = actionsRef.current
         if (!actions) return
         const a = anim.current
         // 앉아 있다가 막 일어나는 프레임도 일어나기로 친다. idle 로 한 프레임 섞이면 골반이 벤치에서 툭 떠오른다
         const standingUp = (a.pose === 'sit' && !resting) || (a.standAt >= 0 && now - a.standAt < actions.sitExit.getClip().duration)
-        const pose = characterPose(fishing, speed, resting, standingUp)
-        if (pose !== a.pose) {
-          // 넘어지기·앉기는 처음부터 다시
-          if (pose === 'fallBack') actions.fallBack.reset().play()
+        const pose = characterPose(fishing, speed, resting, standingUp, action, now)
+        const emoteAgain = pose === action.emote && action.emoteAt !== a.emoteAt
+        if (pose === action.emote) a.emoteAt = action.emoteAt
+        if (pose !== a.pose || emoteAgain) {
+          // 넘어지기·점프·한 번짜리 감정 표현은 처음부터 다시 (앉기·일어나기는 아래에서 따로)
+          if (pose !== 'sit' && pose !== 'standUp') {
+            for (const [clip] of poseClips(pose, rodAngle)) if (ONE_SHOT_CLIPS.includes(clip)) actions[clip].reset().play()
+          }
           if (pose === 'sit') {
             actions.sitEnter.reset().play()
             a.sitAt = now
@@ -224,8 +239,9 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
         // 4) 끌려갈 땐 물 쪽으로 질질 미끄러진다. 허우적대는 건 클립(Push_Loop)이 보여 준다.
         //    몸 전체 위치를 빠르게 흔들면(초당 5번) 프레임 간격이 조금만 달라도 앞뒤로 툭툭 튀어 렉처럼 보여서 흔들지 않는다
         object.position.set(0, 0, a.weights.dragged * DRAG_SLIDE)
-        // 5) 잡았을 땐 춤추면서 깡충깡충. 다리 길이 보정은 지금 자세로 잰다 (서기·웅크리기·눕기마다 다르다)
-        object.position.y = measureLift(rig) + a.weights.celebrate * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT + a.weights.fallBack * FALL_LIFT
+        // 5) 잡았을 때·춤 감정 표현은 춤추면서 깡충깡충(춤 클립만으론 얌전하다). 다리 길이 보정은 지금 자세로 잰다 (서기·웅크리기·눕기마다 다르다)
+        const hop = (a.weights.celebrate + a.weights.dance) * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT
+        object.position.y = measureLift(rig) + hop + a.weights.fallBack * FALL_LIFT
 
         // 6) 앉기: 골반을 벤치 자리에 붙인다. 키·다리 길이에 따라 클립 골반 위치가 달라져서 고정 보정으로는 뜨거나 파묻힌다.
         //    지금 root 변환 그대로 "다 앉은 골반"이 올 자리를 구해 그 차이만큼 모델을 옮기되,
@@ -259,6 +275,11 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
             }
           }
         }
+      },
+      emoteLength(id) {
+        const clip = EMOTES.find((e) => e.id === id)!.clip
+        const action = actionsRef.current?.[clip]
+        return action ? action.getClip().duration / clipTimeScale(clip, 0) : 1
       },
       gripPosition(target) {
         if (!bones.hand || !bones.knuckle) return

@@ -138,12 +138,31 @@ export const VISITOR_INCOME_PER_MINUTE: Record<Rarity, number> = {
   legendary: 20,
 }
 
-/** 마우스 휠 줌. 카메라 높이는 거리 × heightRatio */
+/** 플레이어 이동 (m/s). 점프는 위로 차고 오르는 세로 속도 */
+export const MOVE = {
+  walkSpeed: 8,
+  /** Shift 를 누르고 있는 동안 */
+  sprintSpeed: 13,
+  jumpSpeed: 6.5,
+  /** 구르기 동안 앞으로 나아가는 속도. 클립이 제자리에서 굴러서 몸(리지드바디)을 대신 밀어 준다 */
+  rollSpeed: 1.6,
+}
+
+/**
+ * 마우스 휠 줌. 멀 땐 카메라 높이 = 시선 높이 + 거리 × heightRatio.
+ * closeFrom 보다 가까워질수록 높이 비율은 closeHeightRatio 로, 시선은 얼굴 높이(closeLookAt)로 옮겨 가서 가장 가까이 당기면 얼굴이 보인다
+ */
 export const CAMERA_ZOOM = {
-  min: 4,
+  min: 1.5,
   max: 18,
   initial: 10,
   heightRatio: 0.7,
   /** 휠 deltaY 1당 거리 배율 변화 (지수) */
   sensitivity: 0.0015,
+  /** 가장 가까울 때 카메라 높이 비율과 시선 높이(캐릭터 키 대비) */
+  closeHeightRatio: 0.12,
+  closeLookAt: 0.88,
+  farLookAt: 0.55,
+  /** 이 거리부터 가까워지는 만큼 얼굴 쪽으로 옮겨 간다 */
+  closeFrom: 6,
 }

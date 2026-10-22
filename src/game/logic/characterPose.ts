@@ -1,15 +1,50 @@
-import type { CharacterClip } from '../data/characters'
+import { JUMP_POSE, SPRINT_MIN_SPEED, type CharacterClip } from '../data/characters'
 import type { FishingState } from './fishingSession'
+import { EMOTES, type EmoteId } from '../data/emotes'
+import { IDLE_ACTION, type PlayerAction } from './playerMotion'
 
 /**
- * 캐릭터 자세 고르기. 이동 속도와 낚시 상태만 보고 정한다 (애니메이션 재생은 scene 쪽 일)
+ * 캐릭터 자세 고르기. 이동 속도·낚시 상태·동작 상태(점프·감정 표현)만 보고 정한다 (애니메이션 재생은 scene 쪽 일)
  * - aim: 두 손으로 낚싯대를 쥐고 낚싯대 각도에 맞춰 팔을 올리고 내린다
  * - tug: aim 자세 그대로 뒤로 젖혀 버틴다 (상체 젖힘은 scene 에서 덧입힌다)
  * - dragged: 물고기가 당기면 앞으로 끌려가며 허우적댄다
  */
-export type CharacterPose = 'idle' | 'walk' | 'run' | 'aim' | 'tug' | 'dragged' | 'celebrate' | 'fallBack' | 'dejected' | 'sit' | 'standUp'
+export type CharacterPose =
+  | 'idle'
+  | 'walk'
+  | 'run'
+  | 'sprint'
+  | 'aim'
+  | 'tug'
+  | 'dragged'
+  | 'celebrate'
+  | 'fallBack'
+  | 'dejected'
+  | 'sit'
+  | 'standUp'
+  | 'jumpStart'
+  | 'jumpLoop'
+  | 'jumpLand'
+  | EmoteId
 
-export const CHARACTER_POSES: CharacterPose[] = ['idle', 'walk', 'run', 'aim', 'tug', 'dragged', 'celebrate', 'fallBack', 'dejected', 'sit', 'standUp']
+export const CHARACTER_POSES: CharacterPose[] = [
+  'idle',
+  'walk',
+  'run',
+  'sprint',
+  'aim',
+  'tug',
+  'dragged',
+  'celebrate',
+  'fallBack',
+  'dejected',
+  'sit',
+  'standUp',
+  'jumpStart',
+  'jumpLoop',
+  'jumpLand',
+  ...EMOTES.map((e) => e.id),
+]
 
 /** 이 속도(m/s)보다 느리면 서 있는다 */
 export const WALK_MIN_SPEED = 0.3
@@ -18,18 +53,28 @@ export const RUN_MIN_SPEED = 2.5
 /** 애니메이션 원본이 한 바퀴 동안 나아가는 속도(m/s). 발이 미끄러지지 않게 재생 속도를 맞춘다 */
 const WALK_CLIP_SPEED = 0.97
 const RUN_CLIP_SPEED = 5.36
+const SPRINT_CLIP_SPEED = 8
 
 /** 낚싯대 각도(Player 의 rodAngle)별로 팔이 가장 잘 맞는 조준 자세 */
 const AIM_UP_ANGLE = -1.3
 const AIM_NEUTRAL_ANGLE = 0.5
 const AIM_DOWN_ANGLE = 1.3
 
-/** resting: 벤치에 앉아 쉬는 중. standingUp: 막 일어나는 중(일어나기 클립 재생 시간 동안) */
-export function characterPose(fishing: FishingState | null, speed: number, resting = false, standingUp = false): CharacterPose {
+/**
+ * resting: 벤치에 앉아 쉬는 중. standingUp: 막 일어나는 중(일어나기 클립 재생 시간 동안).
+ * action·now: 점프·감정 표현 상태와 지금 시각. 앉기 → 낚시 → 점프 → 감정 표현 → 착지 → 이동 순으로 먼저 정해진다
+ */
+export function characterPose(fishing: FishingState | null, speed: number, resting = false, standingUp = false, action: PlayerAction = IDLE_ACTION, now = 0): CharacterPose {
   if (resting) return 'sit'
   if (!fishing) {
-    if (speed < WALK_MIN_SPEED) return standingUp ? 'standUp' : 'idle'
-    return speed < RUN_MIN_SPEED ? 'walk' : 'run'
+    if (action.airborne) return now - action.jumpAt < JUMP_POSE.startTime ? 'jumpStart' : 'jumpLoop'
+    if (action.emote) return action.emote
+    if (speed < WALK_MIN_SPEED) {
+      if (now - action.landedAt < JUMP_POSE.landTime) return 'jumpLand'
+      return standingUp ? 'standUp' : 'idle'
+    }
+    if (speed < RUN_MIN_SPEED) return 'walk'
+    return speed < SPRINT_MIN_SPEED ? 'run' : 'sprint'
   }
   switch (fishing.stage) {
     case 'aiming':
@@ -84,9 +129,12 @@ export function clipTimeScale(clip: CharacterClip, speed: number): number {
       return Math.min(2, Math.max(0.6, speed / WALK_CLIP_SPEED))
     case 'run':
       return Math.min(1.6, Math.max(0.6, speed / RUN_CLIP_SPEED))
+    case 'sprint':
+      return Math.min(1.8, Math.max(0.8, speed / SPRINT_CLIP_SPEED))
     case 'dragged':
       return 1.8 // 허둥지둥
     case 'celebrate':
+    case 'dance':
       return 1.25
     case 'fallBack':
       return 1.3

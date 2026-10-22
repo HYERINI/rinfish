@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { CAMERA_ZOOM } from '../data/balance'
 import { nextZoom } from '../logic/cameraZoom'
 import { isSameInteractable, type Interactable, type Mode } from '../logic/interaction'
+import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
 
 type SessionState = {
   mode: Mode
@@ -13,6 +14,12 @@ type SessionState = {
   teleport: [number, number] | null
   /** 카메라 거리 (휠 줌). 저장하지 않는다 */
   zoom: number
+  /**
+   * 플레이어 동작 상태 (감정 표현·점프). Player 가 매 프레임 nextAction 으로 갱신하고 캐릭터 모델은 이 값과 속도로만 그린다.
+   * 나중에 여러 명이 같이 할 때 이 값을 주고받으면 다른 사람 캐릭터도 같은 코드로 그린다. 저장하지 않는다
+   */
+  playerAction: PlayerAction
+  setPlayerAction: (action: PlayerAction) => void
   setMode: (mode: Mode) => void
   zoomBy: (deltaY: number) => void
   setNearby: (target: Interactable) => void
@@ -31,6 +38,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   notice: null,
   teleport: null,
   zoom: CAMERA_ZOOM.initial,
+  playerAction: IDLE_ACTION,
+  setPlayerAction: (playerAction) => set({ playerAction }),
   setMode: (mode) => set({ mode }),
   zoomBy: (deltaY) => set((s) => ({ zoom: nextZoom(s.zoom, deltaY) })),
   setNearby: (target) => set({ nearby: target }),
@@ -40,5 +49,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   notify: (text) => set((s) => ({ notice: { id: (s.notice?.id ?? 0) + 1, text } })),
   requestTeleport: (pos) => set({ teleport: pos }),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION }),
 }))

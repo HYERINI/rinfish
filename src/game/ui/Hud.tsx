@@ -56,7 +56,7 @@ export function Hud() {
           </div>
           {nearby && <div style={hint}>{PROMPT[nearby.kind]}</div>}
           <div style={{ position: 'absolute', bottom: 16, left: 16, opacity: 0.7, fontSize: 13 }}>
-            WASD 이동 · 마우스 드래그로 카메라 회전
+            WASD 이동 · Shift 달리기 · Space 점프 · 1~5 감정 표현 · 휠 확대 · 마우스 드래그로 카메라 회전
           </div>
         </>
       )}

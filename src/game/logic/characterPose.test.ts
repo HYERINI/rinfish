@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
+import { JUMP_POSE, SPRINT_MIN_SPEED } from '../data/characters'
 import { aimWeights, characterPose, clipTimeScale, leanBack, poseClips } from './characterPose'
 import { createFight } from './fight'
 import type { FishingState } from './fishingSession'
+import { IDLE_ACTION, type PlayerAction } from './playerMotion'
 import { fixedRng } from './rng'
 
 const gear = { maxTension: 100, reelSpeed: 8, shockAbsorb: 1 }
@@ -93,5 +95,46 @@ describe('앉기', () => {
     expect(poseClips('sit', 0, true)).toEqual([['sitEnter', 1]])
     expect(poseClips('sit', 0, false)).toEqual([['sitIdle', 1]])
     expect(poseClips('standUp', 0)).toEqual([['sitExit', 1]])
+  })
+})
+
+describe('점프·질주·감정 표현', () => {
+  const air = (jumpAt: number): PlayerAction => ({ ...IDLE_ACTION, airborne: true, jumpAt })
+
+  it('뛰어오른 직후엔 도약, 조금 지나면 공중 자세, 착지 직후엔 착지 자세', () => {
+    expect(characterPose(null, 0, false, false, air(10), 10.1)).toBe('jumpStart')
+    expect(characterPose(null, 6, false, false, air(10), 10 + JUMP_POSE.startTime + 0.1)).toBe('jumpLoop')
+    const landed = { ...IDLE_ACTION, landedAt: 11 }
+    expect(characterPose(null, 0, false, false, landed, 11.1)).toBe('jumpLand')
+    expect(characterPose(null, 0, false, false, landed, 11 + JUMP_POSE.landTime + 0.1)).toBe('idle')
+  })
+
+  it('착지하자마자 움직이면 바로 걷거나 뛴다', () => {
+    expect(characterPose(null, 6, false, false, { ...IDLE_ACTION, landedAt: 11 }, 11.1)).toBe('run')
+  })
+
+  it('질주 속도면 질주 자세', () => {
+    expect(characterPose(null, SPRINT_MIN_SPEED + 1)).toBe('sprint')
+    expect(characterPose(null, SPRINT_MIN_SPEED - 1)).toBe('run')
+  })
+
+  it('감정 표현 중엔 그 자세 (구르기는 몸이 앞으로 나아가도 구르기)', () => {
+    for (const emote of ['dance', 'chat', 'roll', 'punch', 'spell'] as const) {
+      expect(characterPose(null, 0, false, false, { ...IDLE_ACTION, emote, emoteAt: 10 }, 10.2)).toBe(emote)
+    }
+    expect(characterPose(null, 4, false, false, { ...IDLE_ACTION, emote: 'roll', emoteAt: 10 }, 10.2)).toBe('roll')
+  })
+
+  it('낚시·앉기 자세가 점프·감정 표현보다 먼저다', () => {
+    const aiming = { stage: 'aiming', holding: false, holdTime: 0 } as const
+    expect(characterPose(aiming, 0, false, false, air(10), 10.1)).toBe('aim')
+    expect(characterPose(aiming, 0, false, false, { ...IDLE_ACTION, landedAt: 11 }, 11.1)).toBe('aim')
+    expect(characterPose(aiming, 0, false, false, { ...IDLE_ACTION, emote: 'dance', emoteAt: 10 }, 10.2)).toBe('aim')
+    expect(characterPose(null, 0, true, false, { ...IDLE_ACTION, emote: 'dance', emoteAt: 10 }, 10.2)).toBe('sit')
+  })
+
+  it('새 자세는 같은 이름의 클립 하나로 그린다', () => {
+    expect(poseClips('sprint', 0)).toEqual([['sprint', 1]])
+    expect(poseClips('roll', 0)).toEqual([['roll', 1]])
   })
 })

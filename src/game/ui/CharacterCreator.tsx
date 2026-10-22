@@ -6,6 +6,7 @@ import {
 } from '../data/characterParts'
 import type { CharacterLook, Gender, OutfitId } from '../data/types'
 import { randomLook, switchGender } from '../logic/characterLook'
+import { IDLE_ACTION } from '../logic/playerMotion'
 import { PlayerModel, type PlayerModelHandle } from '../scene/PlayerModel'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -56,7 +57,7 @@ function Preview({ look, spinning }: { look: CharacterLook; spinning: boolean })
   useFrame(({ clock }, delta) => {
     if (spinning) spin.current += delta * SPIN_SPEED
     if (turn.current) turn.current.rotation.y = spin.current + drag.current.extra
-    model.current?.update(delta, clock.elapsedTime, null, 0, 0.5, false)
+    model.current?.update(delta, clock.elapsedTime, null, IDLE_ACTION, 0, 0.5, false)
   })
   return (
     <group

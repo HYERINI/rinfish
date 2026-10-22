@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
 import { useInteractionKeys } from './input/useInteractionKeys'
+import { usePlayerActionKeys } from './input/usePlayerActionKeys'
 import { useWheelZoom } from './input/useWheelZoom'
 import { useKeyboardTracking } from './input/keys'
 import { pressPointer, usePointerRelease } from './input/pointer'
@@ -31,6 +32,7 @@ export function Game({ onExit }: GameProps) {
   useKeyboardTracking()
   usePointerRelease()
   useInteractionKeys()
+  usePlayerActionKeys()
   const canvasArea = useRef<HTMLDivElement>(null)
   useWheelZoom(canvasArea)
 

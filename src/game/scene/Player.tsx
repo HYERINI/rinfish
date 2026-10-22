@@ -1,14 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { CapsuleCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier'
+import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
-import { CAMERA_ZOOM } from '../data/balance'
+import { MOVE } from '../data/balance'
+import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
+import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
 import { isPointerDown } from '../input/pointer'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
+import { cameraRig, moveSpeed, nextAction } from '../logic/playerMotion'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
@@ -23,7 +26,6 @@ export const playerRig = {
   rodTip: new Vector3(0, 2, 15),
 }
 
-const MOVE_SPEED = 6
 const PLAYER_LIMIT = ISLAND_RADIUS - 1
 const DRAG_SENSITIVITY = 0.005
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
@@ -74,6 +76,9 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 const FOOT_Y = -0.9
+/** 발바닥 아래로 이 거리 안에 땅이 있고 세로 속도가 작으면 땅에 서 있다고 본다 */
+const GROUND_PROBE = 0.15
+const GROUNDED_MAX_VY = 1
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
@@ -91,6 +96,9 @@ export function Player() {
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
   const facing = useRef(Math.PI)
   const camera = useThree((s) => s.camera)
+  const { world, rapier } = useRapier()
+  /** 땅 판정용 아래 방향 광선. 원점은 매 프레임 몸 가운데로 옮긴다 */
+  const groundRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
 
   // 탐험 중 마우스 드래그로 카메라 회전
@@ -133,11 +141,37 @@ export function Player() {
     moveDir.set(-sin * forward + cos * right, 0, -cos * forward - sin * right)
     if (moveDir.lengthSq() > 0) moveDir.normalize()
 
-    // 속도를 직접 정해 준다. y(중력에 의한 낙하)는 물리 엔진 값을 그대로 둔다
     const velocity = rb.linvel()
     // 애니메이션용: 지난 스텝에 실제로 움직인 수평 속도 (벽에 막히면 0에 가깝다)
     const speed = Math.hypot(velocity.x, velocity.z)
-    rb.setLinvel({ x: moveDir.x * MOVE_SPEED, y: velocity.y, z: moveDir.z * MOVE_SPEED }, true)
+
+    // 1-1) 동작 상태(감정 표현·점프) 갱신. 땅 판정: 발바닥 바로 아래에 땅이 있고 뛰어오르는 중이 아니다
+    const now = clock.elapsedTime
+    const sprint = isSprintHeld()
+    const t = rb.translation()
+    const ray = (groundRay.current ??= new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 }))
+    ray.origin = { x: t.x, y: t.y, z: t.z }
+    const hit = world.castRay(ray, -FOOT_Y + GROUND_PROBE, true, rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)
+    const grounded = hit !== null && Math.abs(velocity.y) < GROUNDED_MAX_VY
+    const session = useSessionStore.getState()
+    const prevAction = session.playerAction
+    const action = nextAction(
+      prevAction,
+      { moving: moveDir.lengthSq() > 0, sprint, ...takeActionPresses(), grounded, mode, now },
+      (id) => model.current?.emoteLength(id) ?? 1,
+    )
+    if (action !== prevAction) session.setPlayerAction(action)
+
+    // 속도를 직접 정해 준다. y(중력에 의한 낙하)는 물리 엔진 값을 그대로 두고, 막 뛰어올랐으면 위로 찬다
+    const jumped = action.airborne && action.jumpAt !== prevAction.jumpAt
+    const vy = jumped ? MOVE.jumpSpeed : velocity.y
+    if (action.emote === 'roll') {
+      // 구르기 클립은 제자리에서 구른다. 몸을 바라보는 쪽으로 밀어서 앞으로 굴러 나가게 한다
+      rb.setLinvel({ x: Math.sin(facing.current) * MOVE.rollSpeed, y: vy, z: Math.cos(facing.current) * MOVE.rollSpeed }, true)
+    } else {
+      const v = moveSpeed(sprint)
+      rb.setLinvel({ x: moveDir.x * v, y: vy, z: moveDir.z * v }, true)
+    }
 
     // 벤치에서 쉬는 동안엔 앉는 자리에 고정하고 바다를 본다
     if (mode === 'rest') {
@@ -184,7 +218,8 @@ export function Player() {
       const m = model.current
       if (m && visual.current) {
         // 골반은 벤치 자리에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
-        m.update(delta, clock.elapsedTime, fishing, speed, rod.current.rotation.x, mode === 'rest', BENCH_SEAT_SHAPE)
+        // 캐릭터는 동작 상태와 속도로만 그린다 (다른 사람 캐릭터도 같은 값으로 그릴 수 있게)
+        m.update(delta, now, fishing, action, speed, rod.current.rotation.x, mode === 'rest', BENCH_SEAT_SHAPE)
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
@@ -192,12 +227,13 @@ export function Player() {
     }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
 
-    // 6) 3인칭 카메라: 목표 위치로 부드럽게 따라간다
-    const distance = useSessionStore.getState().zoom
-    const height = distance * CAMERA_ZOOM.heightRatio
-    cameraTarget.set(x + sin * distance, p.y + height, z + cos * distance)
+    // 6) 3인칭 카메라: 목표 위치로 부드럽게 따라간다. 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다
+    const distance = session.zoom
+    const feet = p.y + FOOT_Y
+    const rig = cameraRig(distance, CHARACTER_BASE_HEIGHT * look.height)
+    cameraTarget.set(x + sin * distance, feet + rig.height, z + cos * distance)
     camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * 5))
-    camera.lookAt(x, p.y + 1, z)
+    camera.lookAt(x, feet + rig.lookAtY, z)
   })
 
   return (
