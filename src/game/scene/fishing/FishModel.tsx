@@ -61,8 +61,15 @@ export const FishModel = forwardRef<Group, { speciesId: string | null; scale?: n
   const look = fishLookFor(speciesId)
   const body = useRef<Group>(null)
   // 휘청거리는 어종: 몸 전체를 좌우로 흔든다 (사진에는 넣지 않는다)
+  // 대부분은 휘청거리지 않으므로 바로 돌아간다 (어종이 바뀌어 휘청임이 사라지면 한 번만 바로 세운다)
   useFrame(({ clock }) => {
-    if (body.current) body.current.rotation.y = look.wobble ? Math.sin(clock.elapsedTime * WOBBLE_SPEED) * look.wobble * WOBBLE_ANGLE : 0
+    const b = body.current
+    if (!b) return
+    if (!look.wobble) {
+      if (b.rotation.y !== 0) b.rotation.y = 0
+      return
+    }
+    b.rotation.y = Math.sin(clock.elapsedTime * WOBBLE_SPEED) * look.wobble * WOBBLE_ANGLE
   })
   return (
     <group ref={ref} scale={scale}>

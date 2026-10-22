@@ -14,6 +14,11 @@ const THUMB_TILT: Partial<Record<FishModelId, number>> = { manta: 0.9 }
 
 /** 소품이 틀을 넓힐 수 있는 한도 (몸 크기 대비, 각 방향) */
 const ACCESSORY_ROOM = 0.25
+/**
+ * 소품이 몸 밖으로 크게 튀어나오는데 잘리면 안 되는 어종의 한도. 연차3원준은 머리 위에 뜬 "3" 과 턱 밑 가격표가
+ * 그 어종의 전부라서 끝까지 넣는다 (셀카봉처럼 잘려도 알아볼 수 있는 소품은 기본 한도로 둔다)
+ */
+const SPECIES_ACCESSORY_ROOM: Partial<Record<string, number>> = { 'three-wonjun': 1 }
 
 const cache = new Map<string, Promise<string>>()
 let renderer: WebGLRenderer | null = null
@@ -64,7 +69,7 @@ async function renderThumbnail(speciesId: string): Promise<string> {
 
   // 물고기가 화면을 꽉 채우도록 경계 상자에 맞춘 직교 카메라. 소품(셀카봉·왕관 등)이 크게 튀어나와도
   // 물고기가 작아 보이지 않도록, 소품은 몸 둘레 조금 바깥(ACCESSORY_ROOM)까지만 틀에 넣는다
-  const box = framingBox(fish, accessories)
+  const box = framingBox(fish, accessories, SPECIES_ACCESSORY_ROOM[speciesId] ?? ACCESSORY_ROOM)
   const size = box.getSize(new Vector3())
   const center = box.getCenter(new Vector3())
   const aspect = WIDTH / HEIGHT
@@ -79,14 +84,14 @@ async function renderThumbnail(speciesId: string): Promise<string> {
   return image
 }
 
-/** 몸을 기준으로 잡은 틀. 소품은 몸 둘레 ACCESSORY_ROOM 만큼까지만 반영한다 */
-function framingBox(fish: Group, accessories: Object3D[]): Box3 {
+/** 몸을 기준으로 잡은 틀. 소품은 몸 둘레 room(몸 크기 대비) 만큼까지만 반영한다 */
+function framingBox(fish: Group, accessories: Object3D[], room: number): Box3 {
   if (!accessories.length) return restBox(fish)
   const parents = accessories.map((a) => a.parent)
   for (const a of accessories) a.removeFromParent()
   const body = restBox(fish)
   accessories.forEach((a, i) => parents[i]?.add(a))
-  const room = body.getSize(new Vector3()).multiplyScalar(ACCESSORY_ROOM)
-  const limit = body.clone().expandByVector(room)
+  const margin = body.getSize(new Vector3()).multiplyScalar(room)
+  const limit = body.clone().expandByVector(margin)
   return restBox(fish).intersect(limit).union(body)
 }

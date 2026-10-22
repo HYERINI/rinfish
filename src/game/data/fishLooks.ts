@@ -80,7 +80,7 @@ export const FISH_LOOKS: Record<string, FishLook> = {
   'astronaut-angler': { model: 'anglerfish', size: 1.2, accessories: ['spaceHelmet'] },
   'ninja-ray': { model: 'manta', tint: '#7d88a8', size: 1.3, accessories: ['ninjaMask'] },
   'golden-crown-carp': { model: 'goldfish', tint: '#ffd54f', glow: '#ff8f00', size: 1.2, accessories: ['crown'] },
-  'crystal-eye-cavefish': { model: 'betta', tint: '#e0f7fa', size: 1, accessories: ['crystal'] },
+  'crystal-eye-cavefish': { model: 'betta', tint: '#4a90a4', size: 1, accessories: ['crystal'] },
   'lost-anchovy': { model: 'mackerel', tint: '#b0bec5', size: 0.6 },
   // 스터디원
   'skinny-anchovy-insik': { model: 'mackerel', tint: '#cfd8dc', size: 1.1, stretch: [0.35, 0.4, 1.6], wobble: 0.8 },

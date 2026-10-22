@@ -9,7 +9,7 @@ import {
   Mesh,
   OctahedronGeometry,
   Quaternion,
-  Source,
+  TextureSource,
   SphereGeometry,
   TorusGeometry,
   Vector3,
@@ -68,14 +68,14 @@ function grayTexture(texture: Texture): Texture {
   ctx.putImageData(pixels, 0, 0)
   // clone 은 그림(source)을 원본과 같이 쓰므로 새 source 를 단다
   const gray = texture.clone()
-  gray.source = new Source(canvas)
+  gray.source = new TextureSource(canvas)
   gray.needsUpdate = true
   grayCache.set(texture, gray)
   return gray
 }
 
 /**
- * 물고기 모델에 생김새(색·발광)를 입힌다. 같은 모델을 쓰는 다른 어종과 색이 섞이지 않도록 재질을 인스턴스마다 복제한다.
+ * 물고기 모델에 생김새(색·발광)를 입힌다. 지느러미는 양면으로 그린다. 같은 모델을 쓰는 다른 어종과 색이 섞이지 않도록 재질을 인스턴스마다 복제한다.
  * 색은 원래 색에 그냥 곱하면 어두운 모델(메기 등)이 새까매지므로, 부위별 밝기 차이만 남기고 색을 tint 로 바꾼다.
  * 텍스처 재질(고등어·오징어의 색 아틀라스)은 텍스처를 흑백으로 바꾼 사본에 tint 를 곱한다 (원래 텍스처 색이 섞이지 않게). 눈은 그대로 둔다
  */
@@ -85,6 +85,8 @@ export function applyFishLook(object: Object3D, look: FishLook): void {
     let c = clones.get(m)
     if (!c) {
       c = m.clone() as MeshStandardMaterial
+      // 지느러미는 한쪽 면만 있는 판이라 반대쪽(사진은 이쪽)에서 보면 사라진다. 잉어·금붕어·베타는 꼬리·등지느러미가 통째로 안 보였다
+      if (isFin(c.name)) c.side = DoubleSide
       clones.set(m, c)
     }
     return c
