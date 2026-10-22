@@ -36,6 +36,25 @@ describe('rollSpecies', () => {
     }
     expect(epicShare(1)).toBeGreaterThan(epicShare(0))
   })
+
+  it('희귀도 비율은 그 희귀도 어종 수와 상관없다 (같은 희귀도끼리 나눠 가진다)', () => {
+    const shareOf = (zone: 'beach' | 'pond' | 'reef', rarity: string, power: number) => {
+      const table = catchWeights(zone, power)
+      const total = table.reduce((s, e) => s + e.weight, 0)
+      return table.filter((e) => e.species.rarity === rarity).reduce((s, e) => s + e.weight, 0) / total
+    }
+    // 세 구역 모두 잡어·일반·희귀·에픽이 있다 → 비율이 같아야 한다
+    for (const power of [0, 1]) {
+      const beach = shareOf('beach', 'epic', power)
+      expect(shareOf('pond', 'epic', power)).toBeCloseTo(beach)
+      expect(shareOf('reef', 'epic', power)).toBeCloseTo(beach)
+    }
+  })
+
+  it('같은 희귀도 어종끼리는 확률이 똑같다', () => {
+    const rares = catchWeights('reef', 0.5).filter((e) => e.species.rarity === 'rare')
+    for (const e of rares) expect(e.weight).toBeCloseTo(rares[0].weight)
+  })
 })
 
 describe('rollWeight', () => {

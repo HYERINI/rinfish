@@ -6,9 +6,13 @@ import { lerpRange, type Rng } from './rng'
 export type CatchEntry = { species: FishSpecies; weight: number }
 
 export function catchWeights(zone: ZoneId, castPower: number): CatchEntry[] {
-  return FISH_SPECIES.filter((s) => s.zones.includes(zone)).map((species) => ({
-    species,
-    weight: rarityWeight(zone, species.rarity, castPower),
+  const species = FISH_SPECIES.filter((s) => s.zones.includes(zone))
+  // 희귀도 묶음 가중치를 같은 희귀도끼리 나눈다 — 어종이 늘어도 희귀도 비율이 유지된다
+  const countByRarity = new Map<Rarity, number>()
+  for (const s of species) countByRarity.set(s.rarity, (countByRarity.get(s.rarity) ?? 0) + 1)
+  return species.map((s) => ({
+    species: s,
+    weight: rarityWeight(zone, s.rarity, castPower) / (countByRarity.get(s.rarity) ?? 1),
   }))
 }
 
