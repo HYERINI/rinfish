@@ -135,7 +135,9 @@ export function Player() {
   // 탐험 중 카메라 회전: 마우스가 잠겨 있으면 움직이는 만큼(감도), 아니면(터치 등) 드래그로
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      if (useSessionStore.getState().mode !== 'explore') return
+      // 돌아다닐 때와 벤치에 앉아 쉴 때 시점을 돌릴 수 있다
+      const mode = useSessionStore.getState().mode
+      if (mode !== 'explore' && mode !== 'rest') return
       if (isPointerLocked()) {
         const { lookSensitivity, invertY } = useSettingsStore.getState()
         const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity, invertY)

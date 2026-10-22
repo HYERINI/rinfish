@@ -95,7 +95,7 @@ export function Hud() {
         </>
       )}
 
-      {mode === 'rest' && <div style={hint}>벤치에서 쉬는 중… 체력 회복 · E / ESC 일어나기</div>}
+      {mode === 'rest' && <div style={hint}>벤치에서 쉬는 중… 체력 회복 · 마우스로 둘러보기 · E 일어나기</div>}
 
       {mode === 'explore' && (
         <>

@@ -42,9 +42,9 @@ export function pitchedOffset(distance: number, height: number, lookAtY: number,
   }
 }
 
-/** 마우스를 잠가 둘 수 있는 화면. 낚시·패널·꾸미기 등 그 밖의 화면은 커서가 필요해서 풀어 준다 */
+/** 마우스를 잠가 둘 수 있는 화면 (돌아다닐 때·벤치에서 쉴 때). 낚시·패널·꾸미기 등 그 밖의 화면은 커서가 필요해서 풀어 준다 */
 export function canLockPointer(mode: Mode): boolean {
-  return mode === 'explore'
+  return mode === 'explore' || mode === 'rest'
 }
 
 /**
