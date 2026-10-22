@@ -1,4 +1,4 @@
-import { TANK_LEVELS, getTankType } from '../data/aquarium'
+import { SHOWCASE_FISH, TANK_LEVELS, getTankType } from '../data/aquarium'
 import { AQUARIUM, VISITOR_INCOME_PER_MINUTE } from '../data/balance'
 import { findSpecies } from '../data/fish'
 import type { FishInstance, TankTypeId } from '../data/types'
@@ -29,6 +29,14 @@ export type AquariumEvent = 'hungry' | 'releaseWarning' | 'released'
 
 export function slotCount(aq: AquariumState): number {
   return TANK_LEVELS[aq.level].slots
+}
+
+/**
+ * 크게 보기에서 헤엄칠 물고기. 전시한 물고기가 있으면 그대로, 하나도 없으면 구경용 물고기(guest)를 대신 띄운다.
+ * 구경용 물고기는 입장료·먹이에 들어가지 않으므로 화면에만 쓴다
+ */
+export function viewFishList(displayed: FishInstance[]): { fish: FishInstance[]; guest: boolean } {
+  return displayed.length > 0 ? { fish: displayed, guest: false } : { fish: SHOWCASE_FISH, guest: true }
 }
 
 const hungryAt = (aq: AquariumState) => aq.lastFedAt + AQUARIUM.hungerAfter

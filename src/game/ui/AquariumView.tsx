@@ -1,13 +1,13 @@
 import { Environment, Lightformer, OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Object3D } from 'three'
+import { CanvasTexture, Object3D, SRGBColorSpace } from 'three'
 import type { InstancedMesh } from 'three'
 import { getTankType } from '../data/aquarium'
 import { RARITY_COLOR, RARITY_LABEL, findSpecies } from '../data/fish'
 import { fishLookFor } from '../data/fishLooks'
 import type { TankTypeId } from '../data/types'
-import { isHungry, slotCount } from '../logic/aquarium'
+import { isHungry, slotCount, viewFishList } from '../logic/aquarium'
 import { swimSeed, tankFloorY } from '../logic/aquariumSwim'
 import { AquariumFish } from '../scene/facilities/AquariumFish'
 import { TankBody } from '../scene/facilities/Aquarium'
@@ -15,6 +15,7 @@ import { FISH_LENGTH } from '../scene/fishing/fishAppearance'
 import { useProgressStore } from '../stores/progressStore'
 import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
+import { AquariumSpectators } from './AquariumSpectators'
 import { FishImage } from './FishImage'
 import { button, disabledButton, safeLeft, safeRight, safeTop } from './styles'
 
@@ -38,11 +39,15 @@ const BACKDROP: Record<TankTypeId, string> = {
 }
 
 /** 물고기 한 마리. 얇은 물고기(가오리 등)도 누르기 쉽게 몸보다 큰 투명 상자로 클릭을 받는다 */
-function ViewFish({ id, speciesId, hungry, sinceFed, onSelect }: {
+function ViewFish({ id, speciesId, hungry, sinceFed, guest, tagScale, onSelect }: {
   id: string
   speciesId: string
   hungry: boolean
   sinceFed: number
+  /** 구경용 물고기면 머리 위에 작은 이름표를 단다 */
+  guest: boolean
+  /** 이름표 크기 배율 (좁은 화면은 카메라가 멀어서 키운다) */
+  tagScale: number
   onSelect: (id: string) => void
 }) {
   const length = Math.min(FISH_LENGTH * VIEW_FISH_SCALE * fishLookFor(speciesId).size, VIEW_MAX_LENGTH)
@@ -75,9 +80,42 @@ function ViewFish({ id, speciesId, hungry, sinceFed, onSelect }: {
           <boxGeometry args={[length * 0.8, length * 0.55, length * 1.05]} />
           <meshBasicMaterial visible={false} />
         </mesh>
+        {guest && (
+          // 이름표는 글자를 그린 그림판(sprite)이라 늘 화면을 본다. 다른 물고기·유리에 가리지 않게 맨 위에 그린다
+          <sprite position={[0, length * 0.35 + 0.3 * tagScale, 0]} scale={[GUEST_TAG_SIZE[0] * tagScale, GUEST_TAG_SIZE[1] * tagScale, 1]} renderOrder={5}>
+            <spriteMaterial map={guestTagTexture()} transparent depthTest={false} depthWrite={false} toneMapped={false} />
+          </sprite>
+        )}
       </AquariumFish>
     </group>
   )
+}
+
+/** 구경용 물고기 이름표 크기 (가로, 세로. 수조 단위) */
+const GUEST_TAG_SIZE: [number, number] = [0.96, 0.24]
+
+/** '구경용 물고기' 이름표 그림. 모든 구경용 물고기가 같이 쓰도록 처음 한 번만 그린다 (DOM 이름표는 크게 보기를 닫을 때 정리가 꼬여서 쓰지 않는다) */
+let guestTag: CanvasTexture | null = null
+function guestTagTexture(): CanvasTexture {
+  if (guestTag) return guestTag
+  const canvas = document.createElement('canvas')
+  canvas.width = 256
+  canvas.height = 64
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)'
+    ctx.beginPath()
+    ctx.roundRect(4, 8, 248, 48, 24)
+    ctx.fill()
+    ctx.fillStyle = '#0d3b66'
+    ctx.font = 'bold 26px sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('구경용 물고기', 128, 33)
+  }
+  guestTag = new CanvasTexture(canvas)
+  guestTag.colorSpace = SRGBColorSpace
+  return guestTag
 }
 
 /** 0~1 사이 고정된 값 (i 마다 다름). 렌더마다 바뀌지 않게 Math.random 대신 쓴다 */
@@ -144,7 +182,9 @@ export function AquariumView() {
   const hungry = isHungry(aquarium, playTime)
   const sinceFed = playTime - aquarium.lastFedAt
   const type = getTankType(aquarium.activeType)
-  const selected = aquarium.displayed.find((f) => f.id === selectedId)
+  // 전시한 물고기가 없으면 구경용 물고기가 대신 헤엄친다 (입장료·먹이와는 상관없다)
+  const view = viewFishList(aquarium.displayed)
+  const selected = view.fish.find((f) => f.id === selectedId)
   const species = selected ? findSpecies(selected.speciesId) : undefined
   const count = aquarium.displayed.length
   const junk = inventory.find((f) => findSpecies(f.speciesId)?.rarity === 'junk')
@@ -196,11 +236,22 @@ export function AquariumView() {
         <pointLight position={[0, VIEW_TANK[1] / 2 + 0.5, 0]} intensity={4} distance={10} color="#9fe3ff" />
         <TankBody type={aquarium.activeType} size={VIEW_TANK} big />
         <Bubbles />
-        {aquarium.displayed.map((fish) => (
-          <ViewFish key={fish.id} id={fish.id} speciesId={fish.speciesId} hungry={hungry} sinceFed={sinceFed} onSelect={setSelectedId} />
+        {view.fish.map((fish) => (
+          <ViewFish
+            key={fish.id}
+            id={fish.id}
+            speciesId={fish.speciesId}
+            hungry={view.guest ? false : hungry}
+            sinceFed={view.guest ? Infinity : sinceFed}
+            guest={view.guest}
+            tagScale={narrow ? 1.8 : 1}
+            onSelect={setSelectedId}
+          />
         ))}
         <OrbitControls enablePan={false} minDistance={4} maxDistance={narrow ? 28 : 14} target={[0, 0, 0]} />
       </Canvas>
+
+      <AquariumSpectators narrow={narrow} />
 
       <div style={{ position: 'absolute', top: safeTop(16), left: safeLeft(16), right: narrow ? safeRight(96) : undefined, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button
@@ -224,7 +275,11 @@ export function AquariumView() {
         {touchUi ? '닫기' : '닫기 (ESC)'}
       </button>
 
-      {count === 0 && <div style={emptyNote}>아직 전시한 물고기가 없어요. 낚시해서 전시해 보세요</div>}
+      {view.guest && (
+        <div style={{ ...emptyNote, ...(narrow ? { top: safeTop(162), fontSize: 14, width: 'max-content', maxWidth: '92vw' } : { top: safeTop(70) }) }}>
+          아직 내 물고기가 없어요{narrow ? <br /> : ' · '}지금은 구경용 물고기가 헤엄쳐요. 낚시해서 전시해 보세요
+        </div>
+      )}
 
       {selected && (
         <div style={card}>
@@ -233,8 +288,9 @@ export function AquariumView() {
             <div style={{ fontSize: 18, fontWeight: 700, color: species ? RARITY_COLOR[species.rarity] : undefined }}>
               {species?.name ?? '???'}
               {species && <span style={{ fontSize: 12, marginLeft: 8, opacity: 0.9 }}>{RARITY_LABEL[species.rarity]}</span>}
+              {view.guest && <span style={guestBadge}>구경용</span>}
             </div>
-            <div style={{ fontSize: 14, margin: '2px 0 6px' }}>{selected.weight}kg</div>
+            <div style={{ fontSize: 14, margin: '2px 0 6px' }}>{view.guest ? `${selected.weight}kg · 내 물고기가 아니에요` : `${selected.weight}kg`}</div>
             <div style={{ fontSize: 13, opacity: 0.85 }}>{species?.description}</div>
           </div>
           <button style={{ ...button, alignSelf: 'flex-start' }} onClick={() => setSelectedId(null)} aria-label="카드 닫기">
@@ -260,9 +316,8 @@ const topBar = {
 
 const emptyNote = {
   position: 'absolute',
-  top: '50%',
   left: '50%',
-  transform: 'translate(-50%, -50%)',
+  transform: 'translateX(-50%)',
   background: 'rgba(0,0,0,0.55)',
   padding: '10px 18px',
   borderRadius: 8,
@@ -270,6 +325,17 @@ const emptyNote = {
   pointerEvents: 'none',
   textAlign: 'center',
   maxWidth: '85vw',
+} as const
+
+/** 카드 이름 옆 '구경용' 표시 */
+const guestBadge = {
+  fontSize: 11,
+  marginLeft: 8,
+  padding: '1px 7px',
+  borderRadius: 10,
+  background: '#4fc3f7',
+  color: '#0d3b66',
+  verticalAlign: 'middle',
 } as const
 
 const card = {

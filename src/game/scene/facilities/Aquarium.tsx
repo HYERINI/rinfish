@@ -9,16 +9,14 @@ import { TANK_FLOOR, swimSeed, tankFloorY } from '../../logic/aquariumSwim'
 import { useProgressStore } from '../../stores/progressStore'
 import { ASSET } from '../assets'
 import { Prop } from '../Prop'
-import { Visitor } from '../Visitor'
+import { visitorCount } from '../../logic/aquariumVisitors'
 import { AquariumFish } from './AquariumFish'
+import { AquariumVisitors } from './AquariumVisitors'
 import { InteractionZone } from './InteractionZone'
 
 const [X, Z] = FACILITY.aquarium
 /** 받침대 높이 */
 const STAND = 0.8
-const VISITOR_URLS = [ASSET.visitorA, ASSET.visitorB, ASSET.visitorC]
-/** 분당 입장료 몇 코인마다 구경꾼 1명 (최대 VISITOR_URLS × 2명) */
-const INCOME_PER_VISITOR = 3
 /** 물고기 몸길이 상한 (수조 폭·깊이 대비). 아주 큰 어종도 수조 안에 들어가게 */
 const MAX_FISH_LENGTH = { width: 0.4, depth: 0.75 }
 
@@ -30,7 +28,7 @@ export function Aquarium() {
   const [w, h, d] = level.size
   const hungry = isHungry(aquarium, playTime)
   const perMinute = hungry ? 0 : incomePerSecond(aquarium) * 60
-  const visitors = Math.min(VISITOR_URLS.length * 2, Math.ceil(perMinute / INCOME_PER_VISITOR))
+  const visitors = visitorCount(perMinute)
 
   return (
     <group position={[X, 0, Z]}>
@@ -60,21 +58,10 @@ export function Aquarium() {
         ))}
       </group>
 
-      {/* 구경꾼: 수입이 높을수록 많이 모인다 */}
-      {Array.from({ length: visitors }, (_, i) => {
-        // 어항 양옆 앞쪽에 서서 어항 가운데를 바라본다. 앞을 막지 않게 가운데는 비워 둔다
-        const vx = (i % 2 === 0 ? -1 : 1) * (w / 2 + 0.7 + Math.floor(i / 2) * 0.85)
-        const vz = d / 2 + 0.9
-        return (
-          <Visitor
-            key={i}
-            url={VISITOR_URLS[i % VISITOR_URLS.length]}
-            position={[vx, 0, vz]}
-            rotationY={Math.atan2(-vx, -vz)}
-            clip={i % 2 === 0 ? 'idle' : 'emote-yes'}
-          />
-        )
-      })}
+      {/* 구경꾼: 섬 여기저기서 걸어와 구경하고 간다. 수입이 높을수록 많이 모인다. 좌표가 세계 기준이라 어항 자리만큼 되돌린다 */}
+      <group position={[-X, 0, -Z]}>
+        <AquariumVisitors count={visitors} size={level.size} />
+      </group>
 
       <Html center position={[0, STAND + h + 0.6, 0]} zIndexRange={[100, 0]} style={sign}>
         🐠 어항 Lv{aquarium.level + 1} · {type.name}

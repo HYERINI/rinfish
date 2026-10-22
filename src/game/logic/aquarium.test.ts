@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { AQUARIUM } from '../data/balance'
+import { findSpecies } from '../data/fish'
 import type { FishInstance } from '../data/types'
 import {
   EMPTY_AQUARIUM,
@@ -13,6 +14,7 @@ import {
   removeFromDisplay,
   selectTankType,
   tickAquarium,
+  viewFishList,
   type AquariumState,
 } from './aquarium'
 
@@ -21,6 +23,23 @@ const fish = (id: string, speciesId = 'sleepy-sardine'): FishInstance => ({ id, 
 const withSardine = (patch: Partial<AquariumState> = {}): AquariumState => ({ ...EMPTY_AQUARIUM, displayed: [fish('a')], lastFedAt: 0, ...patch })
 const HUNGRY_AT = AQUARIUM.hungerAfter
 const RELEASE_AT = AQUARIUM.hungerAfter + AQUARIUM.releaseAfter
+
+describe('viewFishList', () => {
+  it('전시한 물고기가 없으면 흔한 구경용 물고기를 띄운다', () => {
+    const view = viewFishList([])
+    expect(view.guest).toBe(true)
+    expect(view.fish.length).toBeGreaterThanOrEqual(4)
+    expect(view.fish.length).toBeLessThanOrEqual(6)
+    for (const f of view.fish) expect(findSpecies(f.speciesId)?.rarity).toBe('common')
+  })
+  it('한 마리라도 전시하면 구경용 물고기는 사라진다', () => {
+    const mine = [fish('a')]
+    expect(viewFishList(mine)).toEqual({ fish: mine, guest: false })
+  })
+  it('구경용 물고기는 입장료에 들어가지 않는다 (전시 목록에 넣지 않으므로 0)', () => {
+    expect(incomePerSecond(EMPTY_AQUARIUM)).toBe(0)
+  })
+})
 
 describe('incomePerSecond', () => {
   it('희귀도별 분당 수입을 초 단위로 바꾼다', () => {

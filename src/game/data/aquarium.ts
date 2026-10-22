@@ -1,4 +1,4 @@
-import type { TankTypeId, ZoneId } from './types'
+import type { FishInstance, TankTypeId, ZoneId } from './types'
 
 export type TankLevelDef = {
   slots: number
@@ -39,3 +39,15 @@ export function getTankType(id: TankTypeId): TankTypeDef {
   if (!type) throw new Error(`알 수 없는 어항 종류: ${id}`)
   return type
 }
+
+/**
+ * 구경용 물고기: 크게 보기에서 전시한 물고기가 하나도 없을 때만 대신 헤엄치는 흔한 물고기들.
+ * 플레이어 물고기가 아니라서 입장료·먹이·방생에 들어가지 않는다
+ */
+export const SHOWCASE_FISH: FishInstance[] = [
+  { id: 'showcase-sardine', speciesId: 'sleepy-sardine', weight: 0.2, caughtAtPlayTime: 0 },
+  { id: 'showcase-mackerel', speciesId: 'chatty-mackerel', weight: 0.4, caughtAtPlayTime: 0 },
+  { id: 'showcase-puffer', speciesId: 'bubble-puffer', weight: 0.5, caughtAtPlayTime: 0 },
+  { id: 'showcase-minnow', speciesId: 'firefly-minnow', weight: 0.1, caughtAtPlayTime: 0 },
+  { id: 'showcase-seabream', speciesId: 'buff-seabream', weight: 1.8, caughtAtPlayTime: 0 },
+]
