@@ -24,7 +24,8 @@ const EXPECTED_NODES = ['head', 'eyes', 'eyebrows', 'hair_simpleParted', 'hair_b
   'ranger_belt2', 'ranger_pauldron', 'ranger_legs', 'ranger_feet', 'ranger_hood']
 const EXPECTED_MATERIALS = ['skin', 'skin_hands', 'hair', 'peasant', 'ranger', 'eyes']
 const EXPECTED_CLIPS = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Pistol_Aim_Up', 'Pistol_Aim_Neutral', 'Pistol_Aim_Down', 'Push_Loop',
-  'Dance_Loop', 'Death01', 'Crouch_Idle_Loop', 'Sitting_Enter', 'Sitting_Idle_Loop', 'Sitting_Exit']
+  'Dance_Loop', 'Death01', 'Crouch_Idle_Loop', 'Sitting_Enter', 'Sitting_Idle_Loop', 'Sitting_Exit',
+  'Sprint_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Idle_Talking_Loop', 'Roll', 'Punch_Jab', 'Spell_Simple_Shoot']
 
 let failed = false
 for (const gender of ['male', 'female']) {
