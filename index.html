@@ -3,11 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Three.js Game</title>
+    <meta name="description" content="섬에서 낚시하고, 도감을 채우고, 아쿠아리움을 꾸미는 3D 낚시 게임" />
+    <meta name="theme-color" content="#0277bd" />
+    <title>낚시섬 🎣</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- 자바스크립트가 오기 전 잠깐 보이는 화면. React가 그리기 시작하면 LoadingScreen으로 바뀐다 -->
+    <div id="root"><div style="position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(#4fc3f7,#0288d1 55%,#01579b);color:#fff;font-family:system-ui,-apple-system,sans-serif"><div style="font-size:clamp(48px,12vw,96px);font-weight:900;letter-spacing:4px;text-shadow:0 4px 0 #01579b">낚시섬</div><div style="opacity:.9">🐟 🐠 🐡 물고기들이 섬으로 헤엄쳐 오는 중…</div></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
