@@ -41,9 +41,14 @@
 
 ## Kenney (CC0 1.0)
 
-- 출처: https://kenney.nl — Food Kit, Furniture Kit, Nature Kit, Mini Characters
-- 라이선스: Creative Commons Zero (CC0). 출처 표기 의무는 없지만 기록해 둔다
-- 위치: `public/models/kenney/`
+- 출처: https://kenney.nl — Food Kit, Furniture Kit, Nature Kit, Mini Characters, Holiday Kit, City Kit (Commercial)
+- 라이선스: Creative Commons Zero (CC0). 출처 표기 의무는 없지만 기록해 둔다 (각 팩 zip 의 License.txt 에서 "Creative Commons Zero, CC0" 확인, 2026-10-22)
+- 위치: `public/models/kenney/<팩>/`. glb 는 같은 폴더의 `Textures/colormap.png` 를 상대 경로로 읽는다
+
+| 폴더 | 팩 | 쓰는 파일 | 어디에 |
+| --- | --- | --- | --- |
+| holiday/ | Holiday Kit | bench.glb | 해변 벤치 |
+| city-commercial/ | City Kit (Commercial) | detail-parasol-a.glb | 벤치 옆 파라솔 탁자 |
 
 ## 꾸미기용 캐릭터 (characters/male.glb, female.glb)
 
