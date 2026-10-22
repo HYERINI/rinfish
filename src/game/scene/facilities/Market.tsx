@@ -6,6 +6,7 @@ import { ASSET } from '../assets'
 import { Prop } from '../Prop'
 import { CookingStation } from '../cooking/CookingStation'
 import { InteractionZone } from './InteractionZone'
+import { useSessionStore } from '../../stores/sessionStore'
 import { ShopSign } from './ShopSign'
 
 const [X, Z] = FACILITY.market
@@ -46,11 +47,23 @@ export function Market() {
       <Html center position={[0, 3.85, -0.4]} zIndexRange={[100, 0]} style={sign}>
         🍲 {MARKET.name}
       </Html>
-      <Html center position={[0, 2.45, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
-        {MARKET.owner}
-      </Html>
+      <OwnerTag />
       <InteractionZone position={[0, 1, 0]} halfSize={[3.2, 1.5, 2.6]} target={{ kind: 'market' }} />
     </group>
+  )
+}
+
+/**
+ * 사장님 이름표. Html 은 지붕에 가려지지 않고 늘 맨 위에 그려져서, 멀리서 보면 지붕 위에 둥둥 떠 보인다.
+ * 그래서 가게 앞에 와 있을 때(E 범위)와 요리할 때만 천막 아래에 띄운다
+ */
+function OwnerTag() {
+  const show = useSessionStore((s) => s.nearby?.kind === 'market' || s.cooking !== null)
+  if (!show) return null
+  return (
+    <Html center position={[0, 2.05, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
+      {MARKET.owner}
+    </Html>
   )
 }
 
