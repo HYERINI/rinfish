@@ -26,7 +26,7 @@ export function Bench() {
       <RigidBody type="fixed" colliders={false} position={PARASOL_AT}>
         <CylinderCollider args={[TABLE_TOP / 2, TABLE_RADIUS]} position={[0, TABLE_TOP / 2, 0]} />
       </RigidBody>
-      <InteractionZone position={[0, 0.8, 0]} halfSize={[1.4, 1, 1.2]} target={{ kind: 'bench' }} />
+      <InteractionZone position={[0, 0.8, 0]} halfSize={[2.2, 1.2, 2]} target={{ kind: 'bench' }} />
     </group>
   )
 }

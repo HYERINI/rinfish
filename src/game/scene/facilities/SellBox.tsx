@@ -34,7 +34,7 @@ export function SellBox() {
       <Html center position={[0, 2.1, 0]} zIndexRange={[100, 0]} style={sign}>
         💰 판매함
       </Html>
-      <InteractionZone position={[0, 0.5, 0]} halfSize={[2, 1.5, 2]} target={{ kind: 'sellBox' }} />
+      <InteractionZone position={[0, 0.5, 0]} halfSize={[2.6, 1.5, 2.6]} target={{ kind: 'sellBox' }} />
     </group>
   )
 }

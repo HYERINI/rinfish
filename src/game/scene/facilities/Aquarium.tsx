@@ -80,7 +80,7 @@ export function Aquarium() {
         🐠 어항 Lv{aquarium.level + 1} · {type.name}
         {hungry && ' · 배고파요!'}
       </Html>
-      <InteractionZone position={[0, 1, d / 2 + 1]} halfSize={[w / 2 + 0.5, 1.5, 1.2]} target={{ kind: 'aquarium' }} />
+      <InteractionZone position={[0, 1, 0]} halfSize={[w / 2 + 1.6, 1.5, d / 2 + 1.6]} target={{ kind: 'aquarium' }} />
     </group>
   )
 }

@@ -49,7 +49,7 @@ export function Market() {
       <Html center position={[0, 2.45, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
         {MARKET.owner}
       </Html>
-      <InteractionZone position={[0, 1, 1.2]} halfSize={[2.2, 1.5, 1.2]} target={{ kind: 'market' }} />
+      <InteractionZone position={[0, 1, 0]} halfSize={[3.2, 1.5, 2.6]} target={{ kind: 'market' }} />
     </group>
   )
 }

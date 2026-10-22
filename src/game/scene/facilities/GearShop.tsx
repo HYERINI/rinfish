@@ -58,7 +58,7 @@ export function GearShop() {
       <Html center position={[0, 3.1, 0]} zIndexRange={[100, 0]} style={sign}>
         🎣 장비 상점
       </Html>
-      <InteractionZone position={[0, 1, 0]} halfSize={[2.5, 1.5, 2]} target={{ kind: 'gearShop' }} />
+      <InteractionZone position={[0, 1, 0]} halfSize={[3.2, 1.5, 2.8]} target={{ kind: 'gearShop' }} />
     </group>
   )
 }

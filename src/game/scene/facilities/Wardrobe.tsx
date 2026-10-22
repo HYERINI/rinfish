@@ -36,7 +36,7 @@ export function Wardrobe() {
       <Html center position={[0, 2.6, 0]} zIndexRange={[100, 0]} style={sign}>
         👗 옷장
       </Html>
-      <InteractionZone position={[0, 1, 1]} halfSize={[1.2, 1.5, 1]} target={{ kind: 'wardrobe' }} />
+      <InteractionZone position={[0, 1, 0]} halfSize={[1.8, 1.5, 1.8]} target={{ kind: 'wardrobe' }} />
     </group>
   )
 }

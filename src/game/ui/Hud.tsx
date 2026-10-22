@@ -19,7 +19,7 @@ const PROMPT: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
   gearShop: 'E  장비 상점',
   market: `E  ${MARKET.name}`,
   bench: 'E  앉아서 쉬기',
-  aquarium: 'E  어항',
+  aquarium: 'E  어항 (관리 · 크게 보기)',
   wardrobe: 'E  옷장 (꾸미기)',
 }
 
@@ -101,6 +101,10 @@ export function Hud() {
         <>
           <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8 }}>
             <MusicButton />
+            {/* 어디서든 바로 어항을 크게 본다 (어항 앞까지 안 가도 된다) */}
+            <button style={button} onClick={(e) => { e.currentTarget.blur(); setMode('aquariumView') }}>
+              🐠 어항 구경
+            </button>
             <button style={button} onClick={() => setMode('dex')}>
               도감
             </button>
