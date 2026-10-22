@@ -11,4 +11,7 @@ body,
 
 body {
   font-family: system-ui, -apple-system, sans-serif;
+  /* 휴대폰에서 끝까지 끌었을 때 페이지가 튕기거나 당겨서 새로고침되지 않게 */
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
 }

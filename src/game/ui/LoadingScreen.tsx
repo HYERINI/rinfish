@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useProgress } from '@react-three/drei'
+import { useTouchUi } from '../input/touchDevice'
 
 /** 다 불러온 뒤에도 물고기 떼를 잠깐은 보여 준다 (너무 빨리 깜빡이지 않게) */
 const MIN_SHOW_MS = 1500
@@ -20,14 +21,15 @@ const FISH_COLORS = [
   ['#ffcc80', '#6d4c41'],
 ]
 
-const TIPS = [
-  '찌가 크게 잠길 때 클릭하면 챔질!',
-  '텐션이 빨개지면 손을 떼세요',
-  'Shift 달리기 · Space 점프 · 1~5 감정 표현',
-  '휠을 당기면 얼굴까지 확대돼요',
-  '희귀한 물고기는 멀리 던질수록 잘 문다',
-  '동굴 깊은 곳엔 전설의 물고기가…',
-  '개멸치뼈인식을 잡으면 낚싯바늘이 더 무겁다',
+/** 조작 팁. touch: 터치 화면에서 대신 보여 줄 말 (키보드·마우스 이야기가 들어간 팁만) */
+const TIPS: { text: string; touch?: string }[] = [
+  { text: '찌가 크게 잠길 때 클릭하면 챔질!', touch: '찌가 크게 잠길 때 챔질 버튼을 누르세요!' },
+  { text: '텐션이 빨개지면 손을 떼세요' },
+  { text: 'Shift 달리기 · Space 점프 · 1~5 감정 표현', touch: '스틱을 끝까지 밀면 달려요 · 점프·표현 버튼도 눌러 보세요' },
+  { text: '휠을 당기면 얼굴까지 확대돼요', touch: '두 손가락으로 벌리면 얼굴까지 확대돼요' },
+  { text: '희귀한 물고기는 멀리 던질수록 잘 문다' },
+  { text: '동굴 깊은 곳엔 전설의 물고기가…' },
+  { text: '개멸치뼈인식을 잡으면 낚싯바늘이 더 무겁다' },
 ]
 
 type SwimFish = { top: number; size: number; duration: number; delay: number; flip: boolean; colors: string[] }
@@ -51,6 +53,7 @@ export function LoadingScreen() {
   const [gone, setGone] = useState(false)
   const school = useMemo(() => makeSchool(26), [])
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)])
+  const touchUi = useTouchUi()
 
   const [best, setBest] = useState(0)
   if (progress > best) setBest(progress)
@@ -114,7 +117,7 @@ export function LoadingScreen() {
           <div style={{ ...barInner, width: `${percent}%` }} />
         </div>
         <div style={{ fontSize: 14, opacity: 0.85 }}>{percent}%</div>
-        <div style={{ fontSize: 13, opacity: 0.75, marginTop: 18 }}>💡 {tip}</div>
+        <div style={{ fontSize: 13, opacity: 0.75, marginTop: 18 }}>💡 {(touchUi && tip.touch) || tip.text}</div>
       </div>
     </div>
   )

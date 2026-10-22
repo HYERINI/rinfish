@@ -44,5 +44,6 @@ export function GrassField({ placements, tint, wind = 1 }: Props) {
   }, [placements, tint])
 
   if (placements.length === 0) return null
-  return <instancedMesh ref={ref} args={[geometry, material, placements.length]} receiveShadow />
+  // 품질 설정으로 개수가 바뀌면 새로 만든다
+  return <instancedMesh key={placements.length} ref={ref} args={[geometry, material, placements.length]} receiveShadow />
 }

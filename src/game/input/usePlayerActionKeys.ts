@@ -23,6 +23,16 @@ export function pressEat(dish: FoodId) {
   eatPressed = dish
 }
 
+/** 점프 (터치 점프 버튼). Space 와 같다 */
+export function pressJump() {
+  jumpPressed = true
+}
+
+/** 감정 표현 (터치 감정 표현 메뉴). 숫자 키와 같다 */
+export function pressEmote(id: EmoteId) {
+  emotePressed = id
+}
+
 /** Shift 를 누르고 있다 */
 export function isSprintHeld(): boolean {
   return ACTION_KEYS.sprint.some(isKeyDown)

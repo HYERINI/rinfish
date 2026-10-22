@@ -5,6 +5,8 @@ import { DECOR_VARIANTS, buildDecorLayout } from '../../logic/decorLayout'
 import { GROUND_Y } from '../../data/decor'
 import { INLAND_WATER_Y } from '../../data/zones'
 import type { Placement } from '../../logic/decor'
+import { thinOut } from '../../logic/quality'
+import { useQualityPreset } from '../../input/touchDevice'
 import { BeachBits } from './BeachBits'
 import { BUSH_URLS, FLOWER_URLS, MUSHROOM_URLS, NATURE, ROCK_URLS, preloadDecorAssets } from './decorAssets'
 import { GrassField } from './GrassField'
@@ -21,11 +23,14 @@ const DUNE_TINT = '#b9c46e'
 /** 섬 바닥 꾸미기: 풀밭·모래·흙길 바닥, 흔들리는 풀, 꽃밭, 덤불, 바위, 나무, 조개. 배치는 씨앗으로 정해져 늘 같다 */
 export function IslandDecor() {
   const layout = useMemo(() => buildDecorLayout(), [])
+  // 느린 기기에선 풀 다발을 솎아 낸다 (배치는 그대로, 고르게 띄엄띄엄)
+  const { grassRatio } = useQualityPreset()
+  const grass = useMemo(() => thinOut(layout.grass, grassRatio), [layout, grassRatio])
   return (
     <group>
       <WindClock />
       <Ground />
-      <GrassField placements={layout.grass} tint="ground" />
+      <GrassField placements={grass} tint="ground" />
       <GrassField placements={layout.dune} tint={DUNE_TINT} wind={1.3} />
       <ByVariant urls={FLOWER_URLS} placements={layout.flowers} count={DECOR_VARIANTS.flower} wind={1} />
       <ByVariant urls={BUSH_URLS} placements={layout.bushes} count={DECOR_VARIANTS.bush} wind={0.25} castShadow />

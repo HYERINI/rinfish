@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { QUALITY_LABEL, QUALITY_SETTINGS } from '../data/quality'
+import { useQualityLevel, useTouchUi } from '../input/touchDevice'
 import { sensitivityToSlider, sliderToSensitivity } from '../logic/settings'
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
@@ -25,13 +27,14 @@ export function MenuPanel({ onExit }: { onExit?: () => void }) {
   )
 }
 
-/** 설정: 음악 볼륨·음소거, 마우스 감도·위아래 반전. 바꾸는 즉시 적용되고 저장된다 */
+/** 설정: 음악 볼륨·음소거, 그래픽 품질, 마우스 감도·위아래 반전(터치 화면에선 숨김). 바꾸는 즉시 적용되고 저장된다 */
 function SettingsSection() {
   const volume = useSettingsStore((s) => s.musicVolume)
   const muted = useSettingsStore((s) => s.musicMuted)
-  const sensitivity = useSettingsStore((s) => s.lookSensitivity)
-  const invertY = useSettingsStore((s) => s.invertY)
-  const { setMusicVolume, toggleMusicMuted, setLookSensitivity, setInvertY } = useSettingsStore.getState()
+  const quality = useSettingsStore((s) => s.quality)
+  const level = useQualityLevel()
+  const touchUi = useTouchUi()
+  const { setMusicVolume, toggleMusicMuted, setQuality } = useSettingsStore.getState()
 
   return (
     <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -52,6 +55,38 @@ function SettingsSection() {
           {muted ? '켜기' : '끄기'}
         </button>
       </Row>
+      {/* 느린 기기에서 버벅이면 낮춘다: 화면 해상도·그림자·풀 개수 */}
+      <Row label="그래픽">
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }} role="radiogroup" aria-label="그래픽 품질">
+          {QUALITY_SETTINGS.map((q) => (
+            <button
+              key={q}
+              role="radio"
+              aria-checked={quality === q}
+              style={{ ...button, minHeight: 36, opacity: quality === q ? 1 : 0.55 }}
+              onClick={() => setQuality(q)}
+            >
+              {q === 'auto' && quality === 'auto' ? `자동 (${QUALITY_LABEL[level]})` : QUALITY_LABEL[q]}
+            </button>
+          ))}
+        </div>
+      </Row>
+      {touchUi ? (
+        <div style={{ fontSize: 12, opacity: 0.6 }}>왼쪽 스틱으로 이동 · 끝까지 밀면 달리기 · 화면을 끌어 시점 회전 · 두 손가락으로 확대·축소</div>
+      ) : (
+        <MouseSettings />
+      )}
+    </div>
+  )
+}
+
+/** 마우스 감도·위아래 반전 (마우스로 시점을 돌릴 때만 쓴다) */
+function MouseSettings() {
+  const sensitivity = useSettingsStore((s) => s.lookSensitivity)
+  const invertY = useSettingsStore((s) => s.invertY)
+  const { setLookSensitivity, setInvertY } = useSettingsStore.getState()
+  return (
+    <>
       <Row label="마우스 감도">
         <input
           type="range"
@@ -70,7 +105,7 @@ function SettingsSection() {
         마우스 위아래 반전
       </label>
       <div style={{ fontSize: 12, opacity: 0.6 }}>탐험 중 화면을 클릭하면 마우스로 시점을 돌린다 · ESC 로 풀고 메뉴 · M 음악 켜기/끄기</div>
-    </div>
+    </>
   )
 }
 

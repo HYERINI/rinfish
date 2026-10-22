@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getZone } from '../data/zones'
 import { nextGoal } from '../logic/zoneUnlock'
 import { useProgressStore } from '../stores/progressStore'
+import { useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
+import { safeTop } from './styles'
 
 /**
  * 화면 위 가운데 "다음 목표" 띠. 아직 안 열린 구역을 어떻게 여는지 알려 준다 (다 열리면 사라진다).
- * 누르면 접고 펼친다
+ * 누르면 접고 펼친다. 화면이 좁으면(폰·좁은 창) 위쪽 버튼들과 겹치지 않게 그 아래에 두고, 폰에선 처음엔 접어 둔다
  */
 export function GoalTracker() {
   const mode = useSessionStore((s) => s.mode)
@@ -14,14 +16,16 @@ export function GoalTracker() {
   const dexCount = useProgressStore((s) => Object.keys(s.dex).length)
   const lineLevel = useProgressStore((s) => s.gear.line)
   const unlocked = useProgressStore((s) => s.unlockedZones)
-  const [folded, setFolded] = useState(false)
+  const touchUi = useTouchUi()
+  const [folded, setFolded] = useState(touchUi)
+  const narrow = useNarrow() || touchUi
   if (mode !== 'explore') return null
   const goal = nextGoal({ coins, dexCount, lineLevel, unlocked })
   if (!goal) return null
   const ready = goal.ratio >= 1
 
   return (
-    <button style={box} onClick={(e) => { e.currentTarget.blur(); setFolded((f) => !f) }} title={folded ? '목표 펼치기' : '목표 접기'}>
+    <button style={{ ...box, ...(narrow ? narrowPlace : null) }} onClick={(e) => { e.currentTarget.blur(); setFolded((f) => !f) }} title={folded ? '목표 펼치기' : '목표 접기'}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
         <span>🎯</span>
         <strong>다음 목표 · {goal.title}</strong>
@@ -38,6 +42,26 @@ export function GoalTracker() {
       )}
     </button>
   )
+}
+
+/** 위쪽 버튼 줄(🔊·어항 구경·도감·메뉴)이 가운데까지 오는 좁은 화면 */
+const NARROW_BELOW = 900
+
+function useNarrow(): boolean {
+  const [narrow, setNarrow] = useState(() => window.innerWidth < NARROW_BELOW)
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < NARROW_BELOW)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return narrow
+}
+
+/** 좁은 화면: 코인·체력 줄과 위쪽 버튼 줄 아래, 화면 폭에 맞춰 */
+const narrowPlace = {
+  top: safeTop(78),
+  width: 'min(400px, calc(100vw - 32px))',
+  minWidth: 0,
 }
 
 const box = {

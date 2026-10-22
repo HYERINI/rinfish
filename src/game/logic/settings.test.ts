@@ -16,12 +16,19 @@ describe('normalizeSettings', () => {
       musicMuted: true,
       lookSensitivity: 0.003,
       invertY: true,
+      quality: 'auto',
     })
     const s = normalizeSettings({ musicVolume: 5, lookSensitivity: 1 })
     expect(s.musicVolume).toBe(1)
     expect(s.lookSensitivity).toBe(MOUSE_LOOK.maxSensitivity)
     expect(normalizeSettings({ musicVolume: -1 }).musicVolume).toBe(0)
     expect(normalizeSettings({ lookSensitivity: Number.NaN }).lookSensitivity).toBe(DEFAULT_SETTINGS.lookSensitivity)
+  })
+
+  it('그래픽 품질: 아는 값만 받고 나머지는 자동', () => {
+    expect(normalizeSettings({ quality: 'low' }).quality).toBe('low')
+    expect(normalizeSettings({ quality: 'ultra' }).quality).toBe('auto')
+    expect(normalizeSettings({}).quality).toBe('auto')
   })
 })
 

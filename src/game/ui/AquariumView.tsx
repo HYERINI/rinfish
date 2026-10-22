@@ -13,9 +13,10 @@ import { AquariumFish } from '../scene/facilities/AquariumFish'
 import { TankBody } from '../scene/facilities/Aquarium'
 import { FISH_LENGTH } from '../scene/fishing/fishAppearance'
 import { useProgressStore } from '../stores/progressStore'
+import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
 import { FishImage } from './FishImage'
-import { button, disabledButton } from './styles'
+import { button, disabledButton, safeLeft, safeRight, safeTop } from './styles'
 
 /** 크게 보기 수조 크기 */
 const VIEW_TANK: [number, number, number] = [8, 4, 4]
@@ -137,6 +138,9 @@ export function AquariumView() {
   const inventory = useProgressStore((s) => s.inventory)
   const setMode = useSessionStore((s) => s.setMode)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const touchUi = useTouchUi()
+  /** 좁은 화면(휴대폰 세로): 위쪽 막대를 버튼 줄 아래로 내리고, 수조가 가로로 다 보이게 카메라를 뒤로 뺀다 */
+  const narrow = useMediaQuery('(max-width: 640px)')
   const hungry = isHungry(aquarium, playTime)
   const sinceFed = playTime - aquarium.lastFedAt
   const type = getTankType(aquarium.activeType)
@@ -176,7 +180,7 @@ export function AquariumView() {
 
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 1000, background: BACKDROP[aquarium.activeType], color: '#fff', pointerEvents: 'auto' }}>
-      <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0.8, 10], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
+      <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0.8, narrow ? 24 : 10], fov: 40 }} onPointerMissed={() => setSelectedId(null)}>
         <ambientLight intensity={0.35} color="#d8f1ff" />
         <hemisphereLight args={['#c8ecff', '#2c5a78', 0.7]} />
         {/* 장식(Kenney) 재질이 금속(metallic 1)이라 주변광만으로는 옆면이 까맣다. 물빛 환경맵을 만들어 비춘다 (내려받기 없음) */}
@@ -195,10 +199,10 @@ export function AquariumView() {
         {aquarium.displayed.map((fish) => (
           <ViewFish key={fish.id} id={fish.id} speciesId={fish.speciesId} hungry={hungry} sinceFed={sinceFed} onSelect={setSelectedId} />
         ))}
-        <OrbitControls enablePan={false} minDistance={4} maxDistance={14} target={[0, 0, 0]} />
+        <OrbitControls enablePan={false} minDistance={4} maxDistance={narrow ? 28 : 14} target={[0, 0, 0]} />
       </Canvas>
 
-      <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ position: 'absolute', top: safeTop(16), left: safeLeft(16), right: narrow ? safeRight(96) : undefined, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <button
           style={canFeed ? button : disabledButton}
           disabled={!canFeed}
@@ -212,19 +216,19 @@ export function AquariumView() {
         </button>
         <span style={{ fontSize: 13, opacity: 0.85, background: 'rgba(0,0,0,0.45)', padding: '4px 8px', borderRadius: 6 }}>{feedHint}</span>
       </div>
-      <div style={{ ...topBar, left: '50%', transform: 'translateX(-50%)' }}>
+      <div style={{ ...topBar, left: '50%', transform: 'translateX(-50%)', ...(narrow ? { top: safeTop(108), whiteSpace: 'normal', width: 'max-content', maxWidth: '92vw', textAlign: 'center', fontSize: 14 } : null) }}>
         🐠 어항 Lv{aquarium.level + 1} · {type.name} · 전시 {count}/{slotCount(aquarium)}
         {count > 0 && (hungry ? <b style={{ color: '#ef5350' }}> · 배고파요!</b> : ' · 배불러요')}
       </div>
-      <button style={{ ...button, position: 'absolute', top: 16, right: 16 }} onClick={() => setMode('aquarium')}>
-        닫기 (ESC)
+      <button style={{ ...button, position: 'absolute', top: safeTop(16), right: safeRight(16) }} onClick={() => setMode('aquarium')}>
+        {touchUi ? '닫기' : '닫기 (ESC)'}
       </button>
 
       {count === 0 && <div style={emptyNote}>아직 전시한 물고기가 없어요. 낚시해서 전시해 보세요</div>}
 
       {selected && (
         <div style={card}>
-          <FishImage speciesId={selected.speciesId} width={160} style={{ borderRadius: 8, background: '#1b2a3b', flexShrink: 0 }} />
+          <FishImage speciesId={selected.speciesId} width={narrow ? 104 : 160} style={{ borderRadius: 8, background: '#1b2a3b', flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: species ? RARITY_COLOR[species.rarity] : undefined }}>
               {species?.name ?? '???'}
@@ -270,7 +274,7 @@ const emptyNote = {
 
 const card = {
   position: 'absolute',
-  bottom: 24,
+  bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
   left: '50%',
   transform: 'translateX(-50%)',
   width: 'min(520px, 92vw)',
