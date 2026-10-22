@@ -5,33 +5,14 @@ import { MARKET } from '../data/market'
 import { SNACKS } from '../data/snacks'
 import { pressEat } from '../input/usePlayerActionKeys'
 import { finishCooking } from '../scene/cooking/finishCooking'
-import type { Interactable } from '../logic/interaction'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { canUseMouseLook, usePointerLockStore } from '../input/pointerLock'
+import { useTouchUi } from '../input/touchDevice'
+import { interactLabel } from './interactLabel'
 import { ItemIcon } from './ItemIcon'
-import { button, hint, overlayLayer } from './styles'
-
-const PROMPT: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
-  fishingSpot: 'E  낚시하기',
-  sellBox: 'E  물고기 팔기',
-  gearShop: 'E  장비 상점',
-  market: `E  ${MARKET.name}`,
-  bench: 'E  앉아서 쉬기',
-  aquarium: 'E  어항',
-  wardrobe: 'E  옷장 (꾸미기)',
-}
-
-const GATE_PROMPT: Record<string, string> = {
-  pond: 'E  무너진 다리 살펴보기',
-  reef: 'E  부서진 보트 살펴보기',
-  cave: 'E  바위 살펴보기',
-}
-
-function promptFor(target: Interactable): string {
-  return target.kind === 'zoneGate' ? (GATE_PROMPT[target.zoneId] ?? 'E  살펴보기') : PROMPT[target.kind]
-}
+import { button, hint, overlayLayer, safeLeft, safeRight, safeTop, touchHint } from './styles'
 
 /** 연출 중 아래 자막 */
 const CUTSCENE_CAPTION: Record<string, string> = {
@@ -50,14 +31,16 @@ export function Hud() {
   const nearby = useSessionStore((s) => s.nearby)
   const setMode = useSessionStore((s) => s.setMode)
   const locked = usePointerLockStore((s) => s.locked)
-  const mouseLook = canUseMouseLook()
+  const touchUi = useTouchUi()
+  // 터치 화면을 쓰는 중이면 마우스 안내는 숨긴다 (터치 화면 노트북 등)
+  const mouseLook = canUseMouseLook() && !touchUi
   const cutscene = useSessionStore((s) => s.cutscene)
   const cooking = useSessionStore((s) => s.cooking)
 
   const ratio = survival.stamina / STAMINA.max
   return (
     <div style={overlayLayer}>
-      <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 18, width: 200, display: mode === 'cutscene' ? 'none' : undefined }}>
+      <div style={{ position: 'absolute', top: safeTop(16), left: safeLeft(16), fontSize: 18, width: 'min(200px, 42vw)', display: mode === 'cutscene' ? 'none' : undefined }}>
         <strong>코인 {coins}</strong>
         <div style={{ fontSize: 13, marginTop: 6 }}>
           체력 {Math.ceil(survival.stamina)} <span style={{ fontSize: 11, opacity: 0.75 }}>· 음식·벤치로 회복</span>
@@ -84,7 +67,7 @@ export function Hud() {
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto', cursor: 'pointer' }} onPointerDown={() => finishCooking()} />
           <div style={{ ...letterbox, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 16 }}>
             {MARKET.owner}이 {getDish(cooking.dish).name}을(를) 만드는 중…
-            <span style={{ fontSize: 12, opacity: 0.7 }}>클릭·E·Space 건너뛰기</span>
+            <span style={{ fontSize: 12, opacity: 0.7 }}>{touchUi ? '화면을 누르면 건너뛰기' : '클릭·E·Space 건너뛰기'}</span>
           </div>
         </>
       )}
@@ -95,24 +78,27 @@ export function Hud() {
         </>
       )}
 
-      {mode === 'rest' && <div style={hint}>벤치에서 쉬는 중… 체력 회복 · E / ESC 일어나기</div>}
+      {mode === 'rest' && (touchUi ? <div style={touchHint}>벤치에서 쉬는 중… 체력 회복</div> : <div style={hint}>벤치에서 쉬는 중… 체력 회복 · E / ESC 일어나기</div>)}
 
       {mode === 'explore' && (
         <>
-          <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 8 }}>
+          <div style={{ position: 'absolute', top: safeTop(16), right: safeRight(16), display: 'flex', gap: 8 }}>
             <MusicButton />
             <button style={button} onClick={() => setMode('dex')}>
               도감
             </button>
             <button style={button} onClick={() => setMode('menu')}>
-              메뉴 (ESC)
+              {touchUi ? '메뉴' : '메뉴 (ESC)'}
             </button>
           </div>
-          {nearby && <div style={hint}>{promptFor(nearby)}</div>}
+          {/* 터치 화면에선 상호작용 버튼에 글씨가 나오고, 조작 안내는 TouchControls 가 그린다 */}
+          {nearby && !touchUi && <div style={hint}>E  {interactLabel(nearby)}</div>}
           {mouseLook && !locked && <div style={lookHint}>클릭하면 마우스로 시점 회전 · ESC 해제</div>}
-          <div style={{ position: 'absolute', bottom: 16, left: 16, opacity: 0.7, fontSize: 13 }}>
-            WASD 이동 · Shift 달리기 · Space 점프 · 1~5 감정 표현 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
-          </div>
+          {!touchUi && (
+            <div style={{ position: 'absolute', bottom: 16, left: 16, opacity: 0.7, fontSize: 13 }}>
+              WASD 이동 · Shift 달리기 · Space 점프 · 1~5 감정 표현 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -200,7 +186,7 @@ export function NoticeLayer() {
   return (
     <div style={{ ...overlayLayer, zIndex: 1001 }}>
       {/* 크게 보기에서는 위쪽 막대(어항 정보·버튼) 아래에 띄운다 */}
-      <div style={{ position: 'absolute', top: mode === 'aquariumView' ? 68 : 16, left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', padding: '10px 18px', borderRadius: 8, fontSize: 15, maxWidth: '80vw', textAlign: 'center' }}>
+      <div style={{ position: 'absolute', top: safeTop(mode === 'aquariumView' ? 68 : 16), left: '50%', transform: 'translateX(-50%)', background: 'rgba(0,0,0,0.75)', padding: '10px 18px', borderRadius: 8, fontSize: 15, maxWidth: '80vw', textAlign: 'center' }}>
         {notice.text}
       </div>
     </div>

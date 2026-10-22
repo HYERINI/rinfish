@@ -1,6 +1,8 @@
+import type { QualitySetting } from '../data/quality'
 import { DEFAULT_SETTINGS, MOUSE_LOOK } from '../data/settings'
+import { isQualitySetting } from './quality'
 
-/** 저장하는 설정 (음악·마우스) */
+/** 저장하는 설정 (음악·마우스·그래픽 품질) */
 export type Settings = {
   /** 0~1 */
   musicVolume: number
@@ -9,6 +11,8 @@ export type Settings = {
   lookSensitivity: number
   /** 마우스를 위로 올리면 카메라가 아래를 보게 (비행기식) */
   invertY: boolean
+  /** 그래픽 품질 (auto = 기기를 보고) */
+  quality: QualitySetting
 }
 
 function clamp(v: number, min: number, max: number): number {
@@ -31,6 +35,7 @@ export function normalizeSettings(saved: unknown): Settings {
     musicMuted: typeof s.musicMuted === 'boolean' ? s.musicMuted : DEFAULT_SETTINGS.musicMuted,
     lookSensitivity: clampSensitivity(s.lookSensitivity),
     invertY: typeof s.invertY === 'boolean' ? s.invertY : DEFAULT_SETTINGS.invertY,
+    quality: isQualitySetting(s.quality) ? s.quality : DEFAULT_SETTINGS.quality,
   }
 }
 

@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Suspense, useRef, useState, type ReactNode } from 'react'
+import { Suspense, useRef, useState, type PointerEvent, type ReactNode } from 'react'
 import { Vector3, type Group } from 'three'
 import {
   BODY_PART_LABEL, BODY_PARTS, BODY_RANGES, DEFAULT_BODY, DYE_COLORS, GENDER_LABEL, HAIR_COLORS, HAIRS, HEIGHT_RANGE, LOOK_PRESETS, OUTFITS, SKIN_COLORS,
@@ -47,11 +47,13 @@ function FramingCamera({ look }: { look: CharacterLook }) {
   return null
 }
 
-/** 미리보기: 천천히 돌고(멈출 수 있음), 드래그로 돌릴 수 있다 */
-function Preview({ look, spinning }: { look: CharacterLook; spinning: boolean }) {
+/** 미리보기 드래그: 누른 포인터 하나와 지금까지 돌린 각도 */
+type PreviewDrag = { pointer: number | null; x: number; extra: number }
+
+/** 미리보기: 천천히 돌고(멈출 수 있음), 미리보기 칸 어디든 끌어서(마우스·손가락) 돌릴 수 있다 */
+function Preview({ look, spinning, drag }: { look: CharacterLook; spinning: boolean; drag: { current: PreviewDrag } }) {
   const turn = useRef<Group>(null)
   const model = useRef<PlayerModelHandle>(null)
-  const drag = useRef({ active: false, x: 0, extra: 0 })
   /** 자동 회전으로 돈 각도. 멈추면 그 자리에서 선다 */
   const spin = useRef(0)
   useFrame(({ clock }, delta) => {
@@ -60,27 +62,7 @@ function Preview({ look, spinning }: { look: CharacterLook; spinning: boolean })
     model.current?.update(delta, clock.elapsedTime, null, IDLE_ACTION, 0, 0.5, false)
   })
   return (
-    <group
-      ref={turn}
-      onPointerDown={(e) => {
-        // 포인터를 붙잡아 두면 모델 밖에서 손을 떼도 pointerup 이 이 그룹으로 온다
-        ;(e.target as Element).setPointerCapture(e.pointerId)
-        drag.current.active = true
-        drag.current.x = e.clientX
-      }}
-      onPointerUp={() => (drag.current.active = false)}
-      onLostPointerCapture={() => (drag.current.active = false)}
-      onPointerMove={(e) => {
-        if (!drag.current.active) return
-        // 그래도 버튼이 이미 떼어져 있으면(캔버스 밖에서 놓은 경우 등) 드래그를 끝낸다. 손을 뗀 채 지나가기만 해도 돌면 안 된다
-        if (e.buttons === 0) {
-          drag.current.active = false
-          return
-        }
-        drag.current.extra += (e.clientX - drag.current.x) * 0.01
-        drag.current.x = e.clientX
-      }}
-    >
+    <group ref={turn}>
       <PlayerModel ref={model} look={look} />
     </group>
   )
@@ -141,6 +123,10 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
   const saved = useProgressStore((s) => s.look)
   const [draft, setDraft] = useState<CharacterLook>(saved ?? LOOK_PRESETS[0].look)
   const [spinning, setSpinning] = useState(true)
+  const drag = useRef<PreviewDrag>({ pointer: null, x: 0, extra: 0 })
+  const endDrag = (e: PointerEvent<HTMLDivElement>) => {
+    if (drag.current.pointer === e.pointerId) drag.current.pointer = null
+  }
   const set = (patch: Partial<CharacterLook>) => setDraft((d) => ({ ...d, ...patch }))
   const close = () => useSessionStore.getState().setMode('explore')
   const done = () => {
@@ -149,14 +135,34 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
   }
 
   return (
-    <div style={{ ...panelBox, width: 'min(960px, 96vw)', maxHeight: '92vh', display: 'flex', gap: 16, padding: 16 }}>
-      <div style={{ position: 'relative', flex: '0 0 42%', minHeight: 420, background: 'radial-gradient(#3a5068, #16212e)', borderRadius: 10 }}>
+    <div className="cc" style={{ ...panelBox, width: 'min(960px, 96vw)', maxHeight: '92vh', padding: 16 }}>
+      <style>{CC_CSS}</style>
+      {/* 미리보기 칸: 끌면 돈다. 손가락으로 끌어도 페이지가 움직이지 않게 touch-action: none (CSS) */}
+      <div
+        className="cc-preview"
+        onPointerDown={(e) => {
+          // 회전 멈추기 버튼은 그대로 누르게 둔다
+          if (drag.current.pointer !== null || (e.target as Element).closest('button')) return
+          // 포인터를 붙잡아 두면 칸 밖에서 손을 떼도 pointerup 이 여기로 온다
+          e.currentTarget.setPointerCapture(e.pointerId)
+          drag.current.pointer = e.pointerId
+          drag.current.x = e.clientX
+        }}
+        onPointerMove={(e) => {
+          if (drag.current.pointer !== e.pointerId) return
+          drag.current.extra += (e.clientX - drag.current.x) * 0.01
+          drag.current.x = e.clientX
+        }}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        onLostPointerCapture={endDrag}
+      >
         <Canvas camera={{ position: [0, 1, 5.6], fov: PREVIEW_FOV }}>
           <ambientLight intensity={1} />
           <directionalLight position={[2, 4, 3]} intensity={1.8} />
           <FramingCamera look={draft} />
           <Suspense fallback={null}>
-            <Preview look={draft} spinning={spinning} />
+            <Preview look={draft} spinning={spinning} drag={drag} />
           </Suspense>
         </Canvas>
         <button
@@ -170,7 +176,7 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', paddingRight: 12, colorScheme: 'dark' }}>
+      <div className="cc-options">
         <h2 style={{ margin: '0 0 4px', fontSize: 20 }}>{firstTime ? '나만의 낚시꾼 만들기' : '옷장'}</h2>
 
         <Row label="기본 꾸밈">
@@ -225,3 +231,27 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
     </div>
   )
 }
+
+/**
+ * 넓은 화면: 왼쪽 미리보기 + 오른쪽 고르기 목록(스크롤).
+ * 휴대폰 세로: 위 미리보기 + 아래 목록. 휴대폰 가로(낮은 화면): 미리보기 칸 최소 높이를 없애 패널 안에 들어가게
+ */
+const CC_CSS = `
+.cc { display: flex; gap: 16px; }
+.cc-preview { position: relative; flex: 0 0 42%; min-height: 420px; background: radial-gradient(#3a5068, #16212e); border-radius: 10px;
+  touch-action: none; cursor: grab; }
+.cc-options { flex: 1; min-height: 0; overflow-y: auto; padding-right: 12px; color-scheme: dark; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; touch-action: pan-y; }
+.cc-options input[type=range] { min-height: 28px; }
+@media (pointer: coarse) {
+  .cc-options button { min-height: 36px; }
+}
+@media (max-height: 520px) {
+  .cc-preview { min-height: 0; }
+}
+@media (max-width: 640px) {
+  .cc { flex-direction: column; gap: 10px; height: 92vh; }
+  .cc-preview { flex: 0 0 34%; min-height: 0; }
+  .cc-options { padding-right: 4px; }
+}
+`

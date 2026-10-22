@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { CAMERA_ZOOM } from '../data/balance'
 import type { DishId, ZoneId } from '../data/types'
-import { nextZoom } from '../logic/cameraZoom'
+import { nextZoom, pinchZoom } from '../logic/cameraZoom'
 import { isSameInteractable, type Interactable, type Mode } from '../logic/interaction'
 import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
 
@@ -13,7 +13,7 @@ type SessionState = {
   notice: { id: number; text: string } | null
   /** 다음 프레임에 플레이어를 옮길 위치 [x, z] (쓰러진 뒤 진료소로) */
   teleport: [number, number] | null
-  /** 카메라 거리 (휠 줌). 저장하지 않는다 */
+  /** 카메라 거리 (휠·두 손가락 줌). 저장하지 않는다 */
   zoom: number
   /**
    * 플레이어 동작 상태 (감정 표현·점프). Player 가 매 프레임 nextAction 으로 갱신하고 캐릭터 모델은 이 값과 속도로만 그린다.
@@ -38,6 +38,8 @@ type SessionState = {
   setPlayerAction: (action: PlayerAction) => void
   setMode: (mode: Mode) => void
   zoomBy: (deltaY: number) => void
+  /** 두 손가락 벌리기·오므리기 (손가락 사이 거리 px: 전 → 지금) */
+  pinchZoom: (prevSpan: number, span: number) => void
   setNearby: (target: Interactable) => void
   /** 영역을 벗어날 때 호출. 다른 영역에 이미 들어가 있으면 지우지 않는다 */
   clearNearby: (target: Interactable) => void
@@ -64,6 +66,7 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setPlayerAction: (playerAction) => set({ playerAction }),
   setMode: (mode) => set({ mode }),
   zoomBy: (deltaY) => set((s) => ({ zoom: nextZoom(s.zoom, deltaY) })),
+  pinchZoom: (prevSpan, span) => set((s) => ({ zoom: pinchZoom(s.zoom, prevSpan, span) })),
   setNearby: (target) => set({ nearby: target }),
   clearNearby: (target) => {
     if (isSameInteractable(get().nearby, target)) set({ nearby: null })

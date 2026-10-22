@@ -56,3 +56,22 @@ export const hint: CSSProperties = {
   fontSize: 16,
   whiteSpace: 'nowrap',
 }
+
+/** 노치·둥근 모서리(안전 영역)를 피해서 가장자리에서 px 만큼. 안전 영역이 없는 화면에선 px 그대로 */
+export const safeTop = (px: number) => `calc(${px}px + env(safe-area-inset-top, 0px))`
+export const safeBottom = (px: number) => `calc(${px}px + env(safe-area-inset-bottom, 0px))`
+export const safeLeft = (px: number) => `calc(${px}px + env(safe-area-inset-left, 0px))`
+export const safeRight = (px: number) => `calc(${px}px + env(safe-area-inset-right, 0px))`
+
+/** 터치 화면의 안내 문구: 아래쪽은 조이스틱·버튼 자리라 위쪽(코인·버튼 줄 아래)에 띄운다 */
+export const touchHint: CSSProperties = {
+  ...hint,
+  bottom: 'auto',
+  top: safeTop(112),
+  whiteSpace: 'normal',
+  textAlign: 'center',
+  width: 'max-content',
+  maxWidth: 'min(420px, 88vw)',
+  boxSizing: 'border-box',
+  fontSize: 15,
+}

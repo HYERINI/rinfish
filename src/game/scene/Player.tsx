@@ -8,9 +8,9 @@ import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
 import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
-import { isKeyDown } from '../input/keys'
+import { readMoveInput } from '../input/move'
 import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
-import { isPointerDown } from '../input/pointer'
+import { takeDragX } from '../input/pointer'
 import { isPointerLocked } from '../input/pointerLock'
 import { MOUSE_LOOK } from '../data/settings'
 import { applyMouseLook, pitchedOffset } from '../logic/mouseLook'
@@ -18,6 +18,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
 import { cameraRig, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
+import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
@@ -132,18 +133,14 @@ export function Player() {
   const eating = useSessionStore((s) => s.playerAction.eat)
   const food = useRef<Group>(null)
 
-  // 탐험 중 카메라 회전: 마우스가 잠겨 있으면 움직이는 만큼(감도), 아니면(터치 등) 드래그로
+  // 탐험 중 카메라 회전: 마우스가 잠겨 있으면 움직이는 만큼(감도). 아니면(터치 등) 캔버스를 한 손가락으로 끈 만큼 (매 프레임 아래에서)
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      if (useSessionStore.getState().mode !== 'explore') return
-      if (isPointerLocked()) {
-        const { lookSensitivity, invertY } = useSettingsStore.getState()
-        const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity, invertY)
-        yaw.current = next.yaw
-        pitch.current = next.pitch
-      } else if (isPointerDown()) {
-        yaw.current -= e.movementX * MOUSE_LOOK.dragSensitivity
-      }
+      if (useSessionStore.getState().mode !== 'explore' || !isPointerLocked()) return
+      const { lookSensitivity, invertY } = useSettingsStore.getState()
+      const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity, invertY)
+      yaw.current = next.yaw
+      pitch.current = next.pitch
     }
     window.addEventListener('pointermove', onMove)
     return () => window.removeEventListener('pointermove', onMove)
@@ -172,13 +169,17 @@ export function Player() {
       pitch.current *= Math.exp(-delta * MOUSE_LOOK.pitchResetSpeed)
     }
 
-    // 1) WASD → 카메라 기준 이동 방향
-    const forward = mode === 'explore' ? Number(isKeyDown('KeyW')) - Number(isKeyDown('KeyS')) : 0
-    const right = mode === 'explore' ? Number(isKeyDown('KeyD')) - Number(isKeyDown('KeyA')) : 0
+    // 0-1) 캔버스 드래그(잠금 없는 마우스·한 손가락)로 시점 돌리기. 탐험이 아닐 때 끈 건 버린다
+    const dragX = takeDragX()
+    if (mode === 'explore' && !isPointerLocked()) yaw.current -= dragX * MOUSE_LOOK.dragSensitivity
+
+    // 1) WASD·조이스틱 → 카메라 기준 이동 방향 (조이스틱은 민 만큼 천천히 걷는다)
+    const move = mode === 'explore' ? readMoveInput() : NO_MOVE
+    const { forward, right } = move
     const sin = Math.sin(yaw.current)
     const cos = Math.cos(yaw.current)
     moveDir.set(-sin * forward + cos * right, 0, -cos * forward - sin * right)
-    if (moveDir.lengthSq() > 0) moveDir.normalize()
+    if (moveDir.lengthSq() > 0) moveDir.normalize().multiplyScalar(move.scale)
 
     const velocity = rb.linvel()
     // 애니메이션용: 지난 스텝에 실제로 움직인 수평 속도 (벽에 막히면 0에 가깝다)
@@ -186,7 +187,7 @@ export function Player() {
 
     // 1-1) 동작 상태(감정 표현·점프) 갱신. 땅 판정: 발바닥 바로 아래에 땅이 있고 뛰어오르는 중이 아니다
     const now = clock.elapsedTime
-    const sprint = isSprintHeld()
+    const sprint = isSprintHeld() || move.sprint
     const t = rb.translation()
     const ball = (groundBall.current ??= new rapier.Ball(GROUND_BALL))
     const hit = world.castShape(t, { x: 0, y: 0, z: 0, w: 1 }, { x: 0, y: -1, z: 0 }, ball, 0, -FOOT_Y - GROUND_BALL + GROUND_PROBE, true, rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)

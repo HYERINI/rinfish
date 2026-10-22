@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import type { QualitySetting } from '../data/quality'
 import { DEFAULT_SETTINGS } from '../data/settings'
 import { clampSensitivity, clampVolume, normalizeSettings, type Settings } from '../logic/settings'
 
@@ -11,6 +12,7 @@ type SettingsState = Settings & {
   toggleMusicMuted: () => void
   setLookSensitivity: (sensitivity: number) => void
   setInvertY: (invertY: boolean) => void
+  setQuality: (quality: QualitySetting) => void
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -22,12 +24,13 @@ export const useSettingsStore = create<SettingsState>()(
       toggleMusicMuted: () => set((s) => ({ musicMuted: !s.musicMuted })),
       setLookSensitivity: (sensitivity) => set({ lookSensitivity: clampSensitivity(sensitivity) }),
       setInvertY: (invertY) => set({ invertY }),
+      setQuality: (quality) => set({ quality }),
     }),
     {
       name: SETTINGS_KEY,
       version: 1,
       storage: createJSONStorage(() => localStorage),
-      partialize: (s): Settings => ({ musicVolume: s.musicVolume, musicMuted: s.musicMuted, lookSensitivity: s.lookSensitivity, invertY: s.invertY }),
+      partialize: (s): Settings => ({ musicVolume: s.musicVolume, musicMuted: s.musicMuted, lookSensitivity: s.lookSensitivity, invertY: s.invertY, quality: s.quality }),
       // 저장본이 깨졌거나 예전 형식이어도 검증해서 쓴다
       merge: (persisted, current) => ({ ...current, ...normalizeSettings(persisted) }),
     },

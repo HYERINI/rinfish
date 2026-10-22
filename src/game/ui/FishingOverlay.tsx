@@ -10,34 +10,39 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { FishImage } from './FishImage'
 import { ItemIcon } from './ItemIcon'
-import { button, hint, overlayLayer, panelBox } from './styles'
+import { useTouchUi } from '../input/touchDevice'
+import { button, hint, overlayLayer, panelBox, safeBottom, safeLeft, touchHint } from './styles'
 
 export function FishingOverlay() {
   const mode = useSessionStore((s) => s.mode)
   const state = useFishingStore((s) => s.state)
   const caught = useFishingStore((s) => s.caught)
+  const touchUi = useTouchUi()
   if (mode !== 'fishing' || !state) return null
 
   return (
     <div style={overlayLayer}>
-      {state.stage === 'aiming' && <AimingView holdTime={state.holdTime} />}
-      {state.stage === 'waiting' && <WaitingView biting={state.bite.phase === 'bite'} />}
-      {state.stage === 'fighting' && <TensionGauge fight={state.fight} />}
+      {state.stage === 'aiming' && <AimingView holdTime={state.holdTime} touchUi={touchUi} />}
+      {state.stage === 'waiting' && <WaitingView biting={state.bite.phase === 'bite'} touchUi={touchUi} />}
+      {state.stage === 'fighting' && <TensionGauge fight={state.fight} touchUi={touchUi} />}
       {state.stage === 'done' && <ResultCard state={state} caught={caught} />}
-      {state.stage !== 'done' && <BaitBar />}
+      {state.stage !== 'done' && <BaitBar touchUi={touchUi} />}
     </div>
   )
 }
 
-/** 미끼 고르기 (오른쪽 아래). 숫자 키 1~3·0 또는 눌러서 고른다. 다음에 던질 때 쓴다 */
-function BaitBar() {
+/**
+ * 미끼 고르기 (오른쪽 아래). 숫자 키 1~3·0 또는 눌러서 고른다. 다음에 던질 때 쓴다.
+ * 터치 화면에선 오른쪽 아래가 던지기 버튼 자리라 왼쪽 아래(낚시 중엔 조이스틱이 없다)에 크게 놓는다
+ */
+function BaitBar({ touchUi }: { touchUi: boolean }) {
   const counts = useProgressStore((s) => s.bait)
   const selected = useProgressStore((s) => s.selectedBait)
   const selectBait = useProgressStore((s) => s.selectBait)
   const options = [{ id: null, name: '미끼 없이', key: '0', count: null }, ...BAITS.map((b) => ({ id: b.id, name: b.name, key: b.key.replace('Digit', ''), count: counts[b.id] }))]
   return (
-    <div style={baitBar}>
-      <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>미끼 (숫자 키)</div>
+    <div style={touchUi ? touchBaitBar : baitBar}>
+      <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>{touchUi ? '미끼' : '미끼 (숫자 키)'}</div>
       <div style={{ display: 'flex', gap: 6 }}>
         {options.map((o) => {
           const active = selected === o.id
@@ -45,13 +50,13 @@ function BaitBar() {
           return (
             <button
               key={o.key}
-              style={{ ...baitChip, borderColor: active ? '#ffd166' : 'transparent', background: active ? 'rgba(255,209,102,0.22)' : 'rgba(0,0,0,0.45)', opacity: empty && !active ? 0.5 : 1 }}
+              style={{ ...baitChip, ...(touchUi ? touchBaitChip : null), borderColor: active ? '#ffd166' : 'transparent', background: active ? 'rgba(255,209,102,0.22)' : 'rgba(0,0,0,0.45)', opacity: empty && !active ? 0.5 : 1 }}
               onClick={(e) => {
                 selectBait(o.id)
                 e.currentTarget.blur()
               }}
             >
-              <span style={keyBadge}>{o.key}</span>
+              {!touchUi && <span style={keyBadge}>{o.key}</span>}
               <ItemIcon id={o.id ?? 'none'} size={34} />
               <span style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{o.name}</span>
               <span style={{ fontSize: 11, color: empty ? '#ef9a9a' : '#ffe082' }}>{o.count === null ? '기본' : `×${o.count}`}</span>
@@ -73,6 +78,17 @@ const baitBar: CSSProperties = {
   borderRadius: 10,
   padding: '6px 8px 8px',
 }
+
+/** 터치: 왼쪽 아래, 엄지로 누르기 좋게 큰 칸 */
+const touchBaitBar: CSSProperties = {
+  ...baitBar,
+  right: 'auto',
+  left: safeLeft(12),
+  bottom: safeBottom(16),
+  touchAction: 'manipulation',
+}
+
+const touchBaitChip: CSSProperties = { width: 'clamp(48px, 12.5vw, 68px)', minHeight: 76, padding: '6px 2px', touchAction: 'manipulation' }
 
 const baitChip: CSSProperties = {
   position: 'relative',
@@ -97,17 +113,17 @@ const keyBadge: CSSProperties = {
   opacity: 0.8,
 }
 
-function AimingView({ holdTime }: { holdTime: number }) {
+function AimingView({ holdTime, touchUi }: { holdTime: number; touchUi: boolean }) {
   const power = castPowerFromHold(holdTime)
   return (
-    <div style={hint}>
-      <div>마우스를 누르고 있다가 떼서 던지기 · ESC 그만하기</div>
+    <div style={touchUi ? { ...touchHint, width: 'min(360px, 88vw)' } : hint}>
+      <div>{touchUi ? '던지기 버튼을 꾹 누르고 있다가 떼서 던지기' : '마우스를 누르고 있다가 떼서 던지기 · ESC 그만하기'}</div>
       <Bar ratio={power} color="#ffd166" />
     </div>
   )
 }
 
-function WaitingView({ biting }: { biting: boolean }) {
+function WaitingView({ biting, touchUi }: { biting: boolean; touchUi: boolean }) {
   return (
     <>
       {biting && (
@@ -115,23 +131,23 @@ function WaitingView({ biting }: { biting: boolean }) {
           !
         </div>
       )}
-      <div style={hint}>찌를 지켜보세요… 크게 잠기면 클릭!</div>
+      <div style={touchUi ? touchHint : hint}>{touchUi ? '찌를 지켜보세요… 크게 잠기면 챔질!' : '찌를 지켜보세요… 크게 잠기면 클릭!'}</div>
     </>
   )
 }
 
-function TensionGauge({ fight }: { fight: FightState }) {
+function TensionGauge({ fight, touchUi }: { fight: FightState; touchUi: boolean }) {
   const ratio = fight.tension / fight.gear.maxTension
   const color = ratio > 0.8 ? '#ef5350' : ratio < 0.15 ? '#90caf9' : '#66bb6a'
   return (
-    <div style={{ ...hint, width: 360 }}>
+    <div style={touchUi ? { ...touchHint, width: 'min(360px, 88vw)' } : { ...hint, width: 360 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span>텐션</span>
         <span>남은 거리 {Math.ceil(fight.distance)}m</span>
       </div>
       <Bar ratio={ratio} color={color} />
       <div style={{ fontSize: 13, opacity: 0.8, marginTop: 4 }}>
-        누르고 있으면 감기 · 떼면 풀기 {fight.pull.active && '· 물고기가 당긴다!'}
+        {touchUi ? '감기 버튼을 누르고 있으면 감기 · 떼면 풀기' : '누르고 있으면 감기 · 떼면 풀기'} {fight.pull.active && '· 물고기가 당긴다!'}
       </div>
     </div>
   )

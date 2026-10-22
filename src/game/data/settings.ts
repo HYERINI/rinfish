@@ -1,3 +1,5 @@
+import type { QualitySetting } from './quality'
+
 /** 배경 음악. 파일은 public/audio (출처는 public/audio/CREDITS.md) */
 export const MUSIC = {
   tracks: {
@@ -39,4 +41,6 @@ export const DEFAULT_SETTINGS = {
   musicMuted: false,
   lookSensitivity: MOUSE_LOOK.defaultSensitivity,
   invertY: false,
+  /** 그래픽 품질. 자동이면 기기를 보고 고른다 (컴퓨터는 높음 = 예전 그대로) */
+  quality: 'auto' as QualitySetting,
 }

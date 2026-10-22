@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
 
 /**
@@ -47,6 +48,7 @@ type Props = {
 
 export function Kiosk({ title, subtitle, accent, coins, tabs, tab, onTab, cards, selectedId, onSelect, empty, detail, toast }: Props) {
   const setMode = useSessionStore((s) => s.setMode)
+  const touchUi = useTouchUi()
   return (
     <div className="kiosk" style={{ ['--accent' as string]: accent }}>
       <KioskStyle />
@@ -59,7 +61,7 @@ export function Kiosk({ title, subtitle, accent, coins, tabs, tab, onTab, cards,
           <CoinDot /> {coins.toLocaleString()}
         </span>
         <button className="kiosk-close" onClick={() => setMode('explore')}>
-          닫기 <small>ESC</small>
+          닫기 {!touchUi && <small>ESC</small>}
         </button>
       </header>
       {tabs && tabs.length > 0 && (

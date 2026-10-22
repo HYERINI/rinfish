@@ -5,6 +5,7 @@ import type { ZoneId } from '../data/types'
 import { getZone } from '../data/zones'
 import { unlockStatus } from '../logic/zoneUnlock'
 import { useProgressStore } from '../stores/progressStore'
+import { useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
 import { BigButton, KioskStyle } from './Kiosk'
 
@@ -21,6 +22,7 @@ export function UnlockPanel() {
   const dexCount = useProgressStore((s) => Object.keys(s.dex).length)
   const lineLevel = useProgressStore((s) => s.gear.line)
   const unlocked = useProgressStore((s) => s.unlockedZones)
+  const touchUi = useTouchUi()
   if (nearby?.kind !== 'zoneGate' || nearby.zoneId === 'beach') return null
   const zoneId = nearby.zoneId
   const zone = getZone(zoneId)
@@ -72,7 +74,7 @@ export function UnlockPanel() {
           {zone.name} · {text.title}
         </h2>
         <button style={close} onClick={() => useSessionStore.getState().setMode('explore')}>
-          닫기 <small style={{ opacity: 0.6 }}>ESC</small>
+          닫기 {!touchUi && <small style={{ opacity: 0.6 }}>ESC</small>}
         </button>
       </div>
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
