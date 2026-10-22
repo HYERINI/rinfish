@@ -221,9 +221,9 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
           bendBone(bones.spine, object, -(a.lean + heave))
         }
 
-        // 4) 끌려갈 땐 물 쪽으로 질질 미끄러지며 덜덜 떤다
-        const drag = a.weights.dragged
-        object.position.set(0, 0, drag * (DRAG_SLIDE + Math.sin(now * 30) * 0.03))
+        // 4) 끌려갈 땐 물 쪽으로 질질 미끄러진다. 허우적대는 건 클립(Push_Loop)이 보여 준다.
+        //    몸 전체 위치를 빠르게 흔들면(초당 5번) 프레임 간격이 조금만 달라도 앞뒤로 툭툭 튀어 렉처럼 보여서 흔들지 않는다
+        object.position.set(0, 0, a.weights.dragged * DRAG_SLIDE)
         // 5) 잡았을 땐 춤추면서 깡충깡충. 다리 길이 보정은 지금 자세로 잰다 (서기·웅크리기·눕기마다 다르다)
         object.position.y = measureLift(rig) + a.weights.celebrate * Math.abs(Math.sin(now * 7)) * HOP_HEIGHT + a.weights.fallBack * FALL_LIFT
 
