@@ -18,7 +18,7 @@ export type MotionInput = {
   /** 이번 프레임에 새로 눌렀다 (꾹 누르고 있는 반복 입력은 아님) */
   jumpPressed: boolean
   emotePressed: EmoteId | null
-  /** 이번 프레임에 음식을 먹기 시작했다 (어시장에서 먹기) */
+  /** 이번 프레임에 음식을 먹기 시작했다 (미스터찜에서 먹기) */
   eatPressed?: FoodId | null
   grounded: boolean
   mode: Mode

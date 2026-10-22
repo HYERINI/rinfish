@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { STAMINA } from '../data/balance'
 import { BUFF_LABEL } from '../data/dishes'
+import { MARKET } from '../data/market'
 import { SNACKS } from '../data/snacks'
 import { pressEat } from '../input/usePlayerActionKeys'
 import type { Interactable } from '../logic/interaction'
@@ -13,7 +14,7 @@ const PROMPT: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
   fishingSpot: 'E  낚시하기',
   sellBox: 'E  물고기 팔기',
   gearShop: 'E  장비 상점',
-  market: 'E  어시장',
+  market: `E  ${MARKET.name}`,
   bench: 'E  앉아서 쉬기',
   aquarium: 'E  어항',
   wardrobe: 'E  옷장 (꾸미기)',
@@ -59,7 +60,7 @@ export function Hud() {
           <div style={{ width: `${ratio * 100}%`, height: '100%', background: ratio < 0.25 ? '#ef5350' : '#66bb6a' }} />
         </div>
         {survival.stamina < STAMINA.lowHint && (
-          <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>배고파요! 어시장에서 음식을 사 먹거나 벤치에서 쉬세요</div>
+          <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>배고파요! {MARKET.name}에서 음식을 사 먹거나 벤치에서 쉬세요</div>
         )}
         {mode === 'explore' && <SnackBag />}
         {survival.buffs.map((b) => (

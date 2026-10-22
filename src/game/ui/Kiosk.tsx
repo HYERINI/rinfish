@@ -26,6 +26,8 @@ export type KioskCard = {
 
 type Props = {
   title: string
+  /** 제목 아래 작은 줄 (주인 인사 등) */
+  subtitle?: string
   /** 머리줄 색 */
   accent: string
   coins: number
@@ -43,13 +45,16 @@ type Props = {
   toast?: string | null
 }
 
-export function Kiosk({ title, accent, coins, tabs, tab, onTab, cards, selectedId, onSelect, empty, detail, toast }: Props) {
+export function Kiosk({ title, subtitle, accent, coins, tabs, tab, onTab, cards, selectedId, onSelect, empty, detail, toast }: Props) {
   const setMode = useSessionStore((s) => s.setMode)
   return (
     <div className="kiosk" style={{ ['--accent' as string]: accent }}>
       <KioskStyle />
       <header className="kiosk-head">
-        <h2>{title}</h2>
+        <div className="kiosk-title">
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
         <span className="kiosk-coins">
           <CoinDot /> {coins.toLocaleString()}
         </span>
@@ -188,7 +193,9 @@ const KIOSK_CSS = `
   font-family: inherit; }
 .kiosk button { font-family: inherit; }
 .kiosk-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: var(--accent); color: #fff; }
-.kiosk-head h2 { margin: 0; font-size: 20px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kiosk-title { flex: 1; min-width: 0; }
+.kiosk-head h2 { margin: 0; font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kiosk-title p { margin: 2px 0 0; font-size: 12px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kiosk-coins { display: inline-flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.25); padding: 5px 12px; border-radius: 999px; font-weight: 800; font-size: 16px; }
 .kiosk-close { border: none; border-radius: 8px; padding: 7px 12px; background: rgba(255,255,255,0.9); color: #222; font-weight: 700; cursor: pointer; }
 .kiosk-close small { opacity: 0.6; margin-left: 2px; }

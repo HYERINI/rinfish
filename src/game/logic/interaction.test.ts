@@ -61,7 +61,7 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('KeyW', 'explore', spot)).toEqual({ type: 'none' })
   })
 
-  it('어시장·어항은 패널을 열고, 벤치는 앉는다', () => {
+  it('미스터찜(market)·어항은 패널을 열고, 벤치는 앉는다', () => {
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'market' })).toEqual({ type: 'openMode', mode: 'market' })
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'aquarium' })).toEqual({ type: 'openMode', mode: 'aquarium' })
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'bench' })).toEqual({ type: 'openMode', mode: 'rest' })

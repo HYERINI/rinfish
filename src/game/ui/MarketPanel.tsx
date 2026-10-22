@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { BUFF_LABEL, DISHES, getDish } from '../data/dishes'
 import { RARITY_COLOR, RARITY_LABEL, findSpecies } from '../data/fish'
+import { MARKET } from '../data/market'
 import { SNACKS, SNACK_MAX_QTY, getSnack, type SnackId } from '../data/snacks'
 import type { DishId, FoodId } from '../data/types'
 import { pressEat } from '../input/usePlayerActionKeys'
@@ -24,7 +25,7 @@ function eatNow(food: FoodId, notice: string) {
 }
 
 /**
- * 어시장 키오스크
+ * 찜 가게 미스터찜 키오스크 (사장님 배정빈)
  * - 간식 탭: 코인만으로 김밥·컵라면·에너지 음료를 사서 바로 먹거나 가방에 담는다 (가방 간식은 HUD 에서 꺼내 먹는다)
  * - 요리 탭: 요리 → 재료 물고기(카드) → 먹기. 희귀한 물고기일수록 효과가 크다
  */
@@ -34,7 +35,8 @@ export function MarketPanel() {
   const [tab, setTab] = useState<Tab>('snack')
   // 탭마다 고른 상태가 따로라서 탭 내용을 다른 컴포넌트로 그린다 (요리 탭끼리는 key 로 새로 만든다)
   const frame: Frame = {
-    title: `🍲 어시장 · 체력 ${Math.ceil(stamina)}`,
+    title: `🍲 ${MARKET.name} · ${MARKET.owner}`,
+    subtitle: `“${MARKET.greeting}” · 내 체력 ${Math.ceil(stamina)}`,
     accent: '#e53935',
     coins,
     tabs: [{ id: 'snack', label: '간식', icon: <ItemIcon id="gimbap" size={22} /> }, ...DISHES.map((d) => ({ id: d.id, label: `${d.name} ${d.cookFee}`, icon: <ItemIcon id={d.id} size={22} /> }))],
@@ -45,7 +47,7 @@ export function MarketPanel() {
 }
 
 /** 탭과 상관없는 키오스크 머리 부분 */
-type Frame = Pick<Parameters<typeof Kiosk>[0], 'title' | 'accent' | 'coins' | 'tabs' | 'tab' | 'onTab'>
+type Frame = Pick<Parameters<typeof Kiosk>[0], 'title' | 'subtitle' | 'accent' | 'coins' | 'tabs' | 'tab' | 'onTab'>
 
 /** 간식 탭 */
 function SnackTab({ frame }: { frame: Frame }) {

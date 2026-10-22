@@ -18,7 +18,7 @@ export function takeActionPresses(): { jumpPressed: boolean; emotePressed: Emote
   return presses
 }
 
-/** 음식을 먹기 시작한다 (어시장에서 먹기·HUD 간식을 누른 뒤). 다음 프레임에 Player 가 가져간다 */
+/** 음식을 먹기 시작한다 (미스터찜에서 먹기·HUD 간식을 누른 뒤). 다음 프레임에 Player 가 가져간다 */
 export function pressEat(dish: FoodId) {
   eatPressed = dish
 }

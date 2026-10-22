@@ -1,16 +1,18 @@
 import { Html } from '@react-three/drei'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
+import { MARKET } from '../../data/market'
 import { FACILITY } from '../../data/zones'
 import { ASSET } from '../assets'
 import { Prop } from '../Prop'
 import { Visitor } from '../Visitor'
 import { InteractionZone } from './InteractionZone'
+import { ShopSign } from './ShopSign'
 
 const [X, Z] = FACILITY.market
 /** 줄무늬 천막 색 */
 const AWNING = ['#e53935', '#fafafa']
 
-/** 노점 어시장: 조리대, 화구, 냄비, 도마 위 생선, 천막, 요리사 */
+/** 찜 가게 미스터찜: 조리대, 화구, 냄비, 도마 위 생선, 천막, 간판, 사장님 배정빈 */
 export function Market() {
   return (
     <group position={[X, 0, Z]} rotation-y={-Math.PI / 2}>
@@ -40,12 +42,28 @@ export function Market() {
           <meshStandardMaterial color={AWNING[i % 2]} />
         </mesh>
       ))}
-      <Html center position={[0, 3.1, -0.4]} zIndexRange={[100, 0]} style={sign}>
-        🐟 어시장
+      {/* 간판: public/signs/market.png 가 있으면 그 그림, 없으면 글씨 간판 */}
+      <ShopSign image={MARKET.signImage} text={MARKET.name} size={MARKET.signSize} position={[0, 3.05, 0.2]} rotationX={-0.12} />
+      <Html center position={[0, 3.85, -0.4]} zIndexRange={[100, 0]} style={sign}>
+        🍲 {MARKET.name}
+      </Html>
+      <Html center position={[0, 1.95, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
+        {MARKET.owner}
       </Html>
       <InteractionZone position={[0, 1, 1.2]} halfSize={[2.2, 1.5, 1.2]} target={{ kind: 'market' }} />
     </group>
   )
+}
+
+const nameTag = {
+  pointerEvents: 'none' as const,
+  whiteSpace: 'nowrap' as const,
+  background: 'rgba(255,255,255,0.9)',
+  color: '#b71c1c',
+  padding: '2px 8px',
+  borderRadius: 10,
+  fontSize: 12,
+  fontWeight: 800,
 }
 
 const sign = {
