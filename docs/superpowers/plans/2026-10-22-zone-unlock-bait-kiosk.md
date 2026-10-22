@@ -108,7 +108,7 @@ export function isZoneOpen(zone: ZoneId, unlocked: readonly ZoneId[]): boolean /
 
 - [ ] **Step 1: 실패하는 테스트** — 해변은 늘 열림, 코인 부족/충분, 동굴 진행도 문자열, 이미 열림, 저장본 검증(모르는 id 버림), 잠긴 구역 포인트 숨김.
 - [ ] **Step 2: 구현 → 테스트 통과**
-- [ ] **Step 3: 커밋** `feat: 잠긴 구역 해금`
+- [ ] **Step 3: 커밋** Task 5 와 코드가 얽혀 있어 함께 `feat: 잠긴 구역 해금과 수리기사님 연출`
 
 ---
 
@@ -140,7 +140,26 @@ export function isZoneOpen(zone: ZoneId, unlocked: readonly ZoneId[]): boolean /
 
 ---
 
-### Task 7: 마무리
+### Task 7: 체력 밸런스와 간식 (추가 요청)
+
+- `STAMINA`: 던지기 2, 줄다리기 초당 0.6, 벤치 초당 6, 탐험 중 저절로 초당 0.3(약화는 풀지 않음)
+- `data/snacks.ts`: 김밥 10코인 +25, 컵라면 20코인 +45, 에너지 음료 35코인 +70. 사서 바로 먹기(먹는 동작) 또는 가방에 담기 → HUD 체력 막대 아래 버튼으로 꺼내 먹기
+- HUD: 체력 옆 "음식·벤치로 회복", 체력 30 미만이면 안내
+- [ ] 커밋 `feat: 체력 밸런스 조정과 간식 추가`
+
+### Task 8: 어시장 → 미스터찜 (추가 요청)
+
+- 이름 '미스터찜', 주인 '사장님 배정빈' (`data/market.ts`). 시설 id `market` 그대로
+- 간판(ShopSign): `public/signs/market.png` 가 있으면 그 그림, 없으면 CanvasTexture 글씨 간판
+- [ ] 커밋 `feat: 어시장을 미스터찜으로`
+
+### Task 9: 찜 메뉴와 사장님 요리 연출 (추가 요청)
+
+- 찜 메뉴(물고기찜·매콤 해물찜(2마리)·사장님 특제 대왕찜(희귀 이상)) + 비밀 메뉴 XXL배정빈찜(재료가 있을 때만)
+- 주문 → `logic/cookTimeline.ts`(공용 `logic/timeline.ts` 의 phaseAt) 대로 사장님이 썰고·넣고·끓이고·내온 뒤 먹기. 클릭·E·Space 로 건너뛰기
+- [ ] 커밋 `feat: 미스터찜 찜 메뉴와 사장님 요리 연출`
+
+### Task 10: 마무리
 
 - [ ] `npx vitest run && npx tsc -b && npm run lint && npm run build` (기존 경고 6개 외에 새 경고 없음)
 - [ ] 캡처 묶음(contact sheet) 만들기
