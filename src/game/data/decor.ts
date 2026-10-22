@@ -1,4 +1,4 @@
-import { FACILITY, FENCE_Z, FISHING_SPOTS, ISLAND_RADIUS, ZONES } from './zones'
+import { CAVE_WALL, FACILITY, FENCE_Z, FISHING_SPOTS, INLAND_WATERS, ISLAND_RADIUS, ZONES } from './zones'
 
 /** 섬 바닥 꾸미기(풀·꽃·바위·나무·조개) 숫자들. 꾸미기는 걷기·낚시를 막지 않게 길·시설 앞·낚시 자리·문 근처를 비운다 */
 
@@ -17,14 +17,11 @@ export const GROUND_CELL = 0.3
 /** 바닥 메시 높이. 섬 윗면(0)·북쪽 풀밭(0.01) 위, 연못 물(0.02) 바로 아래 */
 export const GROUND_Y = 0.015
 
-/** 섬 위 물웅덩이 (Island.tsx 의 연못·동굴 호수와 같은 자리). 바닥은 여기서 구멍이 난다 */
-export const WATER_POOLS: { center: Vec2; radius: number }[] = [
-  { center: [-15, -12], radius: 5 },
-  { center: [0, -24], radius: 4 },
-]
+/** 섬 위 물웅덩이 (zones.ts 의 연못·동굴 호수). 바닥은 여기서 구멍이 난다 */
+export const WATER_POOLS: { center: Vec2; radius: number }[] = INLAND_WATERS.map((w) => ({ center: w.center, radius: w.radius }))
 
-/** 동굴 바위 덩어리 (Island.tsx) 바닥 자리 */
-export const CAVE_ROCK: Rect = { x0: -6.2, x1: 6.2, z0: -28.2, z1: -23.8 }
+/** 동굴 바위 덩어리 (zones.ts CAVE_WALL) 바닥 자리. 가장자리를 0.2m 넉넉히 */
+export const CAVE_ROCK: Rect = { x0: CAVE_WALL.x0 - 0.2, x1: CAVE_WALL.x1 + 0.2, z0: CAVE_WALL.z0 - 0.2, z1: CAVE_WALL.z1 + 0.2 }
 
 /** 모래사장: 남쪽(해변)은 넓게, 나머지는 가장자리만 */
 export const SAND = {

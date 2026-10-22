@@ -21,7 +21,7 @@ export function useInteractionKeys() {
       const action = resolveKeyAction(e.code, session.mode, session.nearby, session.mode === 'wardrobe' && !useProgressStore.getState().look)
       switch (action.type) {
         case 'startFishing':
-          useFishingStore.getState().begin(action.spotId)
+          useFishingStore.getState().begin(action.spot)
           session.setMode('fishing')
           break
         case 'openMode':

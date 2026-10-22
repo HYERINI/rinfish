@@ -168,7 +168,7 @@ const resultBox: CSSProperties = {
 
 function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: 'done' }>; caught: FishInstance | null }) {
   const dex = useProgressStore((s) => s.dex)
-  const spotId = useFishingStore((s) => s.spotId)
+  const spot = useFishingStore((s) => s.spot)
   const [visible, setVisible] = useState(false)
   useEffect(() => {
     const id = setTimeout(() => setVisible(true), state.result === 'caught' ? RESULT_DELAY_CAUGHT_MS : RESULT_DELAY_MS)
@@ -176,7 +176,7 @@ function ResultCard({ state, caught }: { state: Extract<FishingState, { stage: '
   }, [state.result])
 
   const retry = () => {
-    if (spotId) useFishingStore.getState().begin(spotId)
+    if (spot) useFishingStore.getState().begin(spot)
   }
   const quit = () => {
     useFishingStore.getState().end()

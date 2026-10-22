@@ -4,9 +4,10 @@ import type { Mesh, MeshBasicMaterial } from 'three'
 import type { FishingSpot } from '../../data/zones'
 import { openFishingSpots } from '../../logic/zoneUnlock'
 import { useProgressStore } from '../../stores/progressStore'
-import { InteractionZone } from './InteractionZone'
 
-/** 열린 구역의 낚시 포인트만 보이고 E 로 시작할 수 있다 */
+/**
+ * 열린 구역의 낚시 명당 표시. 낚시는 물가 어디서나 할 수 있고(FishingEdgeWatcher) 여기는 물결 고리로 자리만 알려 준다
+ */
 export function FishingSpots() {
   const unlocked = useProgressStore((s) => s.unlockedZones)
   return (
@@ -38,7 +39,6 @@ function FishingSpotMarker({ spot }: { spot: FishingSpot }) {
         <ringGeometry args={[0.5, 0.65, 32]} />
         <meshBasicMaterial ref={material} color="white" transparent />
       </mesh>
-      <InteractionZone position={[x, 1, z]} halfSize={[2.5, 1.5, 2.5]} target={{ kind: 'fishingSpot', spotId: spot.id }} />
     </>
   )
 }

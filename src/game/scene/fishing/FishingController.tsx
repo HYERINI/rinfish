@@ -1,5 +1,4 @@
 import { useFrame } from '@react-three/fiber'
-import { getSpot } from '../../data/zones'
 import { readPointer } from '../../input/pointer'
 import { usableBait } from '../../logic/bait'
 import { gearStats } from '../../logic/economy'
@@ -18,8 +17,8 @@ export function FishingController() {
     if (useSessionStore.getState().mode !== 'fishing') return
 
     const fishing = useFishingStore.getState()
-    if (!fishing.state || !fishing.spotId) return
-    const spot = getSpot(fishing.spotId)
+    const spot = fishing.spot
+    if (!fishing.state || !spot) return
     const progress = useProgressStore.getState()
     // 고른 미끼가 떨어졌으면 미끼 없이 던진다
     const bait = usableBait(progress.selectedBait, progress.bait)

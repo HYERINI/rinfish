@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
+import type { FishingPlace } from './fishingEdge'
 import { isCookingSkipKey, isSameInteractable, resolveKeyAction } from './interaction'
 
+const place = (id: string): FishingPlace => ({ id, zone: 'beach', position: [0, 28], facing: [0, 1], surfaceY: -0.3, reach: { near: 2, far: Infinity } })
+
 describe('isSameInteractable', () => {
-  it('같은 낚시 포인트면 true, 다른 포인트면 false', () => {
-    const a = { kind: 'fishingSpot' as const, spotId: 'beach-dock' }
-    expect(isSameInteractable(a, { kind: 'fishingSpot', spotId: 'beach-dock' })).toBe(true)
-    expect(isSameInteractable(a, { kind: 'fishingSpot', spotId: 'beach-rocks' })).toBe(false)
+  it('같은 낚시 자리(같은 물)면 true, 다른 물이면 false', () => {
+    const a = { kind: 'fishingSpot' as const, spot: place('shore:sea') }
+    expect(isSameInteractable(a, { kind: 'fishingSpot', spot: place('shore:sea') })).toBe(true)
+    expect(isSameInteractable(a, { kind: 'fishingSpot', spot: place('shore:pond') })).toBe(false)
   })
 
   it('종류가 다르거나 비어 있으면 false', () => {
@@ -16,10 +19,10 @@ describe('isSameInteractable', () => {
 })
 
 describe('resolveKeyAction', () => {
-  const spot = { kind: 'fishingSpot' as const, spotId: 'beach-dock' }
+  const spot = { kind: 'fishingSpot' as const, spot: place('shore:sea') }
 
   it('탐험 중 낚시 포인트에서 E를 누르면 낚시를 시작한다', () => {
-    expect(resolveKeyAction('KeyE', 'explore', spot)).toEqual({ type: 'startFishing', spotId: 'beach-dock' })
+    expect(resolveKeyAction('KeyE', 'explore', spot)).toEqual({ type: 'startFishing', spot: spot.spot })
   })
 
   it('판매함·상점에서 E를 누르면 해당 패널을 연다', () => {

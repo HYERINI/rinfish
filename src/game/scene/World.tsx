@@ -8,6 +8,7 @@ import { Market } from './facilities/Market'
 import { Wardrobe } from './facilities/Wardrobe'
 import { SellBox } from './facilities/SellBox'
 import { FishingController } from './fishing/FishingController'
+import { FishingEdgeWatcher } from './fishing/FishingEdgeWatcher'
 import { FishingVisuals } from './fishing/FishingVisuals'
 import { Island } from './Island'
 import { IslandDecor } from './decor/IslandDecor'
@@ -48,6 +49,7 @@ export function World() {
       <Bench />
       <Wardrobe />
       <Aquarium />
+      <FishingEdgeWatcher />
       <FishingController />
       <FishingVisuals />
       <PlayTimeTicker />
