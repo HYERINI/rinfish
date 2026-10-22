@@ -1,5 +1,6 @@
 import { BAITS, NO_BAIT_KEY, type BaitId } from '../data/bait'
 import type { ZoneId } from '../data/types'
+import type { FishingPlace } from './fishingEdge'
 
 /**
  * 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중,
@@ -7,9 +8,9 @@ import type { ZoneId } from '../data/types'
  */
 export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe' | 'aquariumView' | 'unlock' | 'cutscene'
 
-/** E 키로 상호작용할 수 있는 대상 */
+/** E 키로 상호작용할 수 있는 대상. fishingSpot 은 물가에 선 자리에서 그때그때 만든 낚시 자리 (logic/fishingEdge) */
 export type Interactable =
-  | { kind: 'fishingSpot'; spotId: string }
+  | { kind: 'fishingSpot'; spot: FishingPlace }
   | { kind: 'sellBox' }
   | { kind: 'gearShop' }
   | { kind: 'market' }
@@ -20,14 +21,14 @@ export type Interactable =
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
-  if (a.kind === 'fishingSpot' && b.kind === 'fishingSpot') return a.spotId === b.spotId
+  if (a.kind === 'fishingSpot' && b.kind === 'fishingSpot') return a.spot.id === b.spot.id
   if (a.kind === 'zoneGate' && b.kind === 'zoneGate') return a.zoneId === b.zoneId
   return true
 }
 
 export type KeyAction =
   | { type: 'none' }
-  | { type: 'startFishing'; spotId: string }
+  | { type: 'startFishing'; spot: FishingPlace }
   | { type: 'openMode'; mode: Mode }
   | { type: 'stopFishing' }
   | { type: 'closePanel' }
@@ -60,7 +61,7 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
   if (code === 'KeyE' && mode === 'explore' && nearby) {
     switch (nearby.kind) {
       case 'fishingSpot':
-        return { type: 'startFishing', spotId: nearby.spotId }
+        return { type: 'startFishing', spot: nearby.spot }
       case 'sellBox':
         return { type: 'openMode', mode: 'sell' }
       case 'gearShop':

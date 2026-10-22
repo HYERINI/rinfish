@@ -1,5 +1,5 @@
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier'
-import { BARRIER_COLLIDER_HEIGHT, FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, ZONES } from '../data/zones'
+import { BARRIER_COLLIDER_HEIGHT, CAVE_WALL, FENCE_Z, INLAND_WATERS, INLAND_WATER_Y, ISLAND_RADIUS, ZONES } from '../data/zones'
 import { Ocean } from './Ocean'
 
 export function Island() {
@@ -28,19 +28,16 @@ export function Island() {
         <meshStandardMaterial color="#a1887f" />
       </mesh>
 
-      {/* 숲속 연못 */}
-      <mesh rotation-x={-Math.PI / 2} position={[-15, INLAND_WATER_Y - 0.01, -12]}>
-        <circleGeometry args={[5, 32]} />
-        <meshStandardMaterial color="#4db6ac" />
-      </mesh>
-
-      {/* 동굴 지하호수 + 동굴 바위 */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, INLAND_WATER_Y - 0.01, -24]}>
-        <circleGeometry args={[4, 32]} />
-        <meshStandardMaterial color="#1a237e" />
-      </mesh>
-      <mesh position={[0, 2, -26]} castShadow>
-        <boxGeometry args={[12, 4, 4]} />
+      {/* 숲속 연못·동굴 지하호수 */}
+      {INLAND_WATERS.map((w) => (
+        <mesh key={w.id} rotation-x={-Math.PI / 2} position={[w.center[0], INLAND_WATER_Y - 0.01, w.center[1]]}>
+          <circleGeometry args={[w.radius, 32]} />
+          <meshStandardMaterial color={w.color} />
+        </mesh>
+      ))}
+      {/* 동굴 바위 */}
+      <mesh position={[(CAVE_WALL.x0 + CAVE_WALL.x1) / 2, CAVE_WALL.height / 2, (CAVE_WALL.z0 + CAVE_WALL.z1) / 2]} castShadow>
+        <boxGeometry args={[CAVE_WALL.x1 - CAVE_WALL.x0, CAVE_WALL.height, CAVE_WALL.z1 - CAVE_WALL.z0]} />
         <meshStandardMaterial color="#5d4037" />
       </mesh>
 

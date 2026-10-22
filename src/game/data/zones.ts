@@ -71,6 +71,52 @@ export function getSpot(id: string): FishingSpot {
   return spot
 }
 
+/** 동굴 바위 덩어리 (Island.tsx 가 그리는 상자). 바닥 자리 [x0, x1] × [z0, z1] 과 높이 */
+export const CAVE_WALL = { x0: -6, x1: 6, z0: -28, z1: -24, height: 4 }
+
+/**
+ * 섬 위 물 (연못·동굴 호수). Island.tsx·바닥 꾸미기·물가 낚시가 모두 이 값을 쓴다.
+ * cover: 물 위를 덮고 있는 곳 (동굴 바위). 그 아래로는 찌를 던지지 못한다
+ */
+export type InlandWater = {
+  id: 'pond' | 'caveLake'
+  zone: ZoneId
+  center: [number, number]
+  radius: number
+  color: string
+  cover: { x0: number; x1: number; z0: number; z1: number } | null
+}
+
+export const INLAND_WATERS: InlandWater[] = [
+  { id: 'pond', zone: 'pond', center: [-15, -12], radius: 5, color: '#4db6ac', cover: null },
+  { id: 'caveLake', zone: 'cave', center: [0, -24], radius: 4, color: '#1a237e', cover: CAVE_WALL },
+]
+
+/** 울타리 북쪽 바다 중 x 가 이 값 이상이면 암초 앞바다, 나머지 바다는 해변 바다 */
+export const REEF_SEA_MIN_X = 8
+
+/** 물가 어디서나 낚시하기 (logic/fishingEdge) */
+export const FISHING_EDGE = {
+  /** 섬 가장자리에서 이 거리(m) 안쪽까지 바다 낚시를 할 수 있다 (선착장 끝 낚시 포인트 z=27 이 들어오게) */
+  seaBand: 3.2,
+  /** 연못·호수 물가에서 이 거리(m) 밖까지 */
+  shoreBand: 2,
+  /** 연못·호수 가장자리를 이만큼(m) 밟고 들어가도 물가로 친다 */
+  wadeIn: 0.6,
+  /** 바라보는 쪽으로 이 거리(m) 안에 물이 시작돼야 한다 (물가 띠 + 1m) */
+  maxNear: { sea: 4.2, inland: 3 },
+  /** 찌는 물 가장자리에서 이만큼(m) 안쪽에 떨어진다 */
+  landingMargin: 0.8,
+  /** 던질 수 있는 물 길이가 이보다 짧으면 낚시할 수 없다 */
+  minWater: 2,
+  /** 물을 찾을 때 한 걸음(m)과 최대로 살펴볼 거리(m). 최대 던지기 거리(12m)보다 길게 */
+  probeStep: 0.1,
+  probeReach: 14,
+  /** 서 있는 자리가 이만큼(m) 움직이거나 방향이 이만큼(rad) 바뀌면 낚시 자리를 새로 잡는다 */
+  refreshMove: 0.5,
+  refreshTurn: 0.08,
+}
+
 /** 선착장 해변 시설 위치 [x, z]. 바닥(y=0) 기준 */
 export const FACILITY = {
   market: [12, 12] as [number, number],

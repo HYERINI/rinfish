@@ -6,7 +6,7 @@ import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
-import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
+import { BENCH_SEAT, ISLAND_RADIUS } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
 import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
@@ -166,12 +166,12 @@ export function Player() {
     const rb = body.current
     if (!rb) return
     const mode = useSessionStore.getState().mode
-    const spotId = useFishingStore.getState().spotId
+    const spot = useFishingStore.getState().spot
 
     // 0) 낚시 중엔 카메라를 플레이어 뒤로 돌려 물 쪽(찌가 떨어지는 곳)이 보이게 한다.
     //    탐험으로 돌아오면 이 값에서 이어서 마우스로 자유롭게 돌릴 수 있다
-    if (mode === 'fishing' && spotId) {
-      const target = yawForFacing(getSpot(spotId).facing)
+    if (mode === 'fishing' && spot) {
+      const target = yawForFacing(spot.facing)
       yaw.current += shortestAngleDelta(yaw.current, target) * (1 - Math.exp(-delta * FISHING_YAW_SPEED))
       // 기울기도 기본 높이로 되돌려 찌가 늘 같은 자리에 보이게
       pitch.current *= Math.exp(-delta * MOUSE_LOOK.pitchResetSpeed)
@@ -236,8 +236,8 @@ export function Player() {
     playerRig.position.set(x, p.y, z)
 
     // 3) 바라보는 방향: 낚시 중엔 물 쪽, 아니면 이동 방향
-    if (mode === 'fishing' && spotId) {
-      const [fx, fz] = getSpot(spotId).facing
+    if (mode === 'fishing' && spot) {
+      const [fx, fz] = spot.facing
       facing.current = Math.atan2(fx, fz)
     } else if (mode === 'rest') {
       facing.current = BENCH_SEAT.facing

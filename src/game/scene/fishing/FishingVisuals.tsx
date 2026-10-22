@@ -5,9 +5,9 @@ import { FIGHT } from '../../data/balance'
 import { getSpecies } from '../../data/fish'
 import { fishLookFor } from '../../data/fishLooks'
 import type { Rarity } from '../../data/types'
-import { WATER_Y, getSpot } from '../../data/zones'
+import { WATER_Y } from '../../data/zones'
 import { arcPoint, castArcHeight, castFlightTime, saggingLinePoint } from '../../logic/castArc'
-import { castDistance } from '../../logic/cast'
+import { clampToWater, landingDistance } from '../../logic/fishingEdge'
 import type { FishingState } from '../../logic/fishingSession'
 import { waveHeight } from '../../logic/waves'
 import { useFishingStore } from '../../stores/fishingStore'
@@ -70,7 +70,7 @@ export function FishingVisuals() {
   }, [])
 
   useFrame(({ clock }, delta) => {
-    const { state, spotId } = useFishingStore.getState()
+    const { state, spot } = useFishingStore.getState()
     const m = memo.current
     const t = clock.elapsedTime
     if (!bobber.current || !shadow.current || !fish.current) return
@@ -81,13 +81,12 @@ export function FishingVisuals() {
     fish.current.visible = false
     line.visible = false
 
-    if (!state || !spotId) {
+    if (!state || !spot) {
       m.prev = null
       fishingFx.castAt = -1
       fishingFx.doneAt = -1
       return
     }
-    const spot = getSpot(spotId)
     const isSea = spot.surfaceY === WATER_Y
     const surface = (x: number, z: number) => spot.surfaceY + (isSea ? waveHeight(x, z, t) : 0)
     const [fx, fz] = spot.facing
@@ -103,7 +102,7 @@ export function FishingVisuals() {
     if (state.stage === 'waiting' && prev?.stage !== 'waiting') {
       fishingFx.castAt = t
       m.castFrom.copy(playerRig.rodTip)
-      const d = castDistance(state.castPower)
+      const d = landingDistance(spot, state.castPower)
       m.landing.set(playerRig.position.x + fx * d, 0, playerRig.position.z + fz * d)
       m.landed = false
       m.shadowAngle = Math.random() * Math.PI * 2
@@ -119,12 +118,12 @@ export function FishingVisuals() {
 
     // --- 찌 위치 ---
     if (state.stage === 'waiting') {
-      const flight = castFlightTime(castDistance(state.castPower))
+      const flight = castFlightTime(landingDistance(spot, state.castPower))
       const k = (t - fishingFx.castAt) / flight
       tmp.set(m.landing.x, surface(m.landing.x, m.landing.z), m.landing.z)
       if (k < 1) {
         // 포물선을 그리며 날아가는 중
-        arcPoint(m.castFrom, tmp, k, castArcHeight(castDistance(state.castPower)), bobber.current.position)
+        arcPoint(m.castFrom, tmp, k, castArcHeight(landingDistance(spot, state.castPower)), bobber.current.position)
         sag = 0.1 * k
       } else {
         if (!m.landed) {
@@ -140,8 +139,8 @@ export function FishingVisuals() {
       bobber.current.visible = true
     } else if (state.stage === 'fighting') {
       const f = state.fight
-      // 물고기가 가까워질수록 찌도 다가온다
-      const distance = 1 + (castDistance(state.castPower) - 1) * Math.min(1.5, f.distance / FIGHT.startDistance)
+      // 물고기가 가까워질수록 찌도 다가온다 (멀어져도 물 밖으로 나가지 않게)
+      const distance = clampToWater(spot, 1 + (landingDistance(spot, state.castPower) - 1) * Math.min(1.5, f.distance / FIGHT.startDistance))
       const shake = f.pull.active ? Math.sin(t * 40) * 0.15 : 0
       const x = playerRig.position.x + fx * distance - fz * shake
       const z = playerRig.position.z + fz * distance + fx * shake
