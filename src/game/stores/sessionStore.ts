@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { CAMERA_ZOOM } from '../data/balance'
+import type { DishId, ZoneId } from '../data/types'
 import { nextZoom } from '../logic/cameraZoom'
 import { isSameInteractable, type Interactable, type Mode } from '../logic/interaction'
 import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
@@ -19,6 +20,21 @@ type SessionState = {
    * 나중에 여러 명이 같이 할 때 이 값을 주고받으면 다른 사람 캐릭터도 같은 코드로 그린다. 저장하지 않는다
    */
   playerAction: PlayerAction
+  /**
+   * 수리기사님 연출. startedAt: 시작 시각(performance.now() 초). 진행은 repairTimeline(지금 - startedAt)으로만 정한다.
+   * 구역은 이미 열린 뒤라 새로고침 등으로 연출이 사라져도 괜찮다. 저장하지 않는다
+   */
+  cutscene: { zoneId: ZoneId; startedAt: number } | null
+  /** 연출 시작: 조작을 막고(mode 'cutscene') 카메라를 연출 자리로 */
+  startCutscene: (zoneId: ZoneId) => void
+  endCutscene: () => void
+  /**
+   * 미스터찜 요리 연출 (사장님 배정빈이 요리하는 모습). 요리 값(체력·코인)은 주문할 때 이미 반영됐고 연출은 보여 주기만 한다.
+   * line: 내올 때 사장님이 하는 말. 진행은 cookTimeline(지금 - startedAt)
+   */
+  cooking: { dish: DishId; startedAt: number; line: string } | null
+  startCooking: (dish: DishId, line: string) => void
+  endCooking: () => void
   setPlayerAction: (action: PlayerAction) => void
   setMode: (mode: Mode) => void
   zoomBy: (deltaY: number) => void
@@ -39,6 +55,12 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   teleport: null,
   zoom: CAMERA_ZOOM.initial,
   playerAction: IDLE_ACTION,
+  cutscene: null,
+  startCutscene: (zoneId) => set({ cutscene: { zoneId, startedAt: performance.now() / 1000 }, mode: 'cutscene', nearby: null }),
+  endCutscene: () => set((s) => ({ cutscene: null, mode: s.mode === 'cutscene' && !s.cooking ? 'explore' : s.mode })),
+  cooking: null,
+  startCooking: (dish, line) => set({ cooking: { dish, startedAt: performance.now() / 1000, line }, mode: 'cutscene', nearby: null }),
+  endCooking: () => set((s) => ({ cooking: null, mode: s.mode === 'cutscene' && !s.cutscene ? 'explore' : s.mode })),
   setPlayerAction: (playerAction) => set({ playerAction }),
   setMode: (mode) => set({ mode }),
   zoomBy: (deltaY) => set((s) => ({ zoom: nextZoom(s.zoom, deltaY) })),
@@ -49,5 +71,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   notify: (text) => set((s) => ({ notice: { id: (s.notice?.id ?? 0) + 1, text } })),
   requestTeleport: (pos) => set({ teleport: pos }),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null }),
 }))

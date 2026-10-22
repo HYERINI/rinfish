@@ -1,13 +1,15 @@
-import { CAMERA_ZOOM, GRAVITY, MOVE } from '../data/balance'
+import { CAMERA_ZOOM, EAT, GRAVITY, MOVE } from '../data/balance'
 import { EMOTES, type EmoteId } from '../data/emotes'
+import type { FoodId } from '../data/types'
 import type { Mode } from './interaction'
 
 /**
  * 플레이어 동작 상태 (감정 표현·점프). 캐릭터를 그리는 데 필요한 건 이 값과 수평 이동 속도뿐이다.
  * 나중에 여러 명이 같이 할 때 이 값만 주고받으면 다른 사람 캐릭터도 같은 코드로 그릴 수 있다
- * - emoteAt / jumpAt / landedAt: 그 일이 일어난 시각(초). 한 번도 없었으면 아주 오래전
+ * - emoteAt / jumpAt / landedAt / eatAt: 그 일이 일어난 시각(초). 한 번도 없었으면 아주 오래전
+ * - eat: 지금 먹고 있는 요리 (손에 든 음식 모양을 고른다). 안 먹으면 null
  */
-export type PlayerAction = { emote: EmoteId | null; emoteAt: number; airborne: boolean; jumpAt: number; landedAt: number }
+export type PlayerAction = { emote: EmoteId | null; emoteAt: number; airborne: boolean; jumpAt: number; landedAt: number; eat: FoodId | null; eatAt: number }
 
 /** 한 프레임의 입력. 키 입력(moving·sprint·jumpPressed·emotePressed)과 물리 판정(grounded) */
 export type MotionInput = {
@@ -16,6 +18,8 @@ export type MotionInput = {
   /** 이번 프레임에 새로 눌렀다 (꾹 누르고 있는 반복 입력은 아님) */
   jumpPressed: boolean
   emotePressed: EmoteId | null
+  /** 이번 프레임에 음식을 먹기 시작했다 (미스터찜에서 먹기) */
+  eatPressed?: FoodId | null
   grounded: boolean
   mode: Mode
   now: number
@@ -24,7 +28,7 @@ export type MotionInput = {
 /** "아주 오래전". JSON 으로 보내도 깨지지 않게 -Infinity 대신 쓴다 */
 const LONG_AGO = -1e9
 
-export const IDLE_ACTION: PlayerAction = { emote: null, emoteAt: LONG_AGO, airborne: false, jumpAt: LONG_AGO, landedAt: LONG_AGO }
+export const IDLE_ACTION: PlayerAction = { emote: null, emoteAt: LONG_AGO, airborne: false, jumpAt: LONG_AGO, landedAt: LONG_AGO, eat: null, eatAt: LONG_AGO }
 
 const LOOPING = new Set(EMOTES.filter((e) => e.loop).map((e) => e.id))
 
@@ -34,6 +38,7 @@ const LOOPING = new Set(EMOTES.filter((e) => e.loop).map((e) => e.id))
  * - 탐험 모드가 아니면 감정 표현을 멈추고 점프·감정 표현 키는 무시한다
  * - 움직이거나 뛰어오르면 감정 표현을 멈춘다. 점프는 땅에 있을 때만
  * - 한 번짜리 감정 표현은 emoteLength(초)가 지나면 저절로 끝난다
+ * - 먹기는 땅에 서 있을 때 시작해서 EAT.duration 뒤 끝난다. 움직이거나 뛰거나 감정 표현을 하면 바로 멈춘다
  */
 export function nextAction(action: PlayerAction, input: MotionInput, emoteLength: (id: EmoteId) => number): PlayerAction {
   const { now } = input
@@ -44,10 +49,14 @@ export function nextAction(action: PlayerAction, input: MotionInput, emoteLength
 
   if (input.mode !== 'explore') {
     if (next.emote) patch({ emote: null })
+    if (next.eat) patch({ eat: null })
     return next
   }
 
   if (next.emote && input.moving) patch({ emote: null })
+  if (next.eat && (input.moving || input.jumpPressed || input.emotePressed)) patch({ eat: null })
+  if (input.eatPressed && input.grounded && !next.airborne) patch({ eat: input.eatPressed, eatAt: now, emote: null })
+  if (next.eat && now - next.eatAt >= EAT.duration) patch({ eat: null })
   if (input.jumpPressed && input.grounded && !next.airborne) patch({ airborne: true, jumpAt: now, emote: null })
   if (input.emotePressed && !input.moving && input.grounded && !next.airborne) patch({ emote: input.emotePressed, emoteAt: now })
   if (next.emote && !LOOPING.has(next.emote) && now - next.emoteAt >= emoteLength(next.emote)) patch({ emote: null })
@@ -79,16 +88,17 @@ export function maxJumpHeight(): number {
 
 /**
  * 가까이 당겨 얼굴을 보려 할 때 캐릭터를 카메라 쪽으로 돌릴까. 탐험 중 땅에서 idleTime 초 넘게 멈춰 있을 때만
- * (구르기는 바라보는 쪽으로 굴러 나가므로 제외). 카메라는 돌리지 않는다
+ * (구르기는 바라보는 쪽으로 굴러 나가므로 제외). 먹을 땐 먹는 얼굴이 보이게 줌과 상관없이 바로 돌아선다. 카메라는 돌리지 않는다
  */
 export function shouldFaceCamera(mode: Mode, zoom: number, idleTime: number, action: PlayerAction): boolean {
+  if (mode === 'explore' && action.eat) return true
   if (mode !== 'explore' || zoom >= CAMERA_ZOOM.faceTurnBelow || idleTime < CAMERA_ZOOM.faceTurnDelay) return false
   return !action.airborne && action.emote !== 'roll'
 }
 
-/** 낚싯대를 보일까. 낚시 중엔 늘, 그 밖엔 서 있거나 걸을 때만(감정 표현·점프·휴식 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다) */
+/** 낚싯대를 보일까. 낚시 중엔 늘, 그 밖엔 서 있거나 걸을 때만(감정 표현·점프·먹기·휴식 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다) */
 export function rodVisible(mode: Mode, zoom: number, action: PlayerAction): boolean {
   if (mode === 'fishing') return true
-  if (mode === 'rest' || action.emote || action.airborne) return false
+  if (mode === 'rest' || action.emote || action.airborne || action.eat) return false
   return zoom >= CAMERA_ZOOM.hideRodBelow
 }

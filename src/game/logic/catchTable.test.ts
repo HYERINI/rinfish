@@ -57,6 +57,42 @@ describe('rollSpecies', () => {
   })
 })
 
+describe('미끼', () => {
+  type B = 'worm' | 'shrimp' | 'lure' | null
+  const rarityWeight = (zone: 'beach' | 'reef' | 'cave', rarity: string, power: number, bait: B) =>
+    catchWeights(zone, power, bait)
+      .filter((e) => e.species.rarity === rarity)
+      .reduce((s, e) => s + e.weight, 0)
+  const share = (zone: 'beach' | 'reef' | 'cave', rarity: string, power: number, bait: B) => {
+    const total = catchWeights(zone, power, bait).reduce((s, e) => s + e.weight, 0)
+    return rarityWeight(zone, rarity, power, bait) / total
+  }
+
+  it('미끼가 없으면 예전과 같다', () => {
+    expect(catchWeights('reef', 0.5, null)).toEqual(catchWeights('reef', 0.5))
+  })
+
+  it('지렁이는 잡어만 절반으로 줄이고 나머지 희귀도 가중치는 그대로다', () => {
+    expect(rarityWeight('beach', 'junk', 0, 'worm')).toBeCloseTo(rarityWeight('beach', 'junk', 0, null) / 2)
+    for (const r of ['common', 'rare', 'epic']) expect(rarityWeight('beach', r, 0, 'worm')).toBeCloseTo(rarityWeight('beach', r, 0, null))
+  })
+
+  it('미끼 배율은 던진 힘 보너스와 곱해진다 (루어 에픽 ×2.5, 최대 파워 에픽 ×3 → ×7.5)', () => {
+    expect(rarityWeight('reef', 'epic', 1, 'lure')).toBeCloseTo(rarityWeight('reef', 'epic', 0, null) * 7.5)
+    expect(rarityWeight('reef', 'rare', 1, 'shrimp')).toBeCloseTo(rarityWeight('reef', 'rare', 0, null) * 2 * 1.5)
+  })
+
+  it('좋은 미끼일수록 희귀 이상이 잘 나온다', () => {
+    const good = (bait: B) => share('reef', 'rare', 0.5, bait) + share('reef', 'epic', 0.5, bait)
+    expect(good('shrimp')).toBeGreaterThan(good(null))
+    expect(good('lure')).toBeGreaterThan(good('shrimp'))
+  })
+
+  it('루어는 전설 묶음 가중치를 2배로 한다', () => {
+    expect(rarityWeight('cave', 'legendary', 0, 'lure')).toBeCloseTo(rarityWeight('cave', 'legendary', 0, null) * 2)
+  })
+})
+
 describe('rollWeight', () => {
   it('무게는 종의 무게 범위 안에서 나온다', () => {
     const sardine = getSpecies('sleepy-sardine')

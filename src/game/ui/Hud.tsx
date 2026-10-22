@@ -1,21 +1,43 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { STAMINA } from '../data/balance'
-import { BUFF_LABEL } from '../data/dishes'
+import { BUFF_LABEL, getDish } from '../data/dishes'
+import { MARKET } from '../data/market'
+import { SNACKS } from '../data/snacks'
+import { pressEat } from '../input/usePlayerActionKeys'
+import { finishCooking } from '../scene/cooking/finishCooking'
 import type { Interactable } from '../logic/interaction'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { canUseMouseLook, usePointerLockStore } from '../input/pointerLock'
+import { ItemIcon } from './ItemIcon'
 import { button, hint, overlayLayer } from './styles'
 
-const PROMPT: Record<Interactable['kind'], string> = {
+const PROMPT: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
   fishingSpot: 'E  낚시하기',
   sellBox: 'E  물고기 팔기',
   gearShop: 'E  장비 상점',
-  market: 'E  어시장',
+  market: `E  ${MARKET.name}`,
   bench: 'E  앉아서 쉬기',
   aquarium: 'E  어항',
   wardrobe: 'E  옷장 (꾸미기)',
+}
+
+const GATE_PROMPT: Record<string, string> = {
+  pond: 'E  무너진 다리 살펴보기',
+  reef: 'E  부서진 보트 살펴보기',
+  cave: 'E  바위 살펴보기',
+}
+
+function promptFor(target: Interactable): string {
+  return target.kind === 'zoneGate' ? (GATE_PROMPT[target.zoneId] ?? 'E  살펴보기') : PROMPT[target.kind]
+}
+
+/** 연출 중 아래 자막 */
+const CUTSCENE_CAPTION: Record<string, string> = {
+  pond: '수리기사님들이 다리를 고치는 중…',
+  reef: '수리기사님들이 보트를 고치는 중…',
+  cave: '수리기사님들이 바위를 치우는 중…',
 }
 
 /** 알림을 띄워 두는 시간 */
@@ -29,22 +51,49 @@ export function Hud() {
   const setMode = useSessionStore((s) => s.setMode)
   const locked = usePointerLockStore((s) => s.locked)
   const mouseLook = canUseMouseLook()
+  const cutscene = useSessionStore((s) => s.cutscene)
+  const cooking = useSessionStore((s) => s.cooking)
 
   const ratio = survival.stamina / STAMINA.max
   return (
     <div style={overlayLayer}>
-      <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 18, width: 200 }}>
+      <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 18, width: 200, display: mode === 'cutscene' ? 'none' : undefined }}>
         <strong>코인 {coins}</strong>
-        <div style={{ fontSize: 13, marginTop: 6 }}>체력 {Math.ceil(survival.stamina)}</div>
+        <div style={{ fontSize: 13, marginTop: 6 }}>
+          체력 {Math.ceil(survival.stamina)} <span style={{ fontSize: 11, opacity: 0.75 }}>· 음식·벤치로 회복</span>
+        </div>
         <div style={{ height: 8, background: '#333', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
           <div style={{ width: `${ratio * 100}%`, height: '100%', background: ratio < 0.25 ? '#ef5350' : '#66bb6a' }} />
         </div>
+        {survival.stamina < STAMINA.lowHint && (
+          <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>배고파요! {MARKET.name}에서 음식을 사 먹거나 벤치에서 쉬세요</div>
+        )}
+        {mode === 'explore' && <SnackBag />}
         {survival.buffs.map((b) => (
           <div key={b.kind} style={{ fontSize: 12, marginTop: 4, color: '#ffd166' }}>
             {BUFF_LABEL[b.kind]} {Math.ceil(b.remaining)}초
           </div>
         ))}
       </div>
+
+      {/* 연출 중: 위아래 검은 띠(영화처럼) + 자막 */}
+      {/* 요리 연출: 화면 아무 데나 누르거나 E·Space 로 건너뛴다 */}
+      {mode === 'cutscene' && cooking && (
+        <>
+          <div style={{ ...letterbox, top: 0 }} />
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto', cursor: 'pointer' }} onPointerDown={() => finishCooking()} />
+          <div style={{ ...letterbox, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 16 }}>
+            {MARKET.owner}이 {getDish(cooking.dish).name}을(를) 만드는 중…
+            <span style={{ fontSize: 12, opacity: 0.7 }}>클릭·E·Space 건너뛰기</span>
+          </div>
+        </>
+      )}
+      {mode === 'cutscene' && cutscene && (
+        <>
+          <div style={{ ...letterbox, top: 0 }} />
+          <div style={{ ...letterbox, bottom: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{CUTSCENE_CAPTION[cutscene.zoneId]}</div>
+        </>
+      )}
 
       {mode === 'rest' && <div style={hint}>벤치에서 쉬는 중… 체력 회복 · E / ESC 일어나기</div>}
 
@@ -59,7 +108,7 @@ export function Hud() {
               메뉴 (ESC)
             </button>
           </div>
-          {nearby && <div style={hint}>{PROMPT[nearby.kind]}</div>}
+          {nearby && <div style={hint}>{promptFor(nearby)}</div>}
           {mouseLook && !locked && <div style={lookHint}>클릭하면 마우스로 시점 회전 · ESC 해제</div>}
           <div style={{ position: 'absolute', bottom: 16, left: 16, opacity: 0.7, fontSize: 13 }}>
             WASD 이동 · Shift 달리기 · Space 점프 · 1~5 감정 표현 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
@@ -104,6 +153,34 @@ function MusicButton() {
     </button>
   )
 }
+
+/** 가방 속 간식 빠른 먹기 (탐험 중). 누르면 바로 먹는 동작 */
+function SnackBag() {
+  const snacks = useProgressStore((s) => s.snacks)
+  const owned = SNACKS.filter((s) => snacks[s.id] > 0)
+  if (owned.length === 0) return null
+  return (
+    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+      {owned.map((s) => (
+        <button
+          key={s.id}
+          title={`${s.name} 먹기 (체력 +${s.heal})`}
+          style={{ ...button, display: 'flex', alignItems: 'center', gap: 2, padding: '2px 6px', background: 'rgba(255,255,255,0.88)', fontSize: 12 }}
+          onClick={(e) => {
+            e.currentTarget.blur()
+            if (!useProgressStore.getState().eatSnack(s.id)) return
+            useSessionStore.getState().notify(`냠냠! ${s.name} · 체력 +${s.heal}`)
+            pressEat(s.id)
+          }}
+        >
+          <ItemIcon id={s.id} size={24} />×{snacks[s.id]}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+const letterbox = { position: 'absolute' as const, left: 0, right: 0, height: '9vh', background: '#000', opacity: 0.85 }
 
 /**
  * 쓰러짐·어항 알림. 패널·어항 크게 보기보다 위 층에 띄워서 어느 화면에서든 보인다 (Game 에서 Panels 다음에 둔다).

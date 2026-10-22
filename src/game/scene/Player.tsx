@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react'
+import { Html } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
 import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
+import { COOK_SCENE } from '../data/cooking'
+import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
 import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
 import { isKeyDown } from '../input/keys'
@@ -22,6 +25,7 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { fishingFx } from './fishing/fishingFx'
+import { FoodInHand } from './FoodInHand'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 
 /** 다른 컴포넌트(낚싯줄 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
@@ -77,6 +81,15 @@ function rodAngle(fishing: FishingState | null, now: number): number {
   }
 }
 
+const yumStyle = {
+  whiteSpace: 'nowrap' as const,
+  color: '#fff',
+  fontSize: 18,
+  fontWeight: 900,
+  textShadow: '0 0 3px #e65100, 2px 2px 0 #e65100',
+  animation: 'yum-bob 0.45s ease-in-out infinite alternate',
+}
+
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
 /**
@@ -88,11 +101,15 @@ const GROUND_PROBE = 0.15
 const GROUNDED_MAX_VY = 1
 /** 카메라 거리·높이·방향(플레이어 기준 오프셋)이 따라가는 빠르기. 수평 위치는 플레이어에 바로 붙는다 */
 const CAMERA_SMOOTH = 5
+/** 수리 연출 카메라로 넘어가고 돌아오는 빠르기 */
+const CUTSCENE_CAMERA_SMOOTH = 2.5
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
 const cameraTarget = new Vector3()
 const grip = new Vector3()
+const lookTarget = new Vector3()
+const cutLook = new Vector3()
 
 export function Player() {
   const body = useRef<RapierRigidBody>(null)
@@ -117,7 +134,12 @@ export function Player() {
    * 위치 전체를 늦게 따라가면 가까이 당긴 채 카메라 쪽으로 걸을 때 카메라가 몸을 뚫는다
    */
   const cam = useRef({ offset: new Vector3(), lookY: 0, feetY: 0, ready: false })
+  /** 수리 연출 카메라 비율(0 = 보통 카메라, 1 = 연출 자리)과 마지막 연출 카메라 (끝난 뒤 부드럽게 돌아오도록 기억한다) */
+  const cut = useRef<{ blend: number; camera: RepairPlan['camera'] | null }>({ blend: 0, camera: null })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
+  /** 먹고 있는 요리 (손에 든 음식과 "냠냠") */
+  const eating = useSessionStore((s) => s.playerAction.eat)
+  const food = useRef<Group>(null)
 
   // 탐험 중 카메라 회전: 마우스가 잠겨 있으면 움직이는 만큼(감도), 아니면(터치 등) 드래그로
   useEffect(() => {
@@ -223,6 +245,13 @@ export function Player() {
       facing.current = Math.atan2(fx, fz)
     } else if (mode === 'rest') {
       facing.current = BENCH_SEAT.facing
+    } else if (mode === 'cutscene' && session.cooking) {
+      // 요리 연출 중엔 가게를 바라본다
+      facing.current = Math.atan2(COOK_SCENE.site[0] - x, COOK_SCENE.site[1] - z)
+    } else if (mode === 'cutscene' && session.cutscene && session.cutscene.zoneId !== 'beach') {
+      // 연출 중엔 고치는 곳을 바라보며 구경한다
+      const [sx, sz] = REPAIR_PLANS[session.cutscene.zoneId].site
+      facing.current = Math.atan2(sx - x, sz - z)
     } else if (moveDir.lengthSq() > 0) {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
@@ -253,6 +282,8 @@ export function Player() {
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
+        // 먹는 음식도 같은 손에 든다
+        if (food.current) food.current.position.copy(grip)
       }
     }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
@@ -270,7 +301,22 @@ export function Player() {
     c.lookY += (rig.lookAtY - c.lookY) * k
     c.feetY += (p.y + FOOT_Y - c.feetY) * k
     camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
-    camera.lookAt(x, c.feetY + c.lookY, z)
+    lookTarget.set(x, c.feetY + c.lookY, z)
+
+    // 7) 수리 연출 중엔 연출 자리를 비추는 카메라로 옮겨 가고, 끝나면 부드럽게 돌아온다
+    const cs = session.cutscene
+    const cutZone = mode === 'cutscene' && cs && cs.zoneId !== 'beach' ? cs.zoneId : null
+    const cooking = mode === 'cutscene' && session.cooking !== null
+    if (cutZone) cut.current.camera = REPAIR_PLANS[cutZone].camera
+    else if (cooking) cut.current.camera = COOK_SCENE.camera
+    cut.current.blend += (Number(cutZone !== null || cooking) - cut.current.blend) * (1 - Math.exp(-delta * CUTSCENE_CAMERA_SMOOTH))
+    const shot = cut.current.camera
+    if (shot && cut.current.blend > 1e-3) {
+      const b = cut.current.blend
+      camera.position.lerp(cutLook.fromArray(shot.position), b)
+      lookTarget.lerp(cutLook.fromArray(shot.lookAt), b)
+    }
+    camera.lookAt(lookTarget)
   })
 
   return (
@@ -290,6 +336,17 @@ export function Player() {
           </mesh>
           <object3D ref={rodTip} position={[0, 2, 0]} />
         </group>
+        {eating && (
+          <>
+            <group ref={food}>
+              <FoodInHand dish={eating} />
+            </group>
+            <Html position={[0, 1.15, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+              <style>{'@keyframes yum-bob { from { transform: translateY(0) scale(1) } to { transform: translateY(-6px) scale(1.12) } }'}</style>
+              <div style={yumStyle}>냠냠</div>
+            </Html>
+          </>
+        )}
       </group>
     </RigidBody>
   )

@@ -2,10 +2,13 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { TANK_LEVELS, TANK_TYPES } from '../data/aquarium'
 import { AQUARIUM, STAMINA } from '../data/balance'
+import { BAIT_IDS, type BaitId } from '../data/bait'
+import { SNACK_IDS, type SnackId } from '../data/snacks'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
 import { findSpecies } from '../data/fish'
-import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId } from '../data/types'
+import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId, ZoneId } from '../data/types'
+import { ZONES } from '../data/zones'
 import {
   EMPTY_AQUARIUM,
   buyExpansion,
@@ -19,10 +22,13 @@ import {
   type AquariumEvent,
   type AquariumState,
 } from '../logic/aquarium'
+import { NO_BAIT, buyBait as buyBaitRule, consumeBait, type BaitCounts } from '../logic/bait'
 import { normalizeLook } from '../logic/characterLook'
-import { cook } from '../logic/cooking'
+import { NO_SNACKS, buyAndEatSnack as buyAndEatSnackRule, buySnacks as buySnacksRule, eatSnackFromBag, type SnackCounts, type SnackEatResult } from '../logic/snacks'
+import { cook, ingredientsOk } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
+import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
 import { FRESH_SURVIVAL, faintPenalty, spendStamina, tickSurvival, type Survival, type SurvivalTickContext } from '../logic/stamina'
 
 export const SAVE_KEY = 'fishing-island-save-v1'
@@ -45,6 +51,14 @@ type ProgressData = {
   /** 보유 사료 개수 */
   feed: number
   aquarium: AquariumState
+  /** 미끼별 보유 개수 */
+  bait: BaitCounts
+  /** 낚시할 때 쓸 미끼. null 이면 미끼 없이 */
+  selectedBait: BaitId | null
+  /** 연 구역 (해변은 처음부터 열려 있어 넣지 않는다) */
+  unlockedZones: ZoneId[]
+  /** 가방 속 간식 개수 */
+  snacks: SnackCounts
 }
 
 
@@ -60,7 +74,8 @@ type ProgressActions = {
   spendCastStamina: () => void
   /** 1초 안팎마다 호출. 플레이 시간·체력·어항 시간을 함께 진행하고 생긴 일을 돌려준다 */
   tick: (seconds: number, ctx: SurvivalTickContext) => TickEvents
-  cookDish: (dishId: DishId, fishId: string) => boolean
+  /** 물고기(한 마리 또는 여러 마리)로 요리해 먹는다. 재료가 안 맞거나 코인이 모자라면 false */
+  cookDish: (dishId: DishId, fishIds: string | string[]) => boolean
   displayFish: (fishId: string) => boolean
   undisplayFish: (fishId: string) => boolean
   buyFeed: () => boolean
@@ -73,6 +88,19 @@ type ProgressActions = {
   buyTankType: (typeId: TankTypeId) => boolean
   selectTankType: (typeId: TankTypeId) => void
   setLook: (look: CharacterLook) => void
+  /** qty 개를 산다. 코인이 모자라면 false */
+  buyBait: (id: BaitId, qty: number) => boolean
+  selectBait: (id: BaitId | null) => void
+  /** 던질 때 미끼 1개를 쓴다 */
+  spendBait: (id: BaitId) => void
+  /** 구역 열기. 조건이 맞으면 코인을 내고 바로 저장한다(연출은 보여 주기만 한다). 못 열면 false */
+  unlockZone: (id: ZoneId) => boolean
+  /** 간식 qty 개를 사서 가방에 넣는다 */
+  buySnacks: (id: SnackId, qty: number) => boolean
+  /** 간식을 사서 바로 먹는다 (체력 회복) */
+  buyAndEatSnack: (id: SnackId) => boolean
+  /** 가방의 간식을 하나 꺼내 먹는다 */
+  eatSnack: (id: SnackId) => boolean
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -85,6 +113,10 @@ export const INITIAL_PROGRESS: ProgressData = {
   survival: FRESH_SURVIVAL,
   feed: 0,
   aquarium: EMPTY_AQUARIUM,
+  bait: NO_BAIT,
+  selectedBait: null,
+  unlockedZones: [],
+  snacks: NO_SNACKS,
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -178,6 +210,36 @@ function readCount(v: unknown, fallback: number): number {
   return Number.isInteger(v) && (v as number) >= 0 ? (v as number) : fallback
 }
 
+function readBait(v: unknown, fallback: BaitCounts): BaitCounts {
+  if (!isRecord(v)) return fallback
+  const counts = { ...fallback }
+  for (const id of BAIT_IDS) counts[id] = readCount(v[id], fallback[id])
+  return counts
+}
+
+const LOCKABLE_ZONES = ZONES.filter((z) => z.unlock).map((z) => z.id)
+
+function readUnlockedZones(v: unknown): ZoneId[] {
+  if (!Array.isArray(v)) return []
+  return LOCKABLE_ZONES.filter((id) => v.includes(id))
+}
+
+function readSnacks(v: unknown, fallback: SnackCounts): SnackCounts {
+  if (!isRecord(v)) return fallback
+  const counts = { ...fallback }
+  for (const id of SNACK_IDS) counts[id] = readCount(v[id], fallback[id])
+  return counts
+}
+
+/** 간식 먹기 결과. 실패면 null */
+function eaten(r: SnackEatResult): Pick<ProgressData, 'coins' | 'snacks' | 'survival'> | null {
+  return r.ok ? { coins: r.coins, snacks: r.snacks, survival: r.survival } : null
+}
+
+function readSelectedBait(v: unknown): BaitId | null {
+  return BAIT_IDS.includes(v as BaitId) ? (v as BaitId) : null
+}
+
 // persist: 상태를 localStorage에 자동 저장하고, 새로고침하면 다시 불러온다
 export const useProgressStore = create<ProgressData & ProgressActions>()(
   persist(
@@ -243,14 +305,20 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
         return { fainted: survivalTick.fainted, aquarium: aquariumTick.events }
       },
 
-      cookDish: (dishId, fishId) => {
+      cookDish: (dishId, fishIds) => {
         const s = get()
-        const fish = s.inventory.find((f) => f.id === fishId)
-        const species = fish && findSpecies(fish.speciesId)
-        if (!species) return false
-        const result = cook(s.coins, s.survival, getDish(dishId), species.rarity)
+        const ids = Array.isArray(fishIds) ? fishIds : [fishIds]
+        const picked = ids.flatMap((id) => {
+          const fish = s.inventory.find((f) => f.id === id)
+          const species = fish && findSpecies(fish.speciesId)
+          return fish && species ? [{ id: fish.id, speciesId: fish.speciesId, rarity: species.rarity }] : []
+        })
+        const dish = getDish(dishId)
+        if (picked.length !== ids.length || !ingredientsOk(dish, picked)) return false
+        const result = cook(s.coins, s.survival, dish, picked.map((f) => f.rarity))
         if (!result.ok) return false
-        set({ coins: result.coins, survival: result.survival, inventory: s.inventory.filter((f) => f.id !== fishId) })
+        const used = new Set(ids)
+        set({ coins: result.coins, survival: result.survival, inventory: s.inventory.filter((f) => !used.has(f.id)) })
         return true
       },
 
@@ -319,6 +387,48 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
 
       setLook: (look) => set({ look: normalizeLook(look) }),
 
+      buyBait: (id, qty) => {
+        const result = buyBaitRule(get().coins, get().bait, id, qty)
+        if (!result.ok) return false
+        set({ coins: result.coins, bait: result.counts })
+        return true
+      },
+
+      selectBait: (id) => set({ selectedBait: id }),
+
+      spendBait: (id) => set((s) => ({ bait: consumeBait(s.bait, id) })),
+
+      buySnacks: (id, qty) => {
+        const r = buySnacksRule(get().coins, get().snacks, id, qty)
+        if (!r.ok) return false
+        set({ coins: r.coins, snacks: r.snacks })
+        return true
+      },
+
+      buyAndEatSnack: (id) => {
+        const s = get()
+        const next = eaten(buyAndEatSnackRule(s.coins, s.snacks, s.survival, id))
+        if (next) set(next)
+        return next !== null
+      },
+
+      eatSnack: (id) => {
+        const s = get()
+        const next = eaten(eatSnackFromBag(s.coins, s.snacks, s.survival, id))
+        if (next) set(next)
+        return next !== null
+      },
+
+      unlockZone: (id) => {
+        const s = get()
+        const zone = ZONES.find((z) => z.id === id)
+        if (!zone) return false
+        const result = unlockZoneRule(zone, { coins: s.coins, dexCount: Object.keys(s.dex).length, lineLevel: s.gear.line, unlocked: s.unlockedZones })
+        if (!result.ok) return false
+        set({ coins: result.coins, unlockedZones: result.unlocked })
+        return true
+      },
+
       resetProgress: () => set({ ...INITIAL_PROGRESS }),
     }),
     {
@@ -339,6 +449,10 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           survival: readSurvival(saved.survival, current.survival),
           feed: readCount(saved.feed, current.feed),
           aquarium: readAquarium(saved.aquarium, current.aquarium),
+          bait: readBait(saved.bait, current.bait),
+          selectedBait: readSelectedBait(saved.selectedBait),
+          unlockedZones: readUnlockedZones(saved.unlockedZones),
+          snacks: readSnacks(saved.snacks, current.snacks),
         }
       },
     },

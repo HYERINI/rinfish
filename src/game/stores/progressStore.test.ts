@@ -255,4 +255,93 @@ describe('progressStore', () => {
     await useProgressStore.persist.rehydrate()
     expect(store().look).toMatchObject({ gender: 'female', beard: false, hair: DEFAULT_LOOK.hair })
   })
+
+  it('미끼를 사고, 고르고, 던질 때 1개씩 쓴다', () => {
+    expect(store().buyBait('lure', 1)).toBe(false)
+    useProgressStore.setState({ coins: 100 })
+    expect(store().buyBait('shrimp', 3)).toBe(true)
+    expect(store().coins).toBe(40)
+    expect(store().bait.shrimp).toBe(3)
+    store().selectBait('shrimp')
+    store().spendBait('shrimp')
+    expect(store().bait.shrimp).toBe(2)
+    expect(store().selectedBait).toBe('shrimp')
+  })
+
+  it('미끼가 없는 예전 저장본은 0개·미끼 없이, 깨진 값은 걸러 낸다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().bait).toEqual({ worm: 0, shrimp: 0, lure: 0 })
+    expect(store().selectedBait).toBeNull()
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { bait: { worm: 4, shrimp: -2, lure: 'x', gold: 9 }, selectedBait: 'gold' }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().bait).toEqual({ worm: 4, shrimp: 0, lure: 0 })
+    expect(store().selectedBait).toBeNull()
+  })
+
+  it('다리는 코인을 내고 열고, 동굴은 도감·낚싯줄 조건이 맞아야 열린다', () => {
+    expect(store().unlockZone('pond')).toBe(false)
+    useProgressStore.setState({ coins: 320 })
+    expect(store().unlockZone('pond')).toBe(true)
+    expect(store().coins).toBe(20)
+    expect(store().unlockedZones).toEqual(['pond'])
+    expect(store().unlockZone('pond')).toBe(false)
+
+    expect(store().unlockZone('cave')).toBe(false)
+    const ids = ['sleepy-sardine', 'chatty-mackerel', 'bubble-puffer', 'sunglasses-mackerel', 'selfie-flyingfish', 'lifeguard-flounder', 'firefly-minnow', 'ribbit-catfish']
+    for (const id of ids) store().addCatch(id, 1)
+    useProgressStore.setState({ gear: { line: 2, reel: 0, rod: 0 } })
+    expect(store().unlockZone('cave')).toBe(true)
+    expect(store().coins).toBe(20)
+    expect(store().unlockedZones).toEqual(['pond', 'cave'])
+  })
+
+  it('연 구역이 없는 예전 저장본은 모두 잠김, 모르는 구역·해변은 버린다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().unlockedZones).toEqual([])
+
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { unlockedZones: ['reef', 'beach', 'moon', 'reef', 3] }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().unlockedZones).toEqual(['reef'])
+  })
+
+  it('간식은 사서 바로 먹거나 가방에 넣었다가 꺼내 먹는다', () => {
+    useProgressStore.setState({ coins: 60, survival: { stamina: 10, graceLeft: null, buffs: [] } })
+    expect(store().buyAndEatSnack('gimbap')).toBe(true)
+    expect(store().coins).toBe(50)
+    expect(store().survival.stamina).toBe(35)
+    expect(store().buySnacks('ramen', 2)).toBe(true)
+    expect(store().snacks.ramen).toBe(2)
+    expect(store().eatSnack('ramen')).toBe(true)
+    expect(store().snacks.ramen).toBe(1)
+    expect(store().survival.stamina).toBe(80)
+    expect(store().eatSnack('energy')).toBe(false)
+  })
+
+  it('간식이 없는 예전 저장본은 빈 가방, 깨진 값은 걸러 낸다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().snacks).toEqual({ gimbap: 0, ramen: 0, energy: 0 })
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { snacks: { gimbap: 2, ramen: -1, energy: 'x', cake: 3 } }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().snacks).toEqual({ gimbap: 2, ramen: 0, energy: 0 })
+  })
+
+  it('찜: 매콤 해물찜은 두 마리, 대왕찜은 희귀 이상, 물고기찜은 일반만', () => {
+    useProgressStore.setState({ coins: 200, survival: { stamina: 10, graceLeft: null, buffs: [] } })
+    const a = store().addCatch('sleepy-sardine', 0.2)
+    const b = store().addCatch('chatty-mackerel', 0.4)
+    const rare = store().addCatch('sunglasses-mackerel', 1)
+    expect(store().cookDish('spicySteam', [a.id])).toBe(false)
+    expect(store().cookDish('spicySteam', [a.id, a.id])).toBe(false)
+    expect(store().cookDish('bossSteam', a.id)).toBe(false)
+    expect(store().cookDish('fishSteam', rare.id)).toBe(false)
+    expect(store().cookDish('spicySteam', [a.id, b.id])).toBe(true)
+    expect(store().inventory.map((f) => f.id)).toEqual([rare.id])
+    expect(store().coins).toBe(175)
+    expect(store().cookDish('bossSteam', rare.id)).toBe(true)
+    expect(store().inventory).toEqual([])
+  })
 })

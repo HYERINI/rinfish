@@ -1,13 +1,17 @@
 import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import type { Mesh, MeshBasicMaterial } from 'three'
-import { FISHING_SPOTS, type FishingSpot } from '../../data/zones'
+import type { FishingSpot } from '../../data/zones'
+import { openFishingSpots } from '../../logic/zoneUnlock'
+import { useProgressStore } from '../../stores/progressStore'
 import { InteractionZone } from './InteractionZone'
 
+/** 열린 구역의 낚시 포인트만 보이고 E 로 시작할 수 있다 */
 export function FishingSpots() {
+  const unlocked = useProgressStore((s) => s.unlockedZones)
   return (
     <>
-      {FISHING_SPOTS.map((spot) => (
+      {openFishingSpots(unlocked).map((spot) => (
         <FishingSpotMarker key={spot.id} spot={spot} />
       ))}
     </>

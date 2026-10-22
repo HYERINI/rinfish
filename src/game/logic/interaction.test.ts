@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isSameInteractable, resolveKeyAction } from './interaction'
+import { isCookingSkipKey, isSameInteractable, resolveKeyAction } from './interaction'
 
 describe('isSameInteractable', () => {
   it('같은 낚시 포인트면 true, 다른 포인트면 false', () => {
@@ -39,11 +39,34 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'menu', null)).toEqual({ type: 'closePanel' })
   })
 
+  it('낚시 중 1~3은 미끼, 0은 미끼 없이. 탐험·패널에선 숫자 키를 받지 않는다(감정 표현)', () => {
+    expect(resolveKeyAction('Digit1', 'fishing', spot)).toEqual({ type: 'selectBait', bait: 'worm' })
+    expect(resolveKeyAction('Digit3', 'fishing', spot)).toEqual({ type: 'selectBait', bait: 'lure' })
+    expect(resolveKeyAction('Digit0', 'fishing', spot)).toEqual({ type: 'selectBait', bait: null })
+    expect(resolveKeyAction('Digit5', 'fishing', spot)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit1', 'explore', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit2', 'shop', null)).toEqual({ type: 'none' })
+  })
+
+  it('잠긴 구역 문 앞에서 E 는 여는 창, 연출 중엔 E·ESC·숫자 키 모두 무시', () => {
+    const gate = { kind: 'zoneGate' as const, zoneId: 'pond' as const }
+    expect(resolveKeyAction('KeyE', 'explore', gate)).toEqual({ type: 'openMode', mode: 'unlock' })
+    expect(resolveKeyAction('Escape', 'unlock', gate)).toEqual({ type: 'closePanel' })
+    for (const code of ['KeyE', 'Escape', 'Digit1']) expect(resolveKeyAction(code, 'cutscene', gate)).toEqual({ type: 'none' })
+    expect(isSameInteractable(gate, { kind: 'zoneGate', zoneId: 'reef' })).toBe(false)
+    expect(isSameInteractable(gate, { kind: 'zoneGate', zoneId: 'pond' })).toBe(true)
+  })
+
+  it('요리 연출은 E·Space·Enter·ESC 로 건너뛴다', () => {
+    for (const code of ['KeyE', 'Space', 'Enter', 'Escape']) expect(isCookingSkipKey(code)).toBe(true)
+    expect(isCookingSkipKey('KeyW')).toBe(false)
+  })
+
   it('다른 키는 무시한다', () => {
     expect(resolveKeyAction('KeyW', 'explore', spot)).toEqual({ type: 'none' })
   })
 
-  it('어시장·어항은 패널을 열고, 벤치는 앉는다', () => {
+  it('미스터찜(market)·어항은 패널을 열고, 벤치는 앉는다', () => {
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'market' })).toEqual({ type: 'openMode', mode: 'market' })
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'aquarium' })).toEqual({ type: 'openMode', mode: 'aquarium' })
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'bench' })).toEqual({ type: 'openMode', mode: 'rest' })

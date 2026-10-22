@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { BAITS } from '../data/bait'
 import { RARITY_COLOR, RARITY_LABEL, getSpecies } from '../data/fish'
 import type { FishInstance } from '../data/types'
 import { castPowerFromHold } from '../logic/cast'
@@ -8,6 +9,7 @@ import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { FishImage } from './FishImage'
+import { ItemIcon } from './ItemIcon'
 import { button, hint, overlayLayer, panelBox } from './styles'
 
 export function FishingOverlay() {
@@ -22,8 +24,77 @@ export function FishingOverlay() {
       {state.stage === 'waiting' && <WaitingView biting={state.bite.phase === 'bite'} />}
       {state.stage === 'fighting' && <TensionGauge fight={state.fight} />}
       {state.stage === 'done' && <ResultCard state={state} caught={caught} />}
+      {state.stage !== 'done' && <BaitBar />}
     </div>
   )
+}
+
+/** 미끼 고르기 (오른쪽 아래). 숫자 키 1~3·0 또는 눌러서 고른다. 다음에 던질 때 쓴다 */
+function BaitBar() {
+  const counts = useProgressStore((s) => s.bait)
+  const selected = useProgressStore((s) => s.selectedBait)
+  const selectBait = useProgressStore((s) => s.selectBait)
+  const options = [{ id: null, name: '미끼 없이', key: '0', count: null }, ...BAITS.map((b) => ({ id: b.id, name: b.name, key: b.key.replace('Digit', ''), count: counts[b.id] }))]
+  return (
+    <div style={baitBar}>
+      <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 4 }}>미끼 (숫자 키)</div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {options.map((o) => {
+          const active = selected === o.id
+          const empty = o.count === 0
+          return (
+            <button
+              key={o.key}
+              style={{ ...baitChip, borderColor: active ? '#ffd166' : 'transparent', background: active ? 'rgba(255,209,102,0.22)' : 'rgba(0,0,0,0.45)', opacity: empty && !active ? 0.5 : 1 }}
+              onClick={(e) => {
+                selectBait(o.id)
+                e.currentTarget.blur()
+              }}
+            >
+              <span style={keyBadge}>{o.key}</span>
+              <ItemIcon id={o.id ?? 'none'} size={34} />
+              <span style={{ fontSize: 11, whiteSpace: 'nowrap' }}>{o.name}</span>
+              <span style={{ fontSize: 11, color: empty ? '#ef9a9a' : '#ffe082' }}>{o.count === null ? '기본' : `×${o.count}`}</span>
+            </button>
+          )
+        })}
+      </div>
+      {selected && counts[selected] === 0 && <div style={{ fontSize: 11, color: '#ef9a9a', marginTop: 4 }}>다 떨어져서 미끼 없이 던져요</div>}
+    </div>
+  )
+}
+
+const baitBar: CSSProperties = {
+  position: 'absolute',
+  right: 12,
+  bottom: 96,
+  pointerEvents: 'auto',
+  background: 'rgba(20, 30, 45, 0.7)',
+  borderRadius: 10,
+  padding: '6px 8px 8px',
+}
+
+const baitChip: CSSProperties = {
+  position: 'relative',
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: 1,
+  width: 58,
+  padding: '4px 2px',
+  border: '2px solid transparent',
+  borderRadius: 8,
+  color: '#fff',
+  cursor: 'pointer',
+}
+
+const keyBadge: CSSProperties = {
+  position: 'absolute',
+  top: 2,
+  left: 4,
+  fontSize: 10,
+  fontWeight: 700,
+  opacity: 0.8,
 }
 
 function AimingView({ holdTime }: { holdTime: number }) {

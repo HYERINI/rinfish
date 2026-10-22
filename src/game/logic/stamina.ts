@@ -34,7 +34,8 @@ export function addBuff(buffs: Buff[], buff: Buff): Buff[] {
   return [...buffs.filter((b) => b.kind !== buff.kind), buff]
 }
 
-export type SurvivalTickContext = { fighting: boolean; resting: boolean }
+/** exploring: 낚시·패널 없이 돌아다니는 중 (조금씩 저절로 회복한다) */
+export type SurvivalTickContext = { fighting: boolean; resting: boolean; exploring?: boolean }
 
 /** dt초만큼 시간을 진행한다. 유예 시간이 다 되면 fainted */
 export function tickSurvival(s: Survival, dt: number, ctx: SurvivalTickContext): { survival: Survival; fainted: boolean } {
@@ -42,6 +43,8 @@ export function tickSurvival(s: Survival, dt: number, ctx: SurvivalTickContext):
   let next: Survival = { ...s, buffs }
   if (ctx.fighting) next = spendStamina(next, STAMINA.fightCostPerSecond * dt)
   if (ctx.resting) next = healStamina(next, STAMINA.benchRegenPerSecond * dt)
+  // 저절로 회복은 약화를 풀지 않는다 (체력 0 이 되면 음식이나 벤치로 회복해야 한다)
+  if (ctx.exploring && next.graceLeft === null) next = healStamina(next, STAMINA.passiveRegenPerSecond * dt)
   if (next.graceLeft === null) return { survival: next, fainted: false }
 
   const graceLeft = next.graceLeft - dt
