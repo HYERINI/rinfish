@@ -60,7 +60,7 @@ export type FishingSpot = {
 export const FISHING_SPOTS: FishingSpot[] = [
   { id: 'beach-dock', zone: 'beach', position: [0, 27], facing: [0, 1], surfaceY: WATER_Y },
   { id: 'beach-rocks', zone: 'beach', position: [-19, 21], facing: [-0.67, 0.74], surfaceY: WATER_Y },
-  { id: 'pond-edge', zone: 'pond', position: [-15, -6.5], facing: [0, -1], surfaceY: INLAND_WATER_Y },
+  { id: 'pond-edge', zone: 'pond', position: [-15, -1.2], facing: [0, -1], surfaceY: INLAND_WATER_Y },
   { id: 'reef-cliff', zone: 'reef', position: [22, -17], facing: [0.79, -0.61], surfaceY: WATER_Y },
   { id: 'cave-lake', zone: 'cave', position: [0, -19], facing: [0, -1], surfaceY: INLAND_WATER_Y },
 ]
@@ -88,7 +88,7 @@ export type InlandWater = {
 }
 
 export const INLAND_WATERS: InlandWater[] = [
-  { id: 'pond', zone: 'pond', center: [-15, -12], radius: 5, color: '#4db6ac', cover: null },
+  { id: 'pond', zone: 'pond', center: [-15, -11], radius: 8, color: '#4db6ac', cover: null },
   { id: 'caveLake', zone: 'cave', center: [0, -24], radius: 4, color: '#1a237e', cover: CAVE_WALL },
 ]
 
