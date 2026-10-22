@@ -1,4 +1,4 @@
-import { CAST_RARITY_BONUS, RARITY_WEIGHTS } from '../data/balance'
+import { CAST_RARITY_BONUS, RARITY_WEIGHTS, ZONE_RARITY_WEIGHTS } from '../data/balance'
 import { FISH_SPECIES } from '../data/fish'
 import type { FishSpecies, Rarity, ZoneId } from '../data/types'
 import { lerpRange, type Rng } from './rng'
@@ -8,12 +8,12 @@ export type CatchEntry = { species: FishSpecies; weight: number }
 export function catchWeights(zone: ZoneId, castPower: number): CatchEntry[] {
   return FISH_SPECIES.filter((s) => s.zones.includes(zone)).map((species) => ({
     species,
-    weight: rarityWeight(species.rarity, castPower),
+    weight: rarityWeight(zone, species.rarity, castPower),
   }))
 }
 
-function rarityWeight(rarity: Rarity, castPower: number): number {
-  const base = RARITY_WEIGHTS[rarity]
+function rarityWeight(zone: ZoneId, rarity: Rarity, castPower: number): number {
+  const base = ZONE_RARITY_WEIGHTS[zone]?.[rarity] ?? RARITY_WEIGHTS[rarity]
   if (rarity === 'rare') return base * (1 + CAST_RARITY_BONUS.rare * castPower)
   if (rarity === 'epic') return base * (1 + CAST_RARITY_BONUS.epic * castPower)
   return base

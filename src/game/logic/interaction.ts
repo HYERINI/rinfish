@@ -1,5 +1,5 @@
 /** 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중 */
-export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe'
+export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe' | 'aquariumView'
 
 /** E 키로 상호작용할 수 있는 대상 */
 export type Interactable =
@@ -28,6 +28,7 @@ export type KeyAction =
 export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable | null, panelLocked = false): KeyAction {
   if (code === 'Escape') {
     if (panelLocked) return { type: 'none' }
+    if (mode === 'aquariumView') return { type: 'openMode', mode: 'aquarium' }
     if (mode === 'explore') return { type: 'openMode', mode: 'menu' }
     if (mode === 'fishing') return { type: 'stopFishing' }
     return { type: 'closePanel' }

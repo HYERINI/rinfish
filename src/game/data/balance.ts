@@ -1,4 +1,4 @@
-import type { BasicPattern, Rarity } from './types'
+import type { BasicPattern, Rarity, ZoneId } from './types'
 
 type Range = [number, number]
 
@@ -73,6 +73,11 @@ export const RARITY_WEIGHTS: Record<Rarity, number> = {
   rare: 24,
   epic: 8,
   legendary: 1,
+}
+
+/** 구역별 희귀도 가중치 덮어쓰기. 동굴은 전설을 노리는 곳이라 같이 사는 에픽보다 전설이 잘 나온다 */
+export const ZONE_RARITY_WEIGHTS: Partial<Record<ZoneId, Partial<Record<Rarity, number>>>> = {
+  cave: { legendary: 16 },
 }
 
 /** 최대 파워로 던졌을 때 가중치 증가 배율 (rare ×2, epic ×3) */

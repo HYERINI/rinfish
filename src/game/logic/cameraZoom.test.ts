@@ -23,6 +23,6 @@ describe('canZoom', () => {
     expect(canZoom('explore')).toBe(true)
     expect(canZoom('fishing')).toBe(true)
     expect(canZoom('rest')).toBe(true)
-    for (const mode of ['menu', 'dex', 'sell', 'shop', 'market', 'aquarium', 'wardrobe'] as const) expect(canZoom(mode)).toBe(false)
+    for (const mode of ['menu', 'dex', 'sell', 'shop', 'market', 'aquarium', 'aquariumView', 'wardrobe'] as const) expect(canZoom(mode)).toBe(false)
   })
 })

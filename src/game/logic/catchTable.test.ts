@@ -9,10 +9,22 @@ describe('rollSpecies', () => {
     expect(rollSpecies('beach', 0, fixedRng(0)).id).toBe('sleepy-sardine')
   })
 
-  it('동굴에서는 항상 전설의 물고기가 나온다', () => {
-    for (const v of [0, 0.5, 0.99]) {
-      expect(rollSpecies('cave', 0.5, fixedRng(v)).rarity).toBe('legendary')
+  it('동굴에서는 에픽이 같이 살아도 전설이 가장 많이 나온다 (세게 던져 에픽이 3배가 되어도 40% 이상)', () => {
+    const legendShare = (power: number) => {
+      const table = catchWeights('cave', power)
+      const total = table.reduce((sum, e) => sum + e.weight, 0)
+      return table.filter((e) => e.species.rarity === 'legendary').reduce((sum, e) => sum + e.weight, 0) / total
     }
+    expect(legendShare(0)).toBeGreaterThan(0.6)
+    expect(legendShare(1)).toBeGreaterThanOrEqual(0.4)
+  })
+
+  it('새 어종도 자기 구역에서 나온다', () => {
+    const ids = (zone: 'beach' | 'pond' | 'reef' | 'cave') => catchWeights(zone, 0.5).map((e) => e.species.id)
+    expect(ids('beach')).toContain('selfie-flyingfish')
+    expect(ids('pond')).toContain('sleepy-catfish-king')
+    expect(ids('reef')).toContain('ninja-ray')
+    expect(ids('cave')).toContain('crystal-eye-cavefish')
   })
 
   it('멀리 던질수록 에픽이 나올 확률이 올라간다', () => {

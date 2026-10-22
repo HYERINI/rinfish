@@ -66,4 +66,8 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'wardrobe', null, true)).toEqual({ type: 'none' })
     expect(resolveKeyAction('Escape', 'wardrobe', null, false)).toEqual({ type: 'closePanel' })
   })
+
+  it('어항 크게 보기에서 ESC를 누르면 어항 패널로 돌아간다', () => {
+    expect(resolveKeyAction('Escape', 'aquariumView', null)).toEqual({ type: 'openMode', mode: 'aquarium' })
+  })
 })
