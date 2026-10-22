@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { CAMERA_ZOOM, MOVE } from '../data/balance'
-import { IDLE_ACTION, cameraRig, moveSpeed, nextAction, type MotionInput, type PlayerAction } from './playerMotion'
+import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
+import { BARRIER_COLLIDER_HEIGHT } from '../data/zones'
+import { IDLE_ACTION, cameraRig, maxJumpHeight, moveSpeed, nextAction, rodVisible, shouldFaceCamera, type MotionInput, type PlayerAction } from './playerMotion'
 
 const input = (over: Partial<MotionInput> = {}): MotionInput => ({
   moving: false,
@@ -124,5 +125,50 @@ describe('cameraRig', () => {
       expect(r.lookAtY).toBeCloseTo(h * CAMERA_ZOOM.closeLookAt)
       expect(r.height).toBeCloseTo(r.lookAtY + CAMERA_ZOOM.min * CAMERA_ZOOM.closeHeightRatio)
     }
+  })
+})
+
+describe('점프로 잠긴 구역 넘기 금지', () => {
+  it('점프 최고 높이(발) = jumpSpeed² / 2g', () => {
+    expect(maxJumpHeight()).toBeCloseTo((MOVE.jumpSpeed * MOVE.jumpSpeed) / (2 * 9.81))
+  })
+
+  it('뛰어올랐을 때 캡슐 맨 위도 울타리·잠긴 문 콜라이더보다 낮다 (여유 0.5m)', () => {
+    const capsuleTop = maxJumpHeight() + 2 * (PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
+    expect(capsuleTop + 0.5).toBeLessThan(BARRIER_COLLIDER_HEIGHT.fence)
+    expect(capsuleTop + 0.5).toBeLessThan(BARRIER_COLLIDER_HEIGHT.gate)
+  })
+})
+
+describe('shouldFaceCamera', () => {
+  const close = CAMERA_ZOOM.faceTurnBelow - 0.5
+  it('탐험 중 가까이 당기고 잠깐 멈춰 있으면 카메라 쪽으로 돌아선다', () => {
+    expect(shouldFaceCamera('explore', close, CAMERA_ZOOM.faceTurnDelay + 0.1, IDLE_ACTION)).toBe(true)
+  })
+
+  it('멀거나, 막 멈췄거나, 탐험이 아니거나, 공중·구르기 중이면 돌지 않는다', () => {
+    const idle = CAMERA_ZOOM.faceTurnDelay + 0.1
+    expect(shouldFaceCamera('explore', CAMERA_ZOOM.faceTurnBelow + 1, idle, IDLE_ACTION)).toBe(false)
+    expect(shouldFaceCamera('explore', close, 0.1, IDLE_ACTION)).toBe(false)
+    expect(shouldFaceCamera('fishing', close, idle, IDLE_ACTION)).toBe(false)
+    expect(shouldFaceCamera('rest', close, idle, IDLE_ACTION)).toBe(false)
+    expect(shouldFaceCamera('explore', close, idle, { ...IDLE_ACTION, airborne: true })).toBe(false)
+    expect(shouldFaceCamera('explore', close, idle, { ...IDLE_ACTION, emote: 'roll' })).toBe(false)
+    expect(shouldFaceCamera('explore', close, idle, { ...IDLE_ACTION, emote: 'dance' })).toBe(true)
+  })
+})
+
+describe('rodVisible', () => {
+  it('낚시 중엔 늘 보인다', () => {
+    expect(rodVisible('fishing', 1.5, IDLE_ACTION)).toBe(true)
+    expect(rodVisible('fishing', 10, { ...IDLE_ACTION, airborne: true })).toBe(true)
+  })
+
+  it('서 있거나 걸을 땐 보이고, 감정 표현·점프·휴식·가까운 줌에선 숨긴다', () => {
+    expect(rodVisible('explore', 10, IDLE_ACTION)).toBe(true)
+    expect(rodVisible('explore', 10, { ...IDLE_ACTION, emote: 'spell' })).toBe(false)
+    expect(rodVisible('explore', 10, { ...IDLE_ACTION, airborne: true })).toBe(false)
+    expect(rodVisible('rest', 10, IDLE_ACTION)).toBe(false)
+    expect(rodVisible('explore', CAMERA_ZOOM.hideRodBelow - 0.1, IDLE_ACTION)).toBe(false)
   })
 })

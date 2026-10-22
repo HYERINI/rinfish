@@ -1,6 +1,6 @@
 import { Html } from '@react-three/drei'
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier'
-import { FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, ZONES, type ZoneDef } from '../data/zones'
+import { BARRIER_COLLIDER_HEIGHT, FENCE_Z, INLAND_WATER_Y, ISLAND_RADIUS, ZONES, type ZoneDef } from '../data/zones'
 import { Ocean } from './Ocean'
 
 export function Island() {
@@ -84,7 +84,8 @@ function FenceWall({ from, to }: { from: number; to: number }) {
   const width = to - from
   return (
     <RigidBody type="fixed" colliders={false} position={[(from + to) / 2, 0.6, FENCE_Z]}>
-      <CuboidCollider args={[width / 2, 1.5, 0.2]} />
+      {/* 보이는 울타리보다 훨씬 높은 보이지 않는 벽 (점프로 못 넘게). 바닥은 땅(y=0)에 맞춘다 */}
+      <CuboidCollider args={[width / 2, BARRIER_COLLIDER_HEIGHT.fence / 2, 0.2]} position={[0, BARRIER_COLLIDER_HEIGHT.fence / 2 - 0.6, 0]} />
       <mesh castShadow receiveShadow>
         <boxGeometry args={[width, 1.2, 0.3]} />
         <meshStandardMaterial color="#8d6e63" />
@@ -100,7 +101,8 @@ function Gate({ zone }: { zone: ZoneDef }) {
   const width = xTo - xFrom
   return (
     <RigidBody type="fixed" colliders={false} position={[(xFrom + xTo) / 2, 1, FENCE_Z]}>
-      <CuboidCollider args={[width / 2, 1, 0.3]} />
+      {/* 보이는 문보다 훨씬 높은 보이지 않는 벽 (점프로 못 넘게). 바닥은 땅(y=0)에 맞춘다 */}
+      <CuboidCollider args={[width / 2, BARRIER_COLLIDER_HEIGHT.gate / 2, 0.3]} position={[0, BARRIER_COLLIDER_HEIGHT.gate / 2 - 1, 0]} />
       <mesh castShadow>
         <boxGeometry args={[width, 2, 0.6]} />
         <meshStandardMaterial color={zone.color} transparent opacity={0.7} />

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
-import { MOVE } from '../data/balance'
+import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { BENCH_SEAT, ISLAND_RADIUS, getSpot } from '../data/zones'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
@@ -11,7 +11,7 @@ import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
 import { isPointerDown } from '../input/pointer'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
-import { cameraRig, moveSpeed, nextAction } from '../logic/playerMotion'
+import { cameraRig, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
@@ -75,10 +75,16 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 }
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
-const FOOT_Y = -0.9
-/** 발바닥 아래로 이 거리 안에 땅이 있고 세로 속도가 작으면 땅에 서 있다고 본다 */
+const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
+/**
+ * 땅 판정: 몸 가운데에서 공(반지름 GROUND_BALL)을 아래로 밀어 발바닥 아래 GROUND_PROBE 안에 닿는 게 있고 세로 속도가 작으면 땅에 서 있다.
+ * 광선 하나는 상자 모서리에 걸터앉으면 빗나가서 공중 자세에 갇힌다
+ */
+const GROUND_BALL = 0.35
 const GROUND_PROBE = 0.15
 const GROUNDED_MAX_VY = 1
+/** 카메라 거리·높이·방향(플레이어 기준 오프셋)이 따라가는 빠르기. 수평 위치는 플레이어에 바로 붙는다 */
+const CAMERA_SMOOTH = 5
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
@@ -97,8 +103,15 @@ export function Player() {
   const facing = useRef(Math.PI)
   const camera = useThree((s) => s.camera)
   const { world, rapier } = useRapier()
-  /** 땅 판정용 아래 방향 광선. 원점은 매 프레임 몸 가운데로 옮긴다 */
-  const groundRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
+  /** 땅 판정용 공 모양 */
+  const groundBall = useRef<InstanceType<typeof rapier.Ball> | null>(null)
+  /** 마지막으로 움직인 시각 (가까이 당겼을 때 카메라 쪽으로 돌아서기용) */
+  const movedAt = useRef(0)
+  /**
+   * 카메라: 플레이어 기준 오프셋(거리·높이·방향)과 시선 높이, 따라가는 발 높이만 부드럽게 바꾼다.
+   * 위치 전체를 늦게 따라가면 가까이 당긴 채 카메라 쪽으로 걸을 때 카메라가 몸을 뚫는다
+   */
+  const cam = useRef({ offset: new Vector3(), lookY: 0, feetY: 0, ready: false })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
 
   // 탐험 중 마우스 드래그로 카메라 회전
@@ -149,9 +162,8 @@ export function Player() {
     const now = clock.elapsedTime
     const sprint = isSprintHeld()
     const t = rb.translation()
-    const ray = (groundRay.current ??= new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: -1, z: 0 }))
-    ray.origin = { x: t.x, y: t.y, z: t.z }
-    const hit = world.castRay(ray, -FOOT_Y + GROUND_PROBE, true, rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)
+    const ball = (groundBall.current ??= new rapier.Ball(GROUND_BALL))
+    const hit = world.castShape(t, { x: 0, y: 0, z: 0, w: 1 }, { x: 0, y: -1, z: 0 }, ball, 0, -FOOT_Y - GROUND_BALL + GROUND_PROBE, true, rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)
     const grounded = hit !== null && Math.abs(velocity.y) < GROUNDED_MAX_VY
     const session = useSessionStore.getState()
     const prevAction = session.playerAction
@@ -201,6 +213,11 @@ export function Player() {
     } else if (moveDir.lengthSq() > 0) {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
+    // 가까이 당긴 채 멈춰 있으면 얼굴이 보이게 카메라 쪽으로 천천히 돌아선다 (카메라는 그대로)
+    if (mode !== 'explore' || moveDir.lengthSq() > 0) movedAt.current = now
+    if (shouldFaceCamera(mode, session.zoom, now - movedAt.current, action)) {
+      facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
+    }
     if (visual.current) visual.current.rotation.y = facing.current
 
     // 4) 낚싯대 각도: 젖혔다가 휘두르고, 줄다리기 땐 텐션만큼 휜다
@@ -213,8 +230,8 @@ export function Player() {
       if (fishing?.stage === 'aiming') fishingFx.windup = rod.current.rotation.x
 
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
-      // 앉아 있는 동안엔 낚싯대가 무릎을 뚫고 나오므로 숨긴다
-      rod.current.visible = mode !== 'rest'
+      // 낚시 중이 아니면 서 있거나 걸을 때만 보인다 (앉기·감정 표현·점프 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다)
+      rod.current.visible = rodVisible(mode, session.zoom, action)
       const m = model.current
       if (m && visual.current) {
         // 골반은 벤치 자리에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
@@ -227,19 +244,25 @@ export function Player() {
     }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
 
-    // 6) 3인칭 카메라: 목표 위치로 부드럽게 따라간다. 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다
+    // 6) 3인칭 카메라: 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다.
+    //    수평 위치는 플레이어에 바로 붙이고, 오프셋(방향·거리·높이)·발 높이(점프)만 부드럽게 따라간다
     const distance = session.zoom
-    const feet = p.y + FOOT_Y
     const rig = cameraRig(distance, CHARACTER_BASE_HEIGHT * look.height)
-    cameraTarget.set(x + sin * distance, feet + rig.height, z + cos * distance)
-    camera.position.lerp(cameraTarget, 1 - Math.exp(-delta * 5))
-    camera.lookAt(x, feet + rig.lookAtY, z)
+    cameraTarget.set(sin * distance, rig.height, cos * distance)
+    const c = cam.current
+    const k = c.ready ? 1 - Math.exp(-delta * CAMERA_SMOOTH) : 1
+    c.ready = true
+    c.offset.lerp(cameraTarget, k)
+    c.lookY += (rig.lookAtY - c.lookY) * k
+    c.feetY += (p.y + FOOT_Y - c.feetY) * k
+    camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
+    camera.lookAt(x, c.feetY + c.lookY, z)
   })
 
   return (
     // dynamic 물체지만 회전은 막아서 넘어지지 않게 한다
     <RigidBody ref={body} colliders={false} position={[0, 2, 15]} enabledRotations={[false, false, false]}>
-      <CapsuleCollider args={[0.5, 0.4]} />
+      <CapsuleCollider args={[PLAYER_BODY.halfHeight, PLAYER_BODY.radius]} />
       <group ref={visual}>
         <group position={[0, FOOT_Y, 0]}>
           <PlayerModel ref={model} look={look} />

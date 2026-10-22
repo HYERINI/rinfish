@@ -3,6 +3,12 @@ import type { ZoneId } from './types'
 export const ISLAND_RADIUS = 30
 /** 해변(z > FENCE_Z)과 나머지 구역을 나누는 울타리의 z 좌표 */
 export const FENCE_Z = 5
+
+/**
+ * 울타리·잠긴 문 콜라이더 높이(m, 땅에서). 보이는 모양(울타리 1.2, 문 2)보다 훨씬 높은 보이지 않는 벽이라
+ * 점프로 넘어 잠긴 구역에 들어갈 수 없다. 점프 최고 높이 + 캡슐 키보다 높아야 한다 (playerMotion 테스트로 확인)
+ */
+export const BARRIER_COLLIDER_HEIGHT = { fence: 5, gate: 5 }
 /** 바다 수면 높이 (섬 윗면은 y = 0) */
 export const WATER_Y = -0.3
 /** 연못·동굴 호수처럼 섬 위에 있는 물의 수면 높이 */

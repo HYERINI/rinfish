@@ -1,4 +1,4 @@
-import { CAMERA_ZOOM, MOVE } from '../data/balance'
+import { CAMERA_ZOOM, GRAVITY, MOVE } from '../data/balance'
 import { EMOTES, type EmoteId } from '../data/emotes'
 import type { Mode } from './interaction'
 
@@ -70,4 +70,25 @@ export function cameraRig(distance: number, characterHeight: number): { height: 
   const lookAtY = characterHeight * (CAMERA_ZOOM.farLookAt + (CAMERA_ZOOM.closeLookAt - CAMERA_ZOOM.farLookAt) * t)
   const ratio = CAMERA_ZOOM.heightRatio + (CAMERA_ZOOM.closeHeightRatio - CAMERA_ZOOM.heightRatio) * t
   return { height: lookAtY + distance * ratio, lookAtY }
+}
+
+/** 점프로 발이 올라가는 최고 높이 (m) */
+export function maxJumpHeight(): number {
+  return (MOVE.jumpSpeed * MOVE.jumpSpeed) / (2 * GRAVITY)
+}
+
+/**
+ * 가까이 당겨 얼굴을 보려 할 때 캐릭터를 카메라 쪽으로 돌릴까. 탐험 중 땅에서 idleTime 초 넘게 멈춰 있을 때만
+ * (구르기는 바라보는 쪽으로 굴러 나가므로 제외). 카메라는 돌리지 않는다
+ */
+export function shouldFaceCamera(mode: Mode, zoom: number, idleTime: number, action: PlayerAction): boolean {
+  if (mode !== 'explore' || zoom >= CAMERA_ZOOM.faceTurnBelow || idleTime < CAMERA_ZOOM.faceTurnDelay) return false
+  return !action.airborne && action.emote !== 'roll'
+}
+
+/** 낚싯대를 보일까. 낚시 중엔 늘, 그 밖엔 서 있거나 걸을 때만(감정 표현·점프·휴식 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다) */
+export function rodVisible(mode: Mode, zoom: number, action: PlayerAction): boolean {
+  if (mode === 'fishing') return true
+  if (mode === 'rest' || action.emote || action.airborne) return false
+  return zoom >= CAMERA_ZOOM.hideRodBelow
 }

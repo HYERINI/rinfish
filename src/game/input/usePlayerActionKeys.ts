@@ -20,11 +20,17 @@ export function isSprintHeld(): boolean {
   return ACTION_KEYS.sprint.some(isKeyDown)
 }
 
-/** Space·숫자 키 → 점프·감정 표현. 꾹 누르고 있을 때 반복 입력은 무시한다 */
+/** 글자를 치는 칸(입력창·여러 줄 입력·선택 상자·편집 가능한 요소)에서 누른 키인가 */
+function isTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return target.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
+}
+
+/** Space·숫자 키 → 점프·감정 표현. 꾹 누르고 있을 때 반복 입력과 글자 입력 칸에서 누른 키는 무시한다 */
 export function usePlayerActionKeys() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return
+      if (e.repeat || isTypingTarget(e.target)) return
       if (e.code === ACTION_KEYS.jump) {
         // 탐험 중엔 포커스가 남은 버튼이 Space 로 눌리거나 페이지가 스크롤되지 않게 막는다 (패널에선 그대로 둔다)
         if (useSessionStore.getState().mode === 'explore') e.preventDefault()

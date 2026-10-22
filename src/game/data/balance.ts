@@ -138,6 +138,12 @@ export const VISITOR_INCOME_PER_MINUTE: Record<Rarity, number> = {
   legendary: 20,
 }
 
+/** 중력 가속도 (m/s², 아래로). Physics 에 그대로 넘긴다 */
+export const GRAVITY = 9.81
+
+/** 플레이어 캡슐 콜라이더. 전체 키 = 2 × (halfHeight + radius) */
+export const PLAYER_BODY = { halfHeight: 0.5, radius: 0.4 }
+
 /** 플레이어 이동 (m/s). 점프는 위로 차고 오르는 세로 속도 */
 export const MOVE = {
   walkSpeed: 8,
@@ -165,4 +171,11 @@ export const CAMERA_ZOOM = {
   farLookAt: 0.55,
   /** 이 거리부터 가까워지는 만큼 얼굴 쪽으로 옮겨 간다 */
   closeFrom: 6,
+  /** 이 거리보다 가깝고 faceTurnDelay 초 넘게 멈춰 있으면 캐릭터가 카메라 쪽으로 천천히 돌아선다(카메라는 돌리지 않는다) */
+  faceTurnBelow: 3,
+  faceTurnDelay: 0.4,
+  /** 돌아서는 빠르기 (클수록 빨리) */
+  faceTurnSpeed: 3,
+  /** 이 거리보다 가까우면 낚시 중이 아닐 때 낚싯대를 숨긴다 (화면을 가린다) */
+  hideRodBelow: 3,
 }

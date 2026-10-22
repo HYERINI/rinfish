@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
+import { GRAVITY } from './data/balance'
 import { useInteractionKeys } from './input/useInteractionKeys'
 import { usePlayerActionKeys } from './input/usePlayerActionKeys'
 import { useWheelZoom } from './input/useWheelZoom'
@@ -51,7 +52,7 @@ export function Game({ onExit }: GameProps) {
         <Canvas shadows camera={{ position: [0, 8, 25], fov: 50 }}>
           {/* Rapier는 물리 엔진(wasm)을 비동기로 불러오므로 Suspense가 필요하다 */}
           <Suspense fallback={null}>
-            <Physics>
+            <Physics gravity={[0, -GRAVITY, 0]}>
               <World />
             </Physics>
           </Suspense>
