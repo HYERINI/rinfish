@@ -73,7 +73,8 @@ const PARTS = {
 
 const CLIPS = ['Idle_Loop', 'Walk_Loop', 'Jog_Fwd_Loop', 'Pistol_Aim_Up', 'Pistol_Aim_Neutral', 'Pistol_Aim_Down', 'Push_Loop',
   'Dance_Loop', 'Death01', 'Crouch_Idle_Loop', 'Sitting_Enter', 'Sitting_Idle_Loop', 'Sitting_Exit',
-  'Sprint_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Idle_Talking_Loop', 'Roll', 'Punch_Jab', 'Spell_Simple_Shoot']
+  'Sprint_Loop', 'Jump_Start', 'Jump_Loop', 'Jump_Land', 'Idle_Talking_Loop', 'Roll', 'Punch_Jab', 'Spell_Simple_Shoot',
+  'Fixing_Kneeling']
 
 const MATERIAL_NAMES = [
   [/^MI_Superhero_/, 'skin'], [/^MI_Regular_/, 'skin_hands'], [/^MI_Hair_/, 'hair'],
