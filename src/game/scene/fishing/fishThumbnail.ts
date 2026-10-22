@@ -1,4 +1,4 @@
-import { AmbientLight, DirectionalLight, Group, OrthographicCamera, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from 'three'
+import { AmbientLight, Box3, DirectionalLight, Group, OrthographicCamera, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { fishLookFor, type FishModelId } from '../../data/fishLooks'
 import { restBox } from '../modelBounds'
@@ -12,6 +12,9 @@ const HEIGHT = 180
 /** 옆모습으로는 납작해서 잘 안 보이는 모델은 등이 보이게 앞으로 기울인다 (라디안) */
 const THUMB_TILT: Partial<Record<FishModelId, number>> = { manta: 0.9 }
 
+/** 소품이 틀을 넓힐 수 있는 한도 (몸 크기 대비, 각 방향) */
+const ACCESSORY_ROOM = 0.25
+
 const cache = new Map<string, Promise<string>>()
 let renderer: WebGLRenderer | null = null
 
@@ -22,8 +25,13 @@ let renderer: WebGLRenderer | null = null
 export function fishThumbnail(speciesId: string): Promise<string> {
   let image = cache.get(speciesId)
   if (!image) {
-    image = renderThumbnail(speciesId)
-    cache.set(speciesId, image)
+    const pending = renderThumbnail(speciesId)
+    image = pending
+    cache.set(speciesId, pending)
+    // 실패한 결과는 남기지 않아서 다음에 다시 그려 보게 한다
+    pending.catch(() => {
+      if (cache.get(speciesId) === pending) cache.delete(speciesId)
+    })
   }
   return image
 }
@@ -42,7 +50,7 @@ async function renderThumbnail(speciesId: string): Promise<string> {
   scene.add(sun)
 
   // 3D 장면(FishModel)과 같은 생김새·배치: 색·소품을 입히고 몸길이를 맞춘다
-  const { scale, offset } = dressFish(model, look)
+  const { scale, offset, accessory } = dressFish(model, look)
   model.scale.setScalar(scale)
   model.position.copy(offset)
   const fish = new Group()
@@ -51,8 +59,9 @@ async function renderThumbnail(speciesId: string): Promise<string> {
   fish.rotation.set(THUMB_TILT[look.model] ?? 0, Math.PI / 2, 0)
   scene.add(fish)
 
-  // 물고기가 화면을 꽉 채우도록 경계 상자에 맞춘 직교 카메라
-  const box = restBox(fish)
+  // 물고기가 화면을 꽉 채우도록 경계 상자에 맞춘 직교 카메라. 소품(셀카봉·왕관 등)이 크게 튀어나와도
+  // 물고기가 작아 보이지 않도록, 소품은 몸 둘레 조금 바깥(ACCESSORY_ROOM)까지만 틀에 넣는다
+  const box = framingBox(fish, accessory)
   const size = box.getSize(new Vector3())
   const center = box.getCenter(new Vector3())
   const aspect = WIDTH / HEIGHT
@@ -65,4 +74,16 @@ async function renderThumbnail(speciesId: string): Promise<string> {
   const image = renderer.domElement.toDataURL('image/png')
   disposeObject(fish) // 사진마다 새로 불러온 모델이라 지오메트리까지 정리한다
   return image
+}
+
+/** 몸을 기준으로 잡은 틀. 소품은 몸 둘레 ACCESSORY_ROOM 만큼까지만 반영한다 */
+function framingBox(fish: Group, accessory: Group | null): Box3 {
+  if (!accessory?.parent) return restBox(fish)
+  const parent = accessory.parent
+  parent.remove(accessory)
+  const body = restBox(fish)
+  parent.add(accessory)
+  const room = body.getSize(new Vector3()).multiplyScalar(ACCESSORY_ROOM)
+  const limit = body.clone().expandByVector(room)
+  return restBox(fish).intersect(limit).union(body)
 }

@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, Line, LineBasicMaterial, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three'
 import { FIGHT } from '../../data/balance'
 import { getSpecies } from '../../data/fish'
+import { fishLookFor } from '../../data/fishLooks'
 import type { Rarity } from '../../data/types'
 import { WATER_Y, getSpot } from '../../data/zones'
 import { arcPoint, castArcHeight, castFlightTime, saggingLinePoint } from '../../logic/castArc'
@@ -202,7 +203,8 @@ export function FishingVisuals() {
     function placeShadow(x: number, z: number, heading: number, opacity: number) {
       const s = shadow.current!
       const id = speciesOf(state)
-      const size = id ? fishSize(id) : 0.7
+      // 잡혔을 때 모델처럼 어종 몸길이 배율(look.size)도 곱한다
+      const size = id ? fishSize(id) * fishLookFor(id).size : 0.7
       s.position.set(x, surface(x, z) - SHADOW_DEPTH, z)
       s.rotation.set(-Math.PI / 2, 0, heading)
       s.scale.set(size * 0.9, size * 2, 1) // 물속에서 퍼져 보이도록 실제 몸보다 크게
