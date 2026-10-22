@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED } from '../data/characters'
-import { aimWeights, characterPose, clipTimeScale, eatArm, leanBack, poseClips } from './characterPose'
+import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, leanBack, poseClips } from './characterPose'
 import { createFight } from './fight'
 import type { FishingState } from './fishingSession'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
@@ -159,5 +159,15 @@ describe('먹기 자세', () => {
     expect(Math.max(...mid.map((m) => m.chew)) - Math.min(...mid.map((m) => m.chew))).toBeGreaterThan(0.3)
     expect(eatArm(eating, 10 + EAT.duration - 0.01).raise).toBeLessThan(0.1)
     expect(eatArm(eating, 10 + EAT.duration).raise).toBe(0)
+  })
+
+  it('한 입은 손이 다 올라간 뒤부터 일정한 간격으로 세고, 올리는 중·내리는 중엔 없다', () => {
+    expect(chewBite(IDLE_ACTION, 10)).toBe(-1)
+    expect(chewBite(eating, 10 + EAT.raiseTime / 2)).toBe(-1)
+    expect(chewBite(eating, 10 + EAT.raiseTime + 0.01)).toBe(0)
+    expect(chewBite(eating, 10 + EAT.raiseTime + EAT.biteEvery + 0.01)).toBe(1)
+    expect(chewBite(eating, 10 + EAT.duration - EAT.raiseTime / 2)).toBe(-1)
+    // 아구작·아구작·냠냠·쩝쩝이 다 뜰 만큼 길게 먹는다
+    expect(chewBite(eating, 10 + EAT.duration - EAT.raiseTime - 0.01)).toBeGreaterThanOrEqual(3)
   })
 })

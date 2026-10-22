@@ -143,6 +143,17 @@ export function eatArm(action: PlayerAction, now: number): { raise: number; chew
   return { raise, chew }
 }
 
+/**
+ * 지금 몇 번째 한 입인지 (0부터). 손이 입에 다 올라간 뒤 biteEvery 마다 하나씩 늘고,
+ * 손을 올리는 중·내리는 중·안 먹을 때는 -1
+ */
+export function chewBite(action: PlayerAction, now: number): number {
+  if (!action.eat) return -1
+  const t = now - action.eatAt
+  if (t < EAT.raiseTime || t >= EAT.duration - EAT.raiseTime) return -1
+  return Math.floor((t - EAT.raiseTime) / EAT.biteEvery)
+}
+
 /** 클립 재생 속도. 걷기·뛰기는 실제 이동 속도에 맞추고, 나머지는 과장되게 빠르거나 느리게 */
 export function clipTimeScale(clip: CharacterClip, speed: number): number {
   switch (clip) {

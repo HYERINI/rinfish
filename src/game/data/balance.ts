@@ -188,4 +188,7 @@ export const CAMERA_ZOOM = {
  * 음식 먹는 동작(초). duration 동안 오른손에 든 음식을 입으로 가져가 냠냠 먹는다.
  * raiseTime: 손을 올리고 내리는 시간, biteEvery: 한 입 베어 무는 간격
  */
-export const EAT = { duration: 1.8, raiseTime: 0.3, biteEvery: 0.45 }
+export const EAT = { duration: 2.4, raiseTime: 0.3, biteEvery: 0.45 }
+
+/** 한 입 베어 물 때마다 머리 위에 차례로 뜨는 소리 (넘치면 처음부터 다시) */
+export const CHEW_WORDS = ['아구작', '아구작', '냠냠', '쩝쩝']
