@@ -13,7 +13,9 @@ import { useBackgroundMusic } from './audio/backgroundMusic'
 import { World } from './scene/World'
 import { useFishingStore } from './stores/fishingStore'
 import { useProgressStore } from './stores/progressStore'
+import { usePlaceStore } from './stores/placeStore'
 import { useSessionStore } from './stores/sessionStore'
+import { normalizePlace } from './logic/place'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
@@ -68,6 +70,12 @@ export function Game({ onExit }: GameProps) {
     useFishingStore.getState().end()
     // 아직 캐릭터를 만들지 않았으면 꾸미기 화면부터
     if (!useProgressStore.getState().look) useSessionStore.getState().setMode('wardrobe')
+    else {
+      // 지난번 카메라 거리와, 벤치에 앉아 있었으면 앉은 채로 이어서 (자리·방향은 Player 가 읽는다)
+      const place = normalizePlace(usePlaceStore.getState().place, useProgressStore.getState().unlockedZones)
+      useSessionStore.setState({ zoom: place.zoom })
+      if (place.resting) useSessionStore.getState().setMode('rest')
+    }
   }, [])
 
   return (

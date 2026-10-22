@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
 import { Vector3, type Group, type Object3D } from 'three'
@@ -22,7 +22,9 @@ import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
+import { usePlaceStore } from '../stores/placeStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { normalizePlace, placeMoved, type Place } from '../logic/place'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { fishingFx } from './fishing/fishingFx'
 import { ChewChatter } from './ChewChatter'
@@ -38,6 +40,8 @@ export const playerRig = {
 const PLAYER_LIMIT = ISLAND_RADIUS - 1
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
 const FISHING_YAW_SPEED = 4
+/** 서 있던 자리를 저장하는 간격(초) */
+const PLACE_SAVE_EVERY = 1
 
 /** 낚싯대 기본 각도 (앞으로 살짝 숙임). 음수면 어깨 뒤로 젖혀진다 */
 const ROD_REST = 0.5
@@ -109,12 +113,16 @@ export function Player() {
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const model = useRef<PlayerModelHandle>(null)
+  /** 지난번에 서 있던 자리 (탭을 닫았다 와도 이어서). 처음 그릴 때 한 번만 읽는다 */
+  const [start] = useState(() => normalizePlace(usePlaceStore.getState().place, useProgressStore.getState().unlockedZones))
   /** 카메라가 플레이어 주위를 도는 각도 */
-  const yaw = useRef(0)
+  const yaw = useRef(start.yaw)
   /** 카메라 위아래 기울기 (마우스 잠금 중 위아래로 움직여서). 0 = 줌 리그 기본 높이 */
-  const pitch = useRef(0)
+  const pitch = useRef(start.pitch)
   /** 캐릭터가 바라보는 각도 (0 = +z 방향) */
-  const facing = useRef(Math.PI)
+  const facing = useRef(start.facing)
+  /** 마지막으로 저장한 자리와 시각 */
+  const saved = useRef({ place: start, at: 0 })
   const camera = useThree((s) => s.camera)
   const { world, rapier } = useRapier()
   /** 땅 판정용 공 모양 */
@@ -148,7 +156,40 @@ export function Player() {
     return () => window.removeEventListener('pointermove', onMove)
   }, [])
 
+  /** 지금 자리 (저장용) */
+  const currentPlace = (): Place | null => {
+    const rb = body.current
+    if (!rb) return null
+    const p = rb.translation()
+    const session = useSessionStore.getState()
+    return { x: p.x, z: p.z, facing: facing.current, yaw: yaw.current, pitch: pitch.current, zoom: session.zoom, resting: session.mode === 'rest' }
+  }
+  // 탭을 숨기거나 닫을 때 바로 저장한다 (폰은 백그라운드 탭을 언제든 없앨 수 있다)
+  useEffect(() => {
+    const flush = () => {
+      const place = currentPlace()
+      if (place) usePlaceStore.getState().savePlace(place)
+    }
+    const onVisibility = () => document.hidden && flush()
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('pagehide', flush)
+    }
+  }, [])
+
   useFrame(({ clock }, delta) => {
+    // 서 있던 자리는 1초에 한 번, 움직였을 때만 저장한다
+    if (clock.elapsedTime - saved.current.at > PLACE_SAVE_EVERY) {
+      saved.current.at = clock.elapsedTime
+      const place = currentPlace()
+      if (place && placeMoved(saved.current.place, place)) {
+        saved.current.place = place
+        usePlaceStore.getState().savePlace(place)
+      }
+    }
+
     // 쓰러진 뒤 진료소로 옮기기
     const teleport = useSessionStore.getState().teleport
     if (teleport && body.current) {
@@ -319,7 +360,7 @@ export function Player() {
 
   return (
     // dynamic 물체지만 회전은 막아서 넘어지지 않게 한다
-    <RigidBody ref={body} colliders={false} position={[0, 2, 15]} enabledRotations={[false, false, false]}>
+    <RigidBody ref={body} colliders={false} position={[start.x, 2, start.z]} enabledRotations={[false, false, false]}>
       <CapsuleCollider args={[PLAYER_BODY.halfHeight, PLAYER_BODY.radius]} />
       <group ref={visual}>
         <group position={[0, FOOT_Y, 0]}>
