@@ -1,7 +1,7 @@
-import type { DishId } from '../data/types'
+import type { FoodId } from '../data/types'
 
 /** 먹을 때 손에 드는 음식 (손 크기에 맞춘 작은 모형). 원점이 주먹 가운데 */
-export function FoodInHand({ dish }: { dish: DishId }) {
+export function FoodInHand({ dish }: { dish: FoodId }) {
   switch (dish) {
     case 'sashimi':
       // 젓가락에 집은 연어회 한 점
@@ -17,6 +17,66 @@ export function FoodInHand({ dish }: { dish: DishId }) {
               <meshStandardMaterial color="#d7ccc8" />
             </mesh>
           ))}
+        </group>
+      )
+    case 'gimbap':
+      // 김밥 한 줄 (김·밥·속)
+      return (
+        <group position={[0, 0.05, 0.03]} rotation-z={Math.PI / 2}>
+          <mesh>
+            <cylinderGeometry args={[0.035, 0.035, 0.16, 12]} />
+            <meshStandardMaterial color="#1b2a1b" />
+          </mesh>
+          {[-1, 1].map((s) => (
+            <mesh key={s} position={[0, s * 0.081, 0]}>
+              <cylinderGeometry args={[0.03, 0.03, 0.002, 12]} />
+              <meshStandardMaterial color="#fafafa" />
+            </mesh>
+          ))}
+          <mesh position={[0, 0.082, 0]}>
+            <cylinderGeometry args={[0.012, 0.012, 0.003, 8]} />
+            <meshStandardMaterial color="#ff9800" />
+          </mesh>
+        </group>
+      )
+    case 'ramen':
+      // 컵라면 (흰 컵 + 빨간 띠, 젓가락)
+      return (
+        <group position={[0, 0.05, 0.03]}>
+          <mesh>
+            <cylinderGeometry args={[0.055, 0.042, 0.1, 14]} />
+            <meshStandardMaterial color="#fafafa" />
+          </mesh>
+          <mesh position={[0, 0.01, 0]}>
+            <cylinderGeometry args={[0.052, 0.048, 0.03, 14]} />
+            <meshStandardMaterial color="#e53935" />
+          </mesh>
+          <mesh position={[0, 0.051, 0]}>
+            <cylinderGeometry args={[0.05, 0.05, 0.002, 14]} />
+            <meshStandardMaterial color="#ffcc80" />
+          </mesh>
+          <mesh position={[0.02, 0.09, 0]} rotation-z={-0.3}>
+            <cylinderGeometry args={[0.004, 0.004, 0.16, 4]} />
+            <meshStandardMaterial color="#d7ccc8" />
+          </mesh>
+        </group>
+      )
+    case 'energy':
+      // 에너지 음료 캔
+      return (
+        <group position={[0, 0.05, 0.02]}>
+          <mesh>
+            <cylinderGeometry args={[0.032, 0.032, 0.12, 14]} />
+            <meshStandardMaterial color="#1e88e5" metalness={0.5} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0.0, 0]}>
+            <cylinderGeometry args={[0.033, 0.033, 0.03, 14]} />
+            <meshStandardMaterial color="#ffeb3b" />
+          </mesh>
+          <mesh position={[0, 0.061, 0]}>
+            <cylinderGeometry args={[0.028, 0.028, 0.004, 14]} />
+            <meshStandardMaterial color="#b0bec5" metalness={0.8} roughness={0.3} />
+          </mesh>
         </group>
       )
     case 'bowl':

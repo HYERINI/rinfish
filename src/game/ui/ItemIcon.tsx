@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
 import type { BaitId } from '../data/bait'
+import type { SnackId } from '../data/snacks'
 import type { DishId, GearSlot } from '../data/types'
 
 /** 상점 카드에 그리는 물건 그림 종류 (물고기는 FishImage) */
-export type ItemIconId = BaitId | GearSlot | DishId | 'feed' | 'none'
+export type ItemIconId = BaitId | GearSlot | DishId | SnackId | 'feed' | 'none'
 
 /** 작은 SVG 그림. 64×64 칸에 그려서 size 로 늘린다 */
 export function ItemIcon({ id, size = 64, level = 0 }: { id: ItemIconId; size?: number; /** 장비 단계(0부터). 단계마다 색이 달라진다 */ level?: number }) {
@@ -118,6 +119,40 @@ const ICONS: Record<ItemIconId, (level: number) => ReactNode> = {
       <path d="M44 25 l 4 -2" stroke="#2e7d32" strokeWidth="2.5" />
       <path d="M4 34 h 6 M54 34 h 6" stroke="#263238" strokeWidth="4" strokeLinecap="round" />
       <path d="M22 18 c -3 -4, 3 -6, 0 -10 M32 18 c -3 -4, 3 -6, 0 -10 M42 18 c -3 -4, 3 -6, 0 -10" stroke="#eceff1" strokeWidth="2" fill="none" opacity="0.8" />
+    </g>
+  ),
+  gimbap: () => (
+    <g>
+      <ellipse cx="32" cy="52" rx="26" ry="6" fill="#cfd8dc" />
+      {[0, 1, 2].map((i) => (
+        <g key={i} transform={`translate(${14 + i * 18} ${38 - (i % 2) * 4})`}>
+          <circle r="10" fill="#1b2a1b" />
+          <circle r="7.5" fill="#fafafa" />
+          <circle cx="-2.5" cy="-1" r="2" fill="#ff9800" />
+          <circle cx="2.5" cy="1" r="2" fill="#66bb6a" />
+          <circle cx="0" cy="3" r="1.6" fill="#ffeb3b" />
+          <circle cx="1" cy="-3.2" r="1.5" fill="#e53935" />
+        </g>
+      ))}
+    </g>
+  ),
+  ramen: () => (
+    <g>
+      <path d="M12 22 h40 l-5 34 h-30 z" fill="#fafafa" stroke="#b0bec5" strokeWidth="2" />
+      <path d="M13.5 32 h37 l-1.6 11 h-33.8 z" fill="#e53935" />
+      <text x="32" y="41" textAnchor="middle" fontSize="8" fontWeight="900" fill="#fff">라면</text>
+      <ellipse cx="32" cy="22" rx="20" ry="4" fill="#ffcc80" />
+      <path d="M22 21 q 4 -4 8 0 t 8 0 t 8 0" stroke="#ffb74d" strokeWidth="2" fill="none" />
+      <path d="M40 4 L 30 22 M46 6 L 34 22" stroke="#bcaaa4" strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M20 14 c -3 -4, 3 -6, 0 -10" stroke="#eceff1" strokeWidth="2" fill="none" opacity="0.8" />
+    </g>
+  ),
+  energy: () => (
+    <g>
+      <rect x="20" y="10" width="24" height="46" rx="5" fill="#1e88e5" stroke="#0d47a1" strokeWidth="2" />
+      <rect x="22" y="8" width="20" height="4" rx="2" fill="#b0bec5" />
+      <path d="M34 18 l -8 14 h 6 l -4 14 l 10 -17 h -6 l 4 -11 z" fill="#ffeb3b" stroke="#f57f17" strokeWidth="1" />
+      <rect x="24" y="14" width="4" height="36" rx="2" fill="#fff" opacity="0.25" />
     </g>
   ),
   none: () => (

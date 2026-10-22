@@ -306,4 +306,26 @@ describe('progressStore', () => {
     await useProgressStore.persist.rehydrate()
     expect(store().unlockedZones).toEqual(['reef'])
   })
+
+  it('간식은 사서 바로 먹거나 가방에 넣었다가 꺼내 먹는다', () => {
+    useProgressStore.setState({ coins: 60, survival: { stamina: 10, graceLeft: null, buffs: [] } })
+    expect(store().buyAndEatSnack('gimbap')).toBe(true)
+    expect(store().coins).toBe(50)
+    expect(store().survival.stamina).toBe(35)
+    expect(store().buySnacks('ramen', 2)).toBe(true)
+    expect(store().snacks.ramen).toBe(2)
+    expect(store().eatSnack('ramen')).toBe(true)
+    expect(store().snacks.ramen).toBe(1)
+    expect(store().survival.stamina).toBe(80)
+    expect(store().eatSnack('energy')).toBe(false)
+  })
+
+  it('간식이 없는 예전 저장본은 빈 가방, 깨진 값은 걸러 낸다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().snacks).toEqual({ gimbap: 0, ramen: 0, energy: 0 })
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { snacks: { gimbap: 2, ramen: -1, energy: 'x', cake: 3 } }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().snacks).toEqual({ gimbap: 2, ramen: 0, energy: 0 })
+  })
 })

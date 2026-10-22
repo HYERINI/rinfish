@@ -250,7 +250,8 @@ const KIOSK_CSS = `
   .kiosk-detail-text h3 { font-size: 16px; }
   .kiosk-detail-text p { font-size: 12px; }
   .kiosk-detail-actions { flex-direction: row; align-items: center; flex-wrap: wrap; }
-  .kiosk-detail-actions > .kiosk-big { flex: 1; padding: 10px 6px; font-size: 16px; }
+  .kiosk-detail-actions > .kiosk-big { flex: 1 1 40%; padding: 10px 6px; font-size: 16px; }
+  .kiosk-detail-actions > .kiosk-qty { flex: 0 0 auto; }
   .kiosk-qty button { width: 36px; height: 36px; font-size: 20px; }
 }
 `

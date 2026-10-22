@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { STAMINA } from '../data/balance'
 import { BUFF_LABEL } from '../data/dishes'
+import { SNACKS } from '../data/snacks'
+import { pressEat } from '../input/usePlayerActionKeys'
 import type { Interactable } from '../logic/interaction'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { ItemIcon } from './ItemIcon'
 import { button, hint, overlayLayer } from './styles'
 
 const PROMPT: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
@@ -49,10 +52,16 @@ export function Hud() {
     <div style={overlayLayer}>
       <div style={{ position: 'absolute', top: 16, left: 16, fontSize: 18, width: 200, display: mode === 'cutscene' ? 'none' : undefined }}>
         <strong>코인 {coins}</strong>
-        <div style={{ fontSize: 13, marginTop: 6 }}>체력 {Math.ceil(survival.stamina)}</div>
+        <div style={{ fontSize: 13, marginTop: 6 }}>
+          체력 {Math.ceil(survival.stamina)} <span style={{ fontSize: 11, opacity: 0.75 }}>· 음식·벤치로 회복</span>
+        </div>
         <div style={{ height: 8, background: '#333', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
           <div style={{ width: `${ratio * 100}%`, height: '100%', background: ratio < 0.25 ? '#ef5350' : '#66bb6a' }} />
         </div>
+        {survival.stamina < STAMINA.lowHint && (
+          <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>배고파요! 어시장에서 음식을 사 먹거나 벤치에서 쉬세요</div>
+        )}
+        {mode === 'explore' && <SnackBag />}
         {survival.buffs.map((b) => (
           <div key={b.kind} style={{ fontSize: 12, marginTop: 4, color: '#ffd166' }}>
             {BUFF_LABEL[b.kind]} {Math.ceil(b.remaining)}초
@@ -86,6 +95,32 @@ export function Hud() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/** 가방 속 간식 빠른 먹기 (탐험 중). 누르면 바로 먹는 동작 */
+function SnackBag() {
+  const snacks = useProgressStore((s) => s.snacks)
+  const owned = SNACKS.filter((s) => snacks[s.id] > 0)
+  if (owned.length === 0) return null
+  return (
+    <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+      {owned.map((s) => (
+        <button
+          key={s.id}
+          title={`${s.name} 먹기 (체력 +${s.heal})`}
+          style={{ ...button, display: 'flex', alignItems: 'center', gap: 2, padding: '2px 6px', background: 'rgba(255,255,255,0.88)', fontSize: 12 }}
+          onClick={(e) => {
+            e.currentTarget.blur()
+            if (!useProgressStore.getState().eatSnack(s.id)) return
+            useSessionStore.getState().notify(`냠냠! ${s.name} · 체력 +${s.heal}`)
+            pressEat(s.id)
+          }}
+        >
+          <ItemIcon id={s.id} size={24} />×{snacks[s.id]}
+        </button>
+      ))}
     </div>
   )
 }

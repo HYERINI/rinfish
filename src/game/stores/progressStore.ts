@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { TANK_LEVELS, TANK_TYPES } from '../data/aquarium'
 import { AQUARIUM, STAMINA } from '../data/balance'
 import { BAIT_IDS, type BaitId } from '../data/bait'
+import { SNACK_IDS, type SnackId } from '../data/snacks'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
 import { findSpecies } from '../data/fish'
@@ -23,6 +24,7 @@ import {
 } from '../logic/aquarium'
 import { NO_BAIT, buyBait as buyBaitRule, consumeBait, type BaitCounts } from '../logic/bait'
 import { normalizeLook } from '../logic/characterLook'
+import { NO_SNACKS, buyAndEatSnack as buyAndEatSnackRule, buySnacks as buySnacksRule, eatSnackFromBag, type SnackCounts, type SnackEatResult } from '../logic/snacks'
 import { cook } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
@@ -55,6 +57,8 @@ type ProgressData = {
   selectedBait: BaitId | null
   /** 연 구역 (해변은 처음부터 열려 있어 넣지 않는다) */
   unlockedZones: ZoneId[]
+  /** 가방 속 간식 개수 */
+  snacks: SnackCounts
 }
 
 
@@ -90,6 +94,12 @@ type ProgressActions = {
   spendBait: (id: BaitId) => void
   /** 구역 열기. 조건이 맞으면 코인을 내고 바로 저장한다(연출은 보여 주기만 한다). 못 열면 false */
   unlockZone: (id: ZoneId) => boolean
+  /** 간식 qty 개를 사서 가방에 넣는다 */
+  buySnacks: (id: SnackId, qty: number) => boolean
+  /** 간식을 사서 바로 먹는다 (체력 회복) */
+  buyAndEatSnack: (id: SnackId) => boolean
+  /** 가방의 간식을 하나 꺼내 먹는다 */
+  eatSnack: (id: SnackId) => boolean
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -105,6 +115,7 @@ export const INITIAL_PROGRESS: ProgressData = {
   bait: NO_BAIT,
   selectedBait: null,
   unlockedZones: [],
+  snacks: NO_SNACKS,
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -210,6 +221,18 @@ const LOCKABLE_ZONES = ZONES.filter((z) => z.unlock).map((z) => z.id)
 function readUnlockedZones(v: unknown): ZoneId[] {
   if (!Array.isArray(v)) return []
   return LOCKABLE_ZONES.filter((id) => v.includes(id))
+}
+
+function readSnacks(v: unknown, fallback: SnackCounts): SnackCounts {
+  if (!isRecord(v)) return fallback
+  const counts = { ...fallback }
+  for (const id of SNACK_IDS) counts[id] = readCount(v[id], fallback[id])
+  return counts
+}
+
+/** 간식 먹기 결과. 실패면 null */
+function eaten(r: SnackEatResult): Pick<ProgressData, 'coins' | 'snacks' | 'survival'> | null {
+  return r.ok ? { coins: r.coins, snacks: r.snacks, survival: r.survival } : null
 }
 
 function readSelectedBait(v: unknown): BaitId | null {
@@ -368,6 +391,27 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
 
       spendBait: (id) => set((s) => ({ bait: consumeBait(s.bait, id) })),
 
+      buySnacks: (id, qty) => {
+        const r = buySnacksRule(get().coins, get().snacks, id, qty)
+        if (!r.ok) return false
+        set({ coins: r.coins, snacks: r.snacks })
+        return true
+      },
+
+      buyAndEatSnack: (id) => {
+        const s = get()
+        const next = eaten(buyAndEatSnackRule(s.coins, s.snacks, s.survival, id))
+        if (next) set(next)
+        return next !== null
+      },
+
+      eatSnack: (id) => {
+        const s = get()
+        const next = eaten(eatSnackFromBag(s.coins, s.snacks, s.survival, id))
+        if (next) set(next)
+        return next !== null
+      },
+
       unlockZone: (id) => {
         const s = get()
         const zone = ZONES.find((z) => z.id === id)
@@ -401,6 +445,7 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           bait: readBait(saved.bait, current.bait),
           selectedBait: readSelectedBait(saved.selectedBait),
           unlockedZones: readUnlockedZones(saved.unlockedZones),
+          snacks: readSnacks(saved.snacks, current.snacks),
         }
       },
     },

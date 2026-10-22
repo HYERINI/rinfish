@@ -32,7 +32,7 @@ export function PlayTimeTicker() {
     pending.current = 0
 
     const fighting = session.mode === 'fishing' && useFishingStore.getState().state?.stage === 'fighting'
-    const events = useProgressStore.getState().tick(seconds, { fighting, resting: session.mode === 'rest' })
+    const events = useProgressStore.getState().tick(seconds, { fighting, resting: session.mode === 'rest', exploring: session.mode === 'explore' })
 
     for (const event of events.aquarium) session.notify(AQUARIUM_NOTICE[event])
     if (events.fainted) {

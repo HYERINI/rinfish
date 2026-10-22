@@ -1,6 +1,6 @@
 import { CAMERA_ZOOM, EAT, GRAVITY, MOVE } from '../data/balance'
 import { EMOTES, type EmoteId } from '../data/emotes'
-import type { DishId } from '../data/types'
+import type { FoodId } from '../data/types'
 import type { Mode } from './interaction'
 
 /**
@@ -9,7 +9,7 @@ import type { Mode } from './interaction'
  * - emoteAt / jumpAt / landedAt / eatAt: 그 일이 일어난 시각(초). 한 번도 없었으면 아주 오래전
  * - eat: 지금 먹고 있는 요리 (손에 든 음식 모양을 고른다). 안 먹으면 null
  */
-export type PlayerAction = { emote: EmoteId | null; emoteAt: number; airborne: boolean; jumpAt: number; landedAt: number; eat: DishId | null; eatAt: number }
+export type PlayerAction = { emote: EmoteId | null; emoteAt: number; airborne: boolean; jumpAt: number; landedAt: number; eat: FoodId | null; eatAt: number }
 
 /** 한 프레임의 입력. 키 입력(moving·sprint·jumpPressed·emotePressed)과 물리 판정(grounded) */
 export type MotionInput = {
@@ -19,7 +19,7 @@ export type MotionInput = {
   jumpPressed: boolean
   emotePressed: EmoteId | null
   /** 이번 프레임에 음식을 먹기 시작했다 (어시장에서 먹기) */
-  eatPressed?: DishId | null
+  eatPressed?: FoodId | null
   grounded: boolean
   mode: Mode
   now: number

@@ -1,16 +1,16 @@
 import { useEffect } from 'react'
 import { ACTION_KEYS, EMOTES, type EmoteId } from '../data/emotes'
-import type { DishId } from '../data/types'
+import type { FoodId } from '../data/types'
 import { useSessionStore } from '../stores/sessionStore'
 import { isKeyDown } from './keys'
 
 // 지난 프레임 뒤로 새로 누른 점프·감정 표현 키. Player 가 매 프레임 가져가며 비운다
 let jumpPressed = false
 let emotePressed: EmoteId | null = null
-let eatPressed: DishId | null = null
+let eatPressed: FoodId | null = null
 
 /** 새로 누른 점프·감정 표현 키(와 먹기 시작)를 가져가고 비운다. 쓸지 말지(모드·공중 등)는 nextAction 이 정한다 */
-export function takeActionPresses(): { jumpPressed: boolean; emotePressed: EmoteId | null; eatPressed: DishId | null } {
+export function takeActionPresses(): { jumpPressed: boolean; emotePressed: EmoteId | null; eatPressed: FoodId | null } {
   const presses = { jumpPressed, emotePressed, eatPressed }
   jumpPressed = false
   emotePressed = null
@@ -18,8 +18,8 @@ export function takeActionPresses(): { jumpPressed: boolean; emotePressed: Emote
   return presses
 }
 
-/** 음식을 먹기 시작한다 (어시장에서 먹기를 누른 뒤). 다음 프레임에 Player 가 가져간다 */
-export function pressEat(dish: DishId) {
+/** 음식을 먹기 시작한다 (어시장에서 먹기·HUD 간식을 누른 뒤). 다음 프레임에 Player 가 가져간다 */
+export function pressEat(dish: FoodId) {
   eatPressed = dish
 }
 

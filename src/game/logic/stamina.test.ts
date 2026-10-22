@@ -54,6 +54,18 @@ describe('tickSurvival', () => {
     expect(tickSurvival(at(50), 2, { fighting: false, resting: true }).survival.stamina).toBe(50 + STAMINA.benchRegenPerSecond * 2)
   })
 
+  it('돌아다니는 동안엔 조금씩 저절로 회복하지만, 약화(체력 0)는 풀지 않는다', () => {
+    expect(tickSurvival(at(50), 10, { fighting: false, resting: false, exploring: true }).survival.stamina).toBeCloseTo(50 + STAMINA.passiveRegenPerSecond * 10)
+    const weak = tickSurvival(at(0, 100), 10, { fighting: false, resting: false, exploring: true }).survival
+    expect(weak.stamina).toBe(0)
+    expect(isWeak(weak)).toBe(true)
+    expect(tickSurvival(at(50), 10, rest).survival.stamina).toBe(50)
+  })
+
+  it('밸런스: 던지기 2, 줄다리기 초당 0.6, 벤치 초당 6, 저절로 초당 0.3', () => {
+    expect(STAMINA).toMatchObject({ castCost: 2, fightCostPerSecond: 0.6, benchRegenPerSecond: 6, passiveRegenPerSecond: 0.3 })
+  })
+
   it('버프 남은 시간이 줄고, 다 되면 사라진다', () => {
     const s: Survival = { ...FRESH_SURVIVAL, buffs: [{ kind: 'reel', mul: 1.3, remaining: 1.5 }] }
     const once = tickSurvival(s, 1, rest).survival
