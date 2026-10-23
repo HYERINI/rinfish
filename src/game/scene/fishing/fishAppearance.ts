@@ -521,7 +521,7 @@ export function dressFish(object: Object3D, look: FishLook): { scale: Vector3; o
     const mesh = o as Mesh
     if (!mesh.isMesh) return
     const name = materialName(mesh)
-    if ((hidden.has('eyes') && isEye(name)) || (hidden.has('fins') && isFin(name))) mesh.visible = false
+    if (hidden.has('body') || (hidden.has('eyes') && isEye(name)) || (hidden.has('fins') && isFin(name))) mesh.visible = false
   })
 
   // 몸길이를 맞춘 좌표 = toFitted × (object 기준 좌표). object 는 아직 부모가 없어 matrixWorld 가 곧 object 기준이다

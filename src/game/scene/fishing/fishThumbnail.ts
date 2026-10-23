@@ -16,9 +16,10 @@ const THUMB_TILT: Partial<Record<FishModelId, number>> = { manta: 0.9 }
 const ACCESSORY_ROOM = 0.25
 /**
  * 소품이 몸 밖으로 크게 튀어나오는데 잘리면 안 되는 어종의 한도. 연차3원준은 머리 위에 뜬 "3" 과 턱 밑 가격표가
- * 그 어종의 전부라서 끝까지 넣는다 (셀카봉처럼 잘려도 알아볼 수 있는 소품은 기본 한도로 둔다)
+ * 그 어종의 전부라서 끝까지 넣는다 (셀카봉처럼 잘려도 알아볼 수 있는 소품은 기본 한도로 둔다).
+ * 이 사이에 낀 추멸치는 실처럼 얇은 몸 위아래로 큰 이가 물고 있고, 추멸치떼는 숨긴 몸보다 큰 멸치 무리가 곧 몸이라 다 넣는다
  */
-const SPECIES_ACCESSORY_ROOM: Partial<Record<string, number>> = { 'three-wonjun': 1 }
+const SPECIES_ACCESSORY_ROOM: Partial<Record<string, number>> = { 'three-wonjun': 1, 'stuck-anchovy-chu': 4, 'anchovy-school-chu': 4 }
 
 const cache = new Map<string, Promise<string>>()
 let renderer: WebGLRenderer | null = null

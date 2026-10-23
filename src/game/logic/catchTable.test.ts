@@ -51,6 +51,12 @@ describe('rollSpecies', () => {
     }
   })
 
+  it('해변 에픽은 구조대 가자미와 추멸치떼가 반씩 나눠 가진다 (해변 에픽 몫 전체는 그대로)', () => {
+    const epics = catchWeights('beach', 0.5).filter((e) => e.species.rarity === 'epic')
+    expect(epics.map((e) => e.species.id).sort()).toEqual(['anchovy-school-chu', 'lifeguard-flounder'])
+    expect(epics[0].weight).toBeCloseTo(epics[1].weight)
+  })
+
   it('같은 희귀도 어종끼리는 확률이 똑같다', () => {
     const rares = catchWeights('reef', 0.5).filter((e) => e.species.rarity === 'rare')
     for (const e of rares) expect(e.weight).toBeCloseTo(rares[0].weight)

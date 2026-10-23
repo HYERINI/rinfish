@@ -100,6 +100,7 @@ describe('buildAccessory', () => {
     'lifebuoy', 'spaceHelmet', 'ninjaMask', 'dreadlocks', 'crystal', 'selfieStick',
     'spoons', 'googlyEyes', 'sadBrows', 'digit3', 'digits31', 'darkCircles', 'priceTag3', 'furPerm',
     'bossChain', 'bossScar', 'bread', 'grandpaBeard', 'magnifierGlasses', 'sheepTowel', 'cane', 'bowlCut',
+    'clampTeeth', 'anchovySchool',
   ]
   it.each(kinds)('%s 를 기본 도형으로 만든다', (kind) => {
     const { root } = toyFish()
@@ -135,6 +136,20 @@ describe('dressFish', () => {
       const mesh = o as Mesh
       if (mesh.isMesh && (mesh.material as Material).name === eyes.name) expect(mesh.visible).toBe(false)
     })
+  })
+
+  it('멸치떼는 원래 몸을 통째로 숨기고, 작은 멸치 수십 마리를 저마다 가까운 뼈에 붙인다', () => {
+    const { root } = toyFish()
+    const { accessories } = dressFish(root, { model: 'tuna', size: 1, accessories: ['anchovySchool'] })
+    root.traverse((o) => {
+      const mesh = o as Mesh
+      if (mesh.isMesh && !accessories.some((a) => a === mesh || a.getObjectById(mesh.id))) expect(mesh.visible).toBe(false)
+    })
+    const school = accessories.filter((a) => a.userData.spread)
+    expect(school.length).toBeGreaterThanOrEqual(20)
+    expect(school.length).toBeLessThanOrEqual(50)
+    // 지오메트리 하나를 나눠 쓴다
+    expect(new Set(school.map((m) => (m as Mesh).geometry)).size).toBe(1)
   })
 
   it('accessoryAt 를 주면 그 자리(몸길이 1.2 기준)에 놓인다', () => {

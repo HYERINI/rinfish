@@ -35,6 +35,7 @@ export type FishAccessoryKind =
   | 'lifebuoy' | 'spaceHelmet' | 'ninjaMask' | 'dreadlocks' | 'crystal' | 'selfieStick'
   | 'spoons' | 'googlyEyes' | 'sadBrows' | 'digit3' | 'digits31' | 'darkCircles' | 'priceTag3' | 'furPerm'
   | 'bossChain' | 'bossScar' | 'bread' | 'grandpaBeard' | 'magnifierGlasses' | 'sheepTowel' | 'cane' | 'bowlCut'
+  | 'clampTeeth' | 'anchovySchool'
 
 export type FishLook = {
   model: FishModelId
@@ -92,6 +93,9 @@ export const FISH_LOOKS: Record<string, FishLook> = {
   'three-wonjun': { model: 'tang', tint: '#90a4ae', size: 0.9, accessories: ['digit3', 'darkCircles', 'priceTag3', 'bowlCut'] },
   'hairy-ajumma-jongheon': { model: 'red-snapper', tint: '#8d6e63', size: 1, accessories: ['furPerm'] },
   'grandpa-escapee': { model: 'koi', tint: '#e53935', size: 1, accessories: ['grandpaBeard', 'magnifierGlasses', 'sheepTowel', 'cane'] },
+  // 추멸치(개멸치뼈인식) 파생: XXL배정빈 이에 낀 것, 떼로 뭉친 것 (멸치떼는 원래 몸을 숨기고 작은 멸치로 큰 물고기 모양을 만든다)
+  'stuck-anchovy-chu': { model: 'mackerel', tint: '#cfd8dc', size: 0.9, stretch: [0.35, 0.4, 1.6], wobble: 0.5, accessories: ['clampTeeth'] },
+  'anchovy-school-chu': { model: 'mackerel', size: 1.6, accessories: ['anchovySchool'] },
 }
 
 export function fishLookFor(speciesId: string | null): FishLook {

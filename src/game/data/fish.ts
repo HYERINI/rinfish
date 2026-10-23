@@ -35,6 +35,9 @@ export const FISH_SPECIES: FishSpecies[] = [
   { id: 'three-wonjun', name: '연차3원준', description: '연차가 3개 남았다. 체력은 0개 남았다.', trivia: '남은 연차 3 / 헤어스타일 이해 불가', zones: ['beach'], rarity: 'rare', pattern: 'erratic', strength: 3, weightRange: [0.29, 0.31], basePrice: 3, color: '#90a4ae' },
   { id: 'hairy-ajumma-jongheon', name: '털밖에윤종헌', description: '털갈이 철에는 개체 수가 두 배로 보인다. 절반은 털이다.', trivia: '털 ★★★★★ / 지느러미 확인 불가', zones: ['beach'], rarity: 'rare', pattern: 'endurance', strength: 5, weightRange: [1, 3], basePrice: 55, color: '#8d6e63' },
   { id: 'grandpa-escapee', name: '할아범이적범', description: '싸사모(싸우나를 사랑하는 모임) 회장님. 오후 8시 이후 발견 기록이 없다.', trivia: '사우나 ★★★★★ / 주량 ★☆☆☆☆ / 활동시간 05:30~20:00', zones: ['beach'], rarity: 'rare', pattern: 'dasher', strength: 5, weightRange: [1, 2.5], basePrice: 60, color: '#e53935' },
+  // 추멸치 파생 (해변 희귀·에픽)
+  { id: 'stuck-anchovy-chu', name: '배정빈 이 사이에 낀 추멸치', description: 'XXL배정빈의 점심 메뉴였다. 이쑤시개로도 안 빠진다.', trivia: '탈출 시도 ★★★★★ / 성공률 ☆☆☆☆☆', zones: ['beach'], rarity: 'rare', pattern: 'erratic', strength: 2, weightRange: [0.01, 0.02], basePrice: 30, color: '#cfd8dc' },
+  { id: 'anchovy-school-chu', name: '추멸치떼', description: '추멸치가 힘을 합쳤다. 합쳐도 멸치다.', trivia: '개체 수 ★★★★★ / 개체당 체중 ★☆☆☆☆', zones: ['beach'], rarity: 'epic', pattern: 'erratic', strength: 6, weightRange: [0.3, 0.8], basePrice: 120, color: '#b0bec5' },
   // ② 숲속 연못
   { id: 'firefly-minnow', name: '반딧불 송사리', description: '밤마다 꼬리가 깜빡인다.', zones: ['pond'], rarity: 'common', pattern: 'endurance', strength: 2, weightRange: [0.05, 0.2], basePrice: 12, color: '#c6ff00' },
   { id: 'ribbit-catfish', name: '개굴 메기', description: '개구리 소리를 흉내 낸다. 이유는 아무도 모른다.', zones: ['pond'], rarity: 'common', pattern: 'erratic', strength: 3, weightRange: [1, 3], basePrice: 20, color: '#8d6e63' },

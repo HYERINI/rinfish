@@ -1,13 +1,19 @@
 import {
   BoxGeometry,
+  BufferAttribute,
+  Color,
   ConeGeometry,
   CylinderGeometry,
   Group,
+  Matrix4,
   Mesh,
+  type MeshStandardMaterial,
   SphereGeometry,
   TorusGeometry,
   Vector3,
+  type BufferGeometry,
 } from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import type { FishAccessoryKind } from '../../data/fishLooks'
 import { bake, digitGeometry, glasses, HALF_PI, mat, part, readableFromBothSides, SIDES, STUB } from './accessoryKit'
 import { backZ, BODY_Z, frontZ, midY, neckZ, sectionAt, type Anchor, type FishShape } from './fishShape'
@@ -21,6 +27,7 @@ export type StudyAccessoryKind = Extract<
   FishAccessoryKind,
   | 'spoons' | 'googlyEyes' | 'sadBrows' | 'digit3' | 'digits31' | 'darkCircles' | 'priceTag3' | 'furPerm'
   | 'bossChain' | 'bossScar' | 'bread' | 'grandpaBeard' | 'magnifierGlasses' | 'sheepTowel' | 'cane' | 'bowlCut'
+  | 'clampTeeth' | 'anchovySchool'
 >
 
 /** 0~1 사이 고정된 값 (i 마다 다름). 털·곱슬머리 배치가 매번 같게 Math.random 대신 쓴다 */
@@ -461,6 +468,121 @@ const bowlCut = (shape: FishShape) => {
   return g
 }
 
+const clampTeeth = (shape: FishShape) => {
+  // 몸통 가운데를 위아래에서 꽉 문 큼직한 앞니 한 쌍 (XXL배정빈의 이). 잇몸이 조금 보인다
+  const s = sectionAt(shape, BODY_Z)
+  const white = mat('#fbfbf6', { rough: 0.25 })
+  const gum = mat('#ec8f9a', { rough: 0.7 })
+  const w = 0.2 // 앞뒤(z) 폭
+  const h = 0.2 // 이 높이
+  const t = 0.16 // 두께(x)
+  const bite = 0.035 // 몸에 파고드는 깊이
+  const g = new Group()
+  for (const up of SIDES) {
+    const edge = up > 0 ? s.top - bite : s.bottom + bite
+    const y = edge + (up * h) / 2
+    g.add(part(new RoundedBoxGeometry(t, h, w, 3, 0.04), white, [0, y, BODY_Z]))
+    // 이 양옆에 조금 짧은 이가 하나씩 (이빨 줄로 보이게). 뿌리는 잇몸에 맞춘다
+    for (const side of SIDES) g.add(part(new RoundedBoxGeometry(t * 0.85, h * 0.72, w * 0.72, 3, 0.035), white, [0, edge + up * h * 0.64, BODY_Z + side * w * 0.9]))
+    // 이 뿌리 쪽 잇몸
+    g.add(part(new RoundedBoxGeometry(t * 1.15, 0.07, w * 2.6, 3, 0.03), gum, [0, edge + up * (h + 0.015), BODY_Z]))
+  }
+  return g
+}
+
+/** 추멸치떼 한 마리: 몸통 + 꼬리를 한 지오메트리로 (색은 정점 색). 머리 +z, 몸길이 약 0.13 */
+function anchovyGeometry(): BufferGeometry {
+  const pieces = [
+    part(new SphereGeometry(1, 8, 6), STUB, [0, 0, 0.012], [0, 0, 0], [0.019, 0.026, 0.06]),
+    part(new ConeGeometry(0.032, 0.06, 4), STUB, [0, 0, -0.065], [HALF_PI, 0, 0], [0.3, 1, 1]),
+  ]
+  const geometry = bake(pieces)
+  // 등은 짙고 배는 은빛. 같은 멸치끼리 지오메트리를 나눠 쓰고, 색은 재질 색과 곱한다
+  const pos = geometry.attributes.position
+  const colors = new Float32Array(pos.count * 3)
+  const back = new Color('#5f7f96')
+  const belly = new Color('#ffffff')
+  const c = new Color()
+  for (let i = 0; i < pos.count; i++) {
+    c.lerpColors(belly, back, Math.min(1, Math.max(0, pos.getY(i) / 0.026 + 0.35)))
+    c.toArray(colors, i * 3)
+  }
+  geometry.setAttribute('color', new BufferAttribute(colors, 3))
+  return geometry
+}
+
+/** 추멸치떼 한 마리가 제자리에서 꼬리를 흔드는 속도·각도 */
+const SCHOOL_WIGGLE = { speed: 9, angle: 0.3 }
+const wiggleBase = new Matrix4()
+const wiggleTurn = new Matrix4()
+
+/**
+ * 작은 멸치 수십 마리가 모여 큰 물고기 모양을 만든다 (헤엄이 무리). 원래 몸은 숨기고(HIDES_PART) 그 자리를 채운다.
+ * 눈 자리에는 까만 대장 멸치. 멸치마다 가까운 뼈에 붙어서 헤엄치는 몸을 따라 휘고, 그릴 때 저마다 꼬리를 흔든다
+ */
+const anchovySchool = () => {
+  // 큰 물고기 윤곽: 길이 1.2(z -0.6~0.6, 가운데 높이 0), 높이 H. u 는 꼬리 끝 0 ~ 주둥이 1.
+  // 뒤쪽 TAIL 만큼은 가운데가 파인 갈라진 꼬리, 나머지는 앞쪽이 조금 뭉툭한 타원 몸통
+  const H = 0.6
+  const TAIL = 0.24
+  const inside = (u: number, y: number) => {
+    const a = Math.abs(y)
+    if (u < TAIL) {
+      const k = u / TAIL
+      // 꼬리 끝은 넓고 가운데가 파였다가, 몸에 붙는 자루(k=1)는 좁다
+      return a < (H / 2) * (0.95 - 0.75 * k) && a > (H / 2) * 0.45 * (1 - k * 2.2)
+    }
+    const v = (u - TAIL) / (1 - TAIL)
+    return a < (H / 2) * Math.max(0.22, Math.sqrt(1 - ((v - 0.55) / (v < 0.55 ? 0.55 : 0.45)) ** 2))
+  }
+  // 대장 멸치(눈) 자리: 주둥이 쪽 위
+  const eye = { z: 0.38, y: H * 0.1 }
+  const geometry = anchovyGeometry()
+  const silver = mat('#eef6fa', { metal: 0.25, rough: 0.35 })
+  silver.vertexColors = true
+  const black = mat('#1d2a33', { rough: 0.5 })
+  const g = new Group()
+  const dz = 0.135
+  const dy = 0.085
+  let n = 0
+  let leader: { mesh: Mesh; d: number } | null = null
+  for (let row = 0, y = -H / 2; y <= H / 2 + 1e-6; row++, y += dy) {
+    for (let z = -0.6 + 0.05 + (row % 2) * (dz / 2); z <= 0.58; z += dz) {
+      const u = (z + 0.6) / 1.2
+      if (!inside(u, y)) continue
+      n++
+      // 두 겹으로 엇갈려 두께를 조금 준다 (위에서 봐도 떼로 보이게)
+      const p = new Vector3((row % 2 ? 1 : -1) * 0.03 + (hash01(n + 150) - 0.5) * 0.08, y + (hash01(n) - 0.5) * 0.02, z + (hash01(n + 70) - 0.5) * 0.03)
+      const mesh = schoolFish(geometry, silver, p, n)
+      g.add(mesh)
+      const d = Math.hypot(p.z - eye.z, p.y - eye.y)
+      if (!leader || d < leader.d) leader = { mesh, d }
+    }
+  }
+  // 대장(눈): 눈 자리에 가장 가까운 멸치를 까맣게 하고 사진에 보이는 쪽(-x)으로 조금 내민다
+  if (leader) {
+    leader.mesh.material = black
+    leader.mesh.position.x = -0.1
+  }
+  return g
+}
+
+function schoolFish(geometry: BufferGeometry, material: MeshStandardMaterial, at: Vector3, n: number): Mesh {
+  const m = new Mesh(geometry, material)
+  m.position.copy(at)
+  m.rotation.set((hash01(n + 30) - 0.5) * 0.25, (hash01(n + 50) - 0.5) * 0.35, 0)
+  m.userData.spread = true
+  const phase = hash01(n + 110) * Math.PI * 2
+  // 그릴 때만 세로축으로 살짝 돌려 꼬리를 흔든다 (뼈 애니메이션과 따로)
+  m.onBeforeRender = () => {
+    if (!m.parent) return
+    const a = Math.sin(performance.now() * 0.001 * SCHOOL_WIGGLE.speed + phase) * SCHOOL_WIGGLE.angle
+    wiggleBase.multiplyMatrices(m.parent.matrixWorld, m.matrix)
+    m.matrixWorld.copy(wiggleBase.multiply(wiggleTurn.makeRotationY(a)))
+  }
+  return m
+}
+
 export const STUDY_ACCESSORIES: Record<StudyAccessoryKind, { anchor: Anchor; build: (shape: FishShape) => Group }> = {
   spoons: { anchor: 'mouth', build: spoons },
   googlyEyes: { anchor: 'eye', build: googlyEyes },
@@ -478,7 +600,9 @@ export const STUDY_ACCESSORIES: Record<StudyAccessoryKind, { anchor: Anchor; bui
   sheepTowel: { anchor: 'top', build: sheepTowel },
   cane: { anchor: 'body', build: cane },
   bowlCut: { anchor: 'top', build: bowlCut },
+  clampTeeth: { anchor: 'body', build: clampTeeth },
+  anchovySchool: { anchor: 'body', build: anchovySchool },
 }
 
-/** 이 소품을 쓰면 모델의 원래 부위를 숨긴다 (왕눈이 → 원래 눈, 털 → 지느러미) */
-export const HIDES_PART: Partial<Record<FishAccessoryKind, 'eyes' | 'fins'>> = { googlyEyes: 'eyes', furPerm: 'fins' }
+/** 이 소품을 쓰면 모델의 원래 부위를 숨긴다 (왕눈이 → 원래 눈, 털 → 지느러미, 멸치떼 → 몸 전체) */
+export const HIDES_PART: Partial<Record<FishAccessoryKind, 'eyes' | 'fins' | 'body'>> = { googlyEyes: 'eyes', furPerm: 'fins', anchovySchool: 'body' }
