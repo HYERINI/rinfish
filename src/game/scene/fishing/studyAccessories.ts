@@ -473,6 +473,7 @@ const clampTeeth = (shape: FishShape) => {
   const s = sectionAt(shape, BODY_Z)
   const white = mat('#fbfbf6', { rough: 0.25 })
   const gum = mat('#ec8f9a', { rough: 0.7 })
+  const jaw = mat('#4e342e', { rough: 0.6 })
   const w = 0.2 // 앞뒤(z) 폭
   const h = 0.2 // 이 높이
   const t = 0.16 // 두께(x)
@@ -486,7 +487,17 @@ const clampTeeth = (shape: FishShape) => {
     for (const side of SIDES) g.add(part(new RoundedBoxGeometry(t * 0.85, h * 0.72, w * 0.72, 3, 0.035), white, [0, edge + up * h * 0.64, BODY_Z + side * w * 0.9]))
     // 이 뿌리 쪽 잇몸
     g.add(part(new RoundedBoxGeometry(t * 1.15, 0.07, w * 2.6, 3, 0.03), gum, [0, edge + up * (h + 0.015), BODY_Z]))
+    // 잇몸을 감싼 XXL배정빈의 짙은 갈색 턱 (이가 누구 건지 보이게)
+    g.add(part(new RoundedBoxGeometry(t * 1.9, 0.2, w * 3.4, 4, 0.08), jaw, [0, edge + up * (h + 0.14), BODY_Z]))
   }
+  // 위턱 옆면에 XXL배정빈 등번호 31
+  const numH = 0.15
+  const tube = numH * 0.12
+  const upperEdge = s.top - bite
+  const num = readableFromBothSides(new Mesh(digitGeometry('31', numH, tube, t * 0.95 + tube * 0.2), mat('#ffd54f', { rough: 0.5 })))
+  num.position.set(0, upperEdge + h + 0.14, BODY_Z)
+  num.rotation.y = -HALF_PI
+  g.add(num)
   return g
 }
 
