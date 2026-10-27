@@ -36,7 +36,7 @@ export type ZoneDef = {
 export const ZONES: ZoneDef[] = [
   { id: 'beach', name: '선착장 해변', color: '#e9d8a6', unlockLabel: '', gate: null, unlock: null },
   { id: 'pond', name: '숲속 연못', color: '#81c784', unlockLabel: '무너진 다리를 고쳐야 해요', gate: { xFrom: -18, xTo: -10 }, unlock: { kind: 'repair', target: 'bridge', price: 300 } },
-  { id: 'cave', name: '동굴 지하호수', color: '#5d4037', unlockLabel: '바위로 막혀 있어요', gate: { xFrom: -4, xTo: 4 }, unlock: { kind: 'clear', minDex: 8, minLineLevel: 3 } },
+  { id: 'cave', name: '동굴 지하호수', color: '#5d4037', unlockLabel: '바위로 막혀 있어요', gate: { xFrom: -4, xTo: 4 }, unlock: { kind: 'clear', minDex: 8, minLineLevel: 5 } },
   { id: 'reef', name: '암초 앞바다', color: '#4fc3f7', unlockLabel: '부서진 보트를 고쳐야 해요', gate: { xFrom: 10, xTo: 18 }, unlock: { kind: 'repair', target: 'boat', price: 800 } },
 ]
 

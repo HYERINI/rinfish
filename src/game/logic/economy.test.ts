@@ -30,18 +30,18 @@ describe('gearStats', () => {
 
 describe('buyGearUpgrade', () => {
   it('다음 단계 가격을 알려 주고, 최고 단계면 null', () => {
-    expect(gearUpgradeCost('line', 0)).toBe(150)
-    expect(gearUpgradeCost('line', 2)).toBe(1000)
+    expect(gearUpgradeCost('line', 0)).toBe(70)
+    expect(gearUpgradeCost('line', 2)).toBe(280)
     expect(gearUpgradeCost('line', GEAR.line.levels.length - 1)).toBeNull()
   })
 
   it('코인이 가격과 딱 같으면 살 수 있다', () => {
-    const r = buyGearUpgrade(150, START, 'line')
+    const r = buyGearUpgrade(70, START, 'line')
     expect(r).toEqual({ ok: true, coins: 0, levels: { line: 1, reel: 0, rod: 0 } })
   })
 
   it('코인이 모자라면 살 수 없다', () => {
-    expect(buyGearUpgrade(149, START, 'line')).toEqual({ ok: false, reason: 'coins' })
+    expect(buyGearUpgrade(69, START, 'line')).toEqual({ ok: false, reason: 'coins' })
   })
 
   it('최고 단계면 코인이 많아도 살 수 없다', () => {

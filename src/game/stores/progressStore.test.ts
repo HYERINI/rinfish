@@ -37,7 +37,7 @@ describe('progressStore', () => {
 
   it('코인이 있으면 장비를 사고, 없으면 실패한다', () => {
     expect(store().buyGear('line')).toBe(false)
-    useProgressStore.setState({ coins: 150 })
+    useProgressStore.setState({ coins: 70 })
     expect(store().buyGear('line')).toBe(true)
     expect(store().gear.line).toBe(1)
     expect(store().coins).toBe(0)
@@ -61,7 +61,7 @@ describe('progressStore', () => {
             { id: 'b', speciesId: 'sleepy-sardine', weight: 0.2, caughtAtPlayTime: 0 },
           ],
         },
-        version: 1,
+        version: 2,
       }),
     )
     await useProgressStore.persist.rehydrate()
@@ -91,7 +91,7 @@ describe('progressStore', () => {
             'deleted-fish': { count: 1, maxWeight: 1 },
           },
         },
-        version: 1,
+        version: 2,
       }),
     )
     await useProgressStore.persist.rehydrate()
@@ -103,7 +103,7 @@ describe('progressStore', () => {
 
     for (const bad of [{ coins: 5, gear: -1, inventory: 'x', dex: [] }, { coins: 5, gear: 'x', inventory: {}, dex: null }]) {
       useProgressStore.setState({ ...INITIAL_PROGRESS })
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ state: bad, version: 1 }))
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ state: bad, version: 2 }))
       await useProgressStore.persist.rehydrate()
       expect(store().coins).toBe(5)
       expect(store().gear).toEqual({ line: 0, reel: 0, rod: 0 })
@@ -191,7 +191,7 @@ describe('progressStore', () => {
   })
 
   it('어항 확장과 종류 구매', () => {
-    useProgressStore.setState({ coins: 700 })
+    useProgressStore.setState({ coins: 500 })
     expect(store().buyAquariumExpansion()).toBe(true)
     expect(store().coins).toBe(300)
     expect(store().buyTankType('cave')).toBe(false)
@@ -201,12 +201,19 @@ describe('progressStore', () => {
   })
 
   it('체력·어항 필드가 없는 예전 저장본은 초기값으로 채운다', async () => {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 7 }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 7 }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().coins).toBe(7)
     expect(store().survival).toEqual(INITIAL_PROGRESS.survival)
     expect(store().aquarium).toEqual(EMPTY_AQUARIUM)
     expect(store().feed).toBe(0)
+  })
+
+  it('장비·어항 5단계 시절(version 1) 저장본은 같은 성능의 10단계 자리로 옮긴다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { gear: { line: 2, reel: 1, rod: 4 }, aquarium: { level: 1 } }, version: 1 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().gear).toEqual({ line: 4, reel: 2, rod: 9 })
+    expect(store().aquarium.level).toBe(2)
   })
 
   it('깨진 체력·어항 필드는 걸러 내고, 칸 수보다 많은 전시 물고기는 잘라 낸다', async () => {
@@ -217,9 +224,9 @@ describe('progressStore', () => {
         state: {
           feed: 2.5,
           survival: { stamina: 500, graceLeft: 'x', buffs: [{ kind: 'reel', mul: 1.3, remaining: 10 }, { kind: 'fly', mul: 2, remaining: 10 }] },
-          aquarium: { level: 9, ownedTypes: ['sea', 'gold'], activeType: 'cave', displayed: [...shown, { id: 'bad' }], lastFedAt: -1, pendingIncome: 3 },
+          aquarium: { level: 99, ownedTypes: ['sea', 'gold'], activeType: 'cave', displayed: [...shown, { id: 'bad' }], lastFedAt: -1, pendingIncome: 3 },
         },
-        version: 1,
+        version: 2,
       }),
     )
     await useProgressStore.persist.rehydrate()
@@ -247,11 +254,11 @@ describe('progressStore', () => {
   })
 
   it('모습이 없는 예전 저장본은 null, 깨진 모습은 고쳐서 불러온다', async () => {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().look).toBeNull()
 
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { look: { ...DEFAULT_LOOK, gender: 'female', beard: true, hair: 'x' } }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { look: { ...DEFAULT_LOOK, gender: 'female', beard: true, hair: 'x' } }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().look).toMatchObject({ gender: 'female', beard: false, hair: DEFAULT_LOOK.hair })
   })
@@ -269,12 +276,12 @@ describe('progressStore', () => {
   })
 
   it('미끼가 없는 예전 저장본은 0개·미끼 없이, 깨진 값은 걸러 낸다', async () => {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().bait).toEqual({ worm: 0, shrimp: 0, lure: 0 })
     expect(store().selectedBait).toBeNull()
 
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { bait: { worm: 4, shrimp: -2, lure: 'x', gold: 9 }, selectedBait: 'gold' }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { bait: { worm: 4, shrimp: -2, lure: 'x', gold: 9 }, selectedBait: 'gold' }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().bait).toEqual({ worm: 4, shrimp: 0, lure: 0 })
     expect(store().selectedBait).toBeNull()
@@ -291,18 +298,18 @@ describe('progressStore', () => {
     expect(store().unlockZone('cave')).toBe(false)
     const ids = ['sleepy-sardine', 'chatty-mackerel', 'bubble-puffer', 'sunglasses-mackerel', 'selfie-flyingfish', 'lifeguard-flounder', 'firefly-minnow', 'ribbit-catfish']
     for (const id of ids) store().addCatch(id, 1)
-    useProgressStore.setState({ gear: { line: 2, reel: 0, rod: 0 } })
+    useProgressStore.setState({ gear: { line: 4, reel: 0, rod: 0 } })
     expect(store().unlockZone('cave')).toBe(true)
     expect(store().coins).toBe(20)
     expect(store().unlockedZones).toEqual(['pond', 'cave'])
   })
 
   it('연 구역이 없는 예전 저장본은 모두 잠김, 모르는 구역·해변은 버린다', async () => {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().unlockedZones).toEqual([])
 
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { unlockedZones: ['reef', 'beach', 'moon', 'reef', 3] }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { unlockedZones: ['reef', 'beach', 'moon', 'reef', 3] }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().unlockedZones).toEqual(['reef'])
   })
@@ -321,10 +328,10 @@ describe('progressStore', () => {
   })
 
   it('간식이 없는 예전 저장본은 빈 가방, 깨진 값은 걸러 낸다', async () => {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().snacks).toEqual({ gimbap: 0, ramen: 0, energy: 0 })
-    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { snacks: { gimbap: 2, ramen: -1, energy: 'x', cake: 3 } }, version: 1 }))
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { snacks: { gimbap: 2, ramen: -1, energy: 'x', cake: 3 } }, version: 2 }))
     await useProgressStore.persist.rehydrate()
     expect(store().snacks).toEqual({ gimbap: 2, ramen: 0, energy: 0 })
   })

@@ -49,7 +49,7 @@ describe('incomePerSecond', () => {
   })
 
   it('어항 종류 보너스와 확장 배율이 곱해진다', () => {
-    const sea = withSardine({ ownedTypes: ['basic', 'sea'], activeType: 'sea', level: 2 })
+    const sea = withSardine({ ownedTypes: ['basic', 'sea'], activeType: 'sea', level: 4 })
     expect(incomePerSecond(sea)).toBeCloseTo((1 * AQUARIUM.typeBonus * 1.5) / 60)
   })
 
@@ -138,8 +138,8 @@ describe('전시', () => {
 
 describe('구매', () => {
   it('확장: 코인이 딱 맞으면 성공, 최고 단계면 실패', () => {
-    expect(buyExpansion(399, EMPTY_AQUARIUM)).toEqual({ ok: false, reason: 'coins' })
-    const r = buyExpansion(400, EMPTY_AQUARIUM)
+    expect(buyExpansion(199, EMPTY_AQUARIUM)).toEqual({ ok: false, reason: 'coins' })
+    const r = buyExpansion(200, EMPTY_AQUARIUM)
     expect(r.ok && [r.coins, r.aquarium.level]).toEqual([0, 1])
     expect(buyExpansion(99999, { ...EMPTY_AQUARIUM, level: TANK_LEVELS.length - 1 })).toEqual({ ok: false, reason: 'max' })
   })

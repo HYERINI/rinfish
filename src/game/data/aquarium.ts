@@ -9,13 +9,22 @@ export type TankLevelDef = {
   size: [number, number, number]
 }
 
+/** 어항 단계. 구경꾼 길과 겹치지 않게 가로·세로는 Lv5부터 그대로 두고 높이만 키운다 */
 export const TANK_LEVELS: TankLevelDef[] = [
   { slots: 6, incomeMul: 1, price: 0, size: [3, 1.6, 1.4] },
-  { slots: 9, incomeMul: 1.2, price: 400, size: [4, 1.8, 1.6] },
-  { slots: 12, incomeMul: 1.5, price: 1000, size: [5, 2, 1.8] },
-  { slots: 15, incomeMul: 1.8, price: 2000, size: [5, 2.3, 1.8] },
-  { slots: 18, incomeMul: 2.2, price: 3500, size: [5, 2.6, 1.8] },
+  { slots: 8, incomeMul: 1.1, price: 200, size: [3.5, 1.7, 1.5] },
+  { slots: 9, incomeMul: 1.2, price: 350, size: [4, 1.8, 1.6] },
+  { slots: 11, incomeMul: 1.35, price: 600, size: [4.5, 1.9, 1.7] },
+  { slots: 12, incomeMul: 1.5, price: 900, size: [5, 2, 1.8] },
+  { slots: 14, incomeMul: 1.65, price: 1300, size: [5, 2.15, 1.8] },
+  { slots: 15, incomeMul: 1.8, price: 1800, size: [5, 2.3, 1.8] },
+  { slots: 17, incomeMul: 2, price: 2400, size: [5, 2.45, 1.8] },
+  { slots: 18, incomeMul: 2.2, price: 3200, size: [5, 2.6, 1.8] },
+  { slots: 20, incomeMul: 2.5, price: 4200, size: [5, 2.75, 1.8] },
 ]
+
+/** 5단계였던 저장본의 어항 단계 → 지금 10단계 중 같은 칸 수 자리 */
+export const TANK_LEVEL_FROM_V1 = [0, 2, 4, 6, 8]
 
 export type TankTypeDef = {
   id: TankTypeId

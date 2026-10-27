@@ -29,9 +29,9 @@ describe('unlockStatus', () => {
   })
 
   it('동굴은 도감 8종과 낚싯줄 Lv3(단계 2)을 모두 채워야 열린다. 코인은 들지 않는다', () => {
-    expect(unlockStatus(getZone('cave'), ctx({ dexCount: 8, lineLevel: 2 }))).toEqual({ state: 'ready', cost: 0 })
-    expect(unlockStatus(getZone('cave'), ctx({ dexCount: 5, lineLevel: 1, coins: 9999 }))).toEqual({ state: 'short', reason: 'conditions', progress: '도감 5/8 · 낚싯줄 Lv2/3' })
-    expect(unlockStatus(getZone('cave'), ctx({ dexCount: 12, lineLevel: 1 }))).toMatchObject({ state: 'short', progress: '도감 8/8 · 낚싯줄 Lv2/3' })
+    expect(unlockStatus(getZone('cave'), ctx({ dexCount: 8, lineLevel: 4 }))).toEqual({ state: 'ready', cost: 0 })
+    expect(unlockStatus(getZone('cave'), ctx({ dexCount: 5, lineLevel: 1, coins: 9999 }))).toEqual({ state: 'short', reason: 'conditions', progress: '도감 5/8 · 낚싯줄 Lv2/5' })
+    expect(unlockStatus(getZone('cave'), ctx({ dexCount: 12, lineLevel: 1 }))).toMatchObject({ state: 'short', progress: '도감 8/8 · 낚싯줄 Lv2/5' })
   })
 
   it('이미 열렸거나 해변이면 open', () => {
@@ -47,7 +47,7 @@ describe('unlockZone', () => {
 
   it('못 열면 아무것도 바뀌지 않고 이유를 돌려준다', () => {
     const r = unlockZone(getZone('cave'), ctx({ dexCount: 3 }))
-    expect(r).toEqual({ ok: false, status: { state: 'short', reason: 'conditions', progress: '도감 3/8 · 낚싯줄 Lv1/3' } })
+    expect(r).toEqual({ ok: false, status: { state: 'short', reason: 'conditions', progress: '도감 3/8 · 낚싯줄 Lv1/5' } })
     expect(unlockZone(getZone('pond'), ctx({ coins: 1000, unlocked: ['pond'] }))).toEqual({ ok: false, status: { state: 'open' } })
   })
 })
@@ -63,8 +63,8 @@ describe('unlockHint', () => {
     expect(unlockHint(getZone('pond'), ctx({ coins: 120 }))).toContain('지금 120/300')
     expect(unlockHint(getZone('pond'), ctx({ coins: 300 }))).toContain('다리 앞으로 가서 E')
     expect(unlockHint(getZone('reef'), ctx({ coins: 0 }))).toContain('보트 앞에서 E')
-    expect(unlockHint(getZone('cave'), ctx({ dexCount: 5, lineLevel: 1 }))).toContain('도감 5/8 · 낚싯줄 Lv2/3')
-    expect(unlockHint(getZone('cave'), ctx({ dexCount: 8, lineLevel: 2 }))).toContain('바위 앞으로 가서 E')
+    expect(unlockHint(getZone('cave'), ctx({ dexCount: 5, lineLevel: 1 }))).toContain('도감 5/8 · 낚싯줄 Lv2/5')
+    expect(unlockHint(getZone('cave'), ctx({ dexCount: 8, lineLevel: 4 }))).toContain('바위 앞으로 가서 E')
     expect(unlockHint(getZone('pond'), ctx({ unlocked: ['pond'] }))).toBeNull()
   })
 })

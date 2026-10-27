@@ -28,6 +28,7 @@ import { NO_SNACKS, buyAndEatSnack as buyAndEatSnackRule, buySnacks as buySnacks
 import { cook, ingredientsOk } from '../logic/cooking'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
+import { migrateSave } from '../logic/saveMigration'
 import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
 import { FRESH_SURVIVAL, faintPenalty, spendStamina, tickSurvival, type Survival, type SurvivalTickContext } from '../logic/stamina'
 
@@ -433,7 +434,9 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
     }),
     {
       name: SAVE_KEY,
-      version: 1,
+      // 2: 장비·어항이 5단계 → 10단계
+      version: 2,
+      migrate: (persisted, version) => migrateSave(persisted, version) as ProgressData & ProgressActions,
       storage: createJSONStorage(() => localStorage),
       // 저장본의 각 필드를 검증해서, 틀린 값은 기본값을 쓰고 지금은 없는 물고기는 버린다
       merge: (persisted, current) => {
