@@ -31,8 +31,8 @@ function SteamDish({ sauce, rim = '#4e342e', children }: { sauce: string; rim?: 
   )
 }
 
-/** 장비 단계 색: 나무·나일론 → 은색 → 금색 */
-const TIER = ['#a1887f', '#90caf9', '#ffd54f']
+/** 장비 단계 색: 나무·나일론 → 은색 → 금색 → 다이아 → 전설 */
+const TIER = ['#a1887f', '#90caf9', '#ffd54f', '#4dd0e1', '#b388ff']
 
 const ICONS: Record<ItemIconId, (level: number) => ReactNode> = {
   worm: () => (

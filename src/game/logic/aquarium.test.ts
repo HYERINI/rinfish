@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { TANK_LEVELS } from '../data/aquarium'
 import { AQUARIUM } from '../data/balance'
 import { findSpecies } from '../data/fish'
 import type { FishInstance } from '../data/types'
@@ -140,7 +141,7 @@ describe('구매', () => {
     expect(buyExpansion(399, EMPTY_AQUARIUM)).toEqual({ ok: false, reason: 'coins' })
     const r = buyExpansion(400, EMPTY_AQUARIUM)
     expect(r.ok && [r.coins, r.aquarium.level]).toEqual([0, 1])
-    expect(buyExpansion(99999, { ...EMPTY_AQUARIUM, level: 2 })).toEqual({ ok: false, reason: 'max' })
+    expect(buyExpansion(99999, { ...EMPTY_AQUARIUM, level: TANK_LEVELS.length - 1 })).toEqual({ ok: false, reason: 'max' })
   })
 
   it('종류를 사면 보유 목록에 들어가고 바로 바뀐다. 이미 있으면 실패', () => {

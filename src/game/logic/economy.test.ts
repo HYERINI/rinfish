@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buyGearUpgrade, gearStats, gearUpgradeCost, sellPrice } from './economy'
 import { getSpecies } from '../data/fish'
+import { GEAR } from '../data/gear'
 import type { GearLevels } from '../data/types'
 
 const START: GearLevels = { line: 0, reel: 0, rod: 0 }
@@ -30,7 +31,8 @@ describe('gearStats', () => {
 describe('buyGearUpgrade', () => {
   it('다음 단계 가격을 알려 주고, 최고 단계면 null', () => {
     expect(gearUpgradeCost('line', 0)).toBe(150)
-    expect(gearUpgradeCost('line', 2)).toBeNull()
+    expect(gearUpgradeCost('line', 2)).toBe(1000)
+    expect(gearUpgradeCost('line', GEAR.line.levels.length - 1)).toBeNull()
   })
 
   it('코인이 가격과 딱 같으면 살 수 있다', () => {
@@ -43,6 +45,6 @@ describe('buyGearUpgrade', () => {
   })
 
   it('최고 단계면 코인이 많아도 살 수 없다', () => {
-    expect(buyGearUpgrade(99999, { ...START, line: 2 }, 'line')).toEqual({ ok: false, reason: 'max' })
+    expect(buyGearUpgrade(99999, { ...START, line: GEAR.line.levels.length - 1 }, 'line')).toEqual({ ok: false, reason: 'max' })
   })
 })

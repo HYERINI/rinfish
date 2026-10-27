@@ -13,6 +13,8 @@ export const TANK_LEVELS: TankLevelDef[] = [
   { slots: 6, incomeMul: 1, price: 0, size: [3, 1.6, 1.4] },
   { slots: 9, incomeMul: 1.2, price: 400, size: [4, 1.8, 1.6] },
   { slots: 12, incomeMul: 1.5, price: 1000, size: [5, 2, 1.8] },
+  { slots: 15, incomeMul: 1.8, price: 2000, size: [5, 2.3, 1.8] },
+  { slots: 18, incomeMul: 2.2, price: 3500, size: [5, 2.6, 1.8] },
 ]
 
 export type TankTypeDef = {
