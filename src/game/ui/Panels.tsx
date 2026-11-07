@@ -5,6 +5,7 @@ import { AquariumView } from './AquariumView'
 import { CharacterCreator } from './CharacterCreator'
 import { DexPanel } from './DexPanel'
 import { GearShopPanel } from './GearShopPanel'
+import { Lobby } from './Lobby'
 import { MarketPanel } from './MarketPanel'
 import { MenuPanel } from './MenuPanel'
 import { SellPanel } from './SellPanel'
@@ -31,6 +32,8 @@ export function Panels({ onExit }: { onExit?: () => void }) {
       return <AquariumView />
     case 'unlock':
       return <UnlockPanel />
+    case 'lobby':
+      return <Lobby />
     case 'wardrobe':
       return <CharacterCreator firstTime={!look} />
     default:

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { MUSIC } from '../data/settings'
 import { musicGain, musicTrackFor, type MusicTrack } from '../logic/music'
+import { isTypingTarget } from '../input/typing'
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 
@@ -147,7 +148,7 @@ export function useBackgroundMusic() {
       music.setHidden(document.hidden)
     }
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'KeyM' && !e.repeat && !(e.target instanceof HTMLInputElement)) useSettingsStore.getState().toggleMusicMuted()
+      if (e.code === 'KeyM' && !e.repeat && !isTypingTarget(e.target)) useSettingsStore.getState().toggleMusicMuted()
     }
     const onVisibility = () => music.setHidden(document.hidden)
     // 캡처 단계에서 받아야 다른 곳에서 전파를 막아도 시작한다

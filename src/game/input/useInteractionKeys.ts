@@ -5,11 +5,13 @@ import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { escHandledByUnlock } from './pointerLock'
+import { isTypingTarget } from './typing'
 
 export function useInteractionKeys() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return // 꾹 누르고 있을 때 반복 입력 무시
+      if (isTypingTarget(e.target)) return // 채팅 등 글자 입력 칸에서 누른 키
       if (e.code === 'Escape' && escHandledByUnlock()) return // 이 ESC 로 마우스 잠금이 풀리며 메뉴가 이미 열렸다
       const session = useSessionStore.getState()
       // 요리 연출 건너뛰기. 같은 Space 가 점프로 이어지지 않게 막는다 (usePlayerActionKeys 가 defaultPrevented 를 본다)

@@ -3,6 +3,7 @@ import { ACTION_KEYS, EMOTES, type EmoteId } from '../data/emotes'
 import type { FoodId } from '../data/types'
 import { useSessionStore } from '../stores/sessionStore'
 import { isKeyDown } from './keys'
+import { isTypingTarget } from './typing'
 
 // 지난 프레임 뒤로 새로 누른 점프·감정 표현 키. Player 가 매 프레임 가져가며 비운다
 let jumpPressed = false
@@ -36,12 +37,6 @@ export function pressEmote(id: EmoteId) {
 /** Shift 를 누르고 있다 */
 export function isSprintHeld(): boolean {
   return ACTION_KEYS.sprint.some(isKeyDown)
-}
-
-/** 글자를 치는 칸(입력창·여러 줄 입력·선택 상자·편집 가능한 요소)에서 누른 키인가 */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  return target.isContentEditable || target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
 }
 
 /** Space·숫자 키 → 점프·감정 표현. 꾹 누르고 있을 때 반복 입력과 글자 입력 칸에서 누른 키는 무시한다 */

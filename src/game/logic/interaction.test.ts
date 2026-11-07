@@ -19,6 +19,11 @@ describe('isSameInteractable', () => {
 })
 
 describe('resolveKeyAction', () => {
+  it('로비에선 ESC·E 모두 아무 일도 하지 않는다 (혼자 하기/같이 하기를 골라야 닫힌다)', () => {
+    expect(resolveKeyAction('Escape', 'lobby', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('KeyE', 'lobby', { kind: 'sellBox' })).toEqual({ type: 'none' })
+  })
+
   const spot = { kind: 'fishingSpot' as const, spot: place('shore:sea') }
 
   it('탐험 중 낚시 포인트에서 E를 누르면 낚시를 시작한다', () => {

@@ -16,6 +16,10 @@ import { useProgressStore } from './stores/progressStore'
 import { usePlaceStore } from './stores/placeStore'
 import { useSessionStore } from './stores/sessionStore'
 import { normalizePlace } from './logic/place'
+import { ROOM_SERVER } from './net/serverUrl'
+import { useNetStore } from './stores/netStore'
+import { ChatBox } from './ui/ChatBox'
+import { RoomBadge } from './ui/RoomBadge'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
@@ -74,8 +78,12 @@ export function Game({ onExit }: GameProps) {
       // 지난번 카메라 거리와, 벤치에 앉아 있었으면 앉은 채로 이어서 (자리·방향은 Player 가 읽는다)
       const place = normalizePlace(usePlaceStore.getState().place, useProgressStore.getState().unlockedZones)
       useSessionStore.setState({ zoom: place.zoom })
-      if (place.resting) useSessionStore.getState().setMode('rest')
+      // 방 서버가 있으면 혼자 할지 같이 할지부터 고른다. 아니면 벤치에 앉아 있던 채로 이어서
+      if (ROOM_SERVER) useSessionStore.getState().setMode('lobby')
+      else if (place.resting) useSessionStore.getState().setMode('rest')
     }
+    // 게임을 나가면 방 연결도 닫는다
+    return () => useNetStore.getState().leave()
   }, [])
 
   return (
@@ -93,8 +101,10 @@ export function Game({ onExit }: GameProps) {
       </div>
       <WeaknessOverlay />
       <Hud />
+      <RoomBadge />
       <GoalTracker />
       <FishingOverlay />
+      <ChatBox />
       <TouchControls />
       <Panels onExit={onExit} />
       <NoticeLayer />

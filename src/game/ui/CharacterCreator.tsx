@@ -11,6 +11,7 @@ import { PlayerModel, type PlayerModelHandle } from '../scene/PlayerModel'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { button, panelBox } from './styles'
+import { ROOM_SERVER } from '../net/serverUrl'
 
 /** 자동 회전 속도 (라디안/초) */
 const SPIN_SPEED = 0.4
@@ -128,7 +129,8 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
     if (drag.current.pointer === e.pointerId) drag.current.pointer = null
   }
   const set = (patch: Partial<CharacterLook>) => setDraft((d) => ({ ...d, ...patch }))
-  const close = () => useSessionStore.getState().setMode('explore')
+  // 처음 만든 뒤 방 서버가 있으면 혼자/같이 고르는 창으로
+  const close = () => useSessionStore.getState().setMode(firstTime && ROOM_SERVER ? 'lobby' : 'explore')
   const done = () => {
     useProgressStore.getState().setLook(draft)
     close()
