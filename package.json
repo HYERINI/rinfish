@@ -8,7 +8,9 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint --ignore-pattern=.claude/** --ignore-pattern=tools/**",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "server:dev": "wrangler dev --config server/wrangler.toml --port 8787",
+    "server:deploy": "wrangler deploy --config server/wrangler.toml"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
@@ -20,6 +22,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261107.1",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
@@ -29,6 +32,7 @@
     "oxlint": "^1.81.0",
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.4",
+    "wrangler": "^4.158.0"
   }
 }
