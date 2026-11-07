@@ -15,6 +15,7 @@ import { FishingVisuals } from './fishing/FishingVisuals'
 import { Island } from './Island'
 import { IslandDecor } from './decor/IslandDecor'
 import { Player } from './Player'
+import { RemotePlayers } from './RemotePlayers'
 import { PlayTimeTicker } from './PlayTimeTicker'
 import { RepairCutscene } from './zones/RepairCutscene'
 import { ZoneGates } from './zones/ZoneGates'
@@ -46,6 +47,7 @@ export function World() {
       <RepairCutscene />
       <Player />
       <NetBridge />
+      <RemotePlayers />
       <FishingSpots />
       <SellBox />
       <GearShop />
