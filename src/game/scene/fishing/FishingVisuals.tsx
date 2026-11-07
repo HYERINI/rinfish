@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, Line, LineBasicMaterial, Vector3, type Group, type Mesh, type MeshBasicMaterial } from 'three'
 import { FIGHT } from '../../data/balance'
@@ -60,6 +60,14 @@ export function FishingVisuals() {
     shadowAngle: 0,
     lastPullSplash: 0,
   })
+
+  // 같이 하기: 다른 사람에게 보낼 찌 위치를 읽을 수 있게 내놓는다
+  useEffect(() => {
+    fishingFx.bobber = bobber.current
+    return () => {
+      fishingFx.bobber = null
+    }
+  }, [])
 
   // 낚싯줄: 여러 점을 이어 휘어진 줄을 그린다. 매 프레임 점 위치만 바꾼다
   const line = useMemo(() => {

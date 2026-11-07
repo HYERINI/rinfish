@@ -1,4 +1,5 @@
 import { useQualityPreset } from '../input/touchDevice'
+import { NetBridge } from '../net/NetBridge'
 import { FishingSpots } from './facilities/FishingSpots'
 import { preloadFacilityAssets } from './assets'
 import { Aquarium } from './facilities/Aquarium'
@@ -44,6 +45,7 @@ export function World() {
       <ZoneGates />
       <RepairCutscene />
       <Player />
+      <NetBridge />
       <FishingSpots />
       <SellBox />
       <GearShop />

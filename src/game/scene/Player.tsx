@@ -32,10 +32,16 @@ import { ChewChatter } from './ChewChatter'
 import { FoodInHand } from './FoodInHand'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 
-/** 다른 컴포넌트(낚싯줄 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
+/** 다른 컴포넌트(낚싯줄·같이 하기 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
 export const playerRig = {
   position: new Vector3(0, 1, 15),
   rodTip: new Vector3(0, 2, 15),
+  /** 바라보는 각도, 수평 속도, 벤치에 앉아 있나, 낚싯대 각도·보이나 (같이 하기로 보낸다) */
+  facing: 0,
+  speed: 0,
+  resting: false,
+  rodAngle: 0.5,
+  rodShown: true,
 }
 
 const PLAYER_LIMIT = ISLAND_RADIUS - 1
@@ -88,7 +94,7 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 }
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
-const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
+export const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
 /**
  * 땅 판정: 몸 가운데에서 공(반지름 GROUND_BALL)을 아래로 밀어 발바닥 아래 GROUND_PROBE 안에 닿는 게 있고 세로 속도가 작으면 땅에 서 있다.
  * 광선 하나는 상자 모서리에 걸터앉으면 빗나가서 공중 자세에 갇힌다
@@ -301,6 +307,9 @@ export function Player() {
       facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
     }
     if (visual.current) visual.current.rotation.y = facing.current
+    playerRig.facing = facing.current
+    playerRig.speed = speed
+    playerRig.resting = mode === 'rest'
 
     // 4) 낚싯대 각도: 젖혔다가 휘두르고, 줄다리기 땐 텐션만큼 휜다
     const fishing = useFishingStore.getState().state
@@ -314,6 +323,8 @@ export function Player() {
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
       // 낚시 중이 아니면 서 있거나 걸을 때만 보인다 (앉기·감정 표현·점프 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다)
       rod.current.visible = rodVisible(mode, session.zoom, action)
+      playerRig.rodAngle = rod.current.rotation.x
+      playerRig.rodShown = rod.current.visible
       const m = model.current
       if (m && visual.current) {
         // 골반은 벤치 자리에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
