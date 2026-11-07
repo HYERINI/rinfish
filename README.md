@@ -11,6 +11,15 @@ npm run dev     # 개발 서버 실행 → 터미널에 표시되는 주소(기�
 npm run build   # 타입 체크 + 프로덕션 빌드 (dist/)
 ```
 
+## 같이 하기 (방 서버)
+
+여러 명이 같은 섬에 들어오는 기능은 Cloudflare Workers + Durable Objects 로 만든 방 서버(`server/`)를 쓴다.
+
+- 로컬: `npm run server:dev` 로 방 서버(ws://127.0.0.1:8787)를 띄우고, `.env.local` 에 `VITE_ROOM_SERVER=ws://127.0.0.1:8787` 을 넣은 뒤 `npm run dev`. (`.env.example` 참고)
+- 확인: `node tools/room-smoke.mjs` (서버만), `node tools/multiplayer-check.mjs http://localhost:5173` (브라우저 두 개로 끝까지).
+- 배포: `npx wrangler login` (한 번) → `npm run server:deploy` → 나온 주소(https://rinfish-rooms.<계정>.workers.dev)를 `wss://` 로 바꿔 Vercel 환경변수 `VITE_ROOM_SERVER` 에 넣고 다시 배포.
+- `VITE_ROOM_SERVER` 가 없으면 로비 없이 혼자 하기만 된다.
+
 ## 주요 라이브러리
 
 | 패키지 | 역할 |

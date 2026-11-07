@@ -4,11 +4,16 @@ import { lobbyErrors } from '../logic/roomKey'
 import { useNetStore } from '../stores/netStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { useTouchUi } from '../input/touchDevice'
 import { button, safeRight, safeTop } from './styles'
+import { useNarrow } from './useNarrow'
 
 const small = { ...button, padding: '4px 10px', fontSize: 13 }
 
-/** 화면 오른쪽 위: 🔒 방 이름 · 👥 인원, 링크 복사·닉네임 바꾸기·나가기. 같이 하는 중에만 */
+/**
+ * 화면 오른쪽 위: 🔒 방 이름 · 👥 인원, 링크 복사·닉네임 바꾸기·나가기. 같이 하는 중에만.
+ * 넓은 화면은 가운데 목표 안내 아래 높이에 펼쳐 두고, 좁은 화면(폰)은 위쪽 버튼 줄 바로 밑에 작게 두었다가 누르면 펼친다
+ */
 export function RoomBadge() {
   const phase = useNetStore((s) => s.phase)
   const room = useNetStore((s) => s.room)
@@ -17,6 +22,10 @@ export function RoomBadge() {
   const mode = useSessionStore((s) => s.mode)
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
+  const narrowScreen = useNarrow()
+  const touchUi = useTouchUi()
+  const narrow = narrowScreen || touchUi
+  const [expanded, setExpanded] = useState(false)
   if (phase === 'off' || !room || mode === 'cutscene' || mode === 'lobby' || mode === 'aquariumView') return null
 
   const copy = () => {
@@ -30,12 +39,25 @@ export function RoomBadge() {
     setEditing(false)
   }
   const status = phase === 'reconnecting' ? ' · 다시 연결 중…' : phase === 'connecting' ? ' · 연결 중…' : ''
+  const box = { position: 'absolute' as const, top: safeTop(narrow ? 52 : 100), right: safeRight(16), background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: 10, padding: narrow ? '3px 10px' : '6px 10px', fontSize: narrow ? 13 : 14, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' as const, justifyContent: 'flex-end', maxWidth: 'min(420px, 80vw)', pointerEvents: 'auto' as const, zIndex: 5 }
+  const label = `🔒 ${room} · 👥 ${count}명${status}`
 
+  if (narrow && !expanded) {
+    return (
+      <button style={{ ...box, border: 'none', cursor: 'pointer' }} onClick={() => setExpanded(true)} title="방 메뉴 펼치기">
+        {label} ▾
+      </button>
+    )
+  }
   return (
-    <div style={{ position: 'absolute', top: safeTop(64), right: safeRight(16), background: 'rgba(0,0,0,0.6)', color: '#fff', borderRadius: 10, padding: '6px 10px', fontSize: 14, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '70vw', pointerEvents: 'auto' }}>
-      <span>
-        🔒 {room} · 👥 {count}명{status}
-      </span>
+    <div style={box}>
+      {narrow ? (
+        <button style={{ ...small, background: 'transparent', color: '#fff' }} onClick={() => setExpanded(false)} title="방 메뉴 접기">
+          {label} ▴
+        </button>
+      ) : (
+        <span>{label}</span>
+      )}
       <button style={small} onClick={copy}>
         링크 복사
       </button>

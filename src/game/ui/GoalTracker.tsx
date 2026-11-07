@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { getZone } from '../data/zones'
 import { nextGoal } from '../logic/zoneUnlock'
 import { useProgressStore } from '../stores/progressStore'
 import { useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
 import { safeTop } from './styles'
+import { useNarrow } from './useNarrow'
 
 /**
  * 화면 위 가운데 "다음 목표" 띠. 아직 안 열린 구역을 어떻게 여는지 알려 준다 (다 열리면 사라진다).
@@ -42,19 +43,6 @@ export function GoalTracker() {
       )}
     </button>
   )
-}
-
-/** 위쪽 버튼 줄(🔊·어항 구경·도감·메뉴)이 가운데까지 오는 좁은 화면 */
-const NARROW_BELOW = 900
-
-function useNarrow(): boolean {
-  const [narrow, setNarrow] = useState(() => window.innerWidth < NARROW_BELOW)
-  useEffect(() => {
-    const onResize = () => setNarrow(window.innerWidth < NARROW_BELOW)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  return narrow
 }
 
 /** 좁은 화면: 코인·체력 줄과 위쪽 버튼 줄 아래, 화면 폭에 맞춰 */
