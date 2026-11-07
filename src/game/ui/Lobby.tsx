@@ -1,14 +1,15 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { NET } from '../data/net'
-import type { ErrorCode, JoinMode } from '../logic/netProtocol'
+import type { JoinMode } from '../logic/netProtocol'
 import { lobbyErrors, readRoomParam, type LobbyField } from '../logic/roomKey'
-import { useNetStore } from '../stores/netStore'
+import { useNetStore, type NetError } from '../stores/netStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { button, panelBox } from './styles'
 
-const ERROR_TEXT: Record<ErrorCode, string> = {
+const ERROR_TEXT: Record<NetError, string> = {
+  unreachable: '방 서버에 연결할 수 없어요. 잠시 뒤 다시 해 주세요',
   'room-exists': '이미 있는 방 이름이에요',
   'no-room': '그런 방이 없어요',
   'bad-password': '암호가 틀렸어요',
@@ -53,7 +54,14 @@ export function Lobby() {
     <div style={{ ...panelBox, width: 'min(400px, 92vw)' }}>
       <h2 style={{ margin: '0 0 12px', fontSize: 22 }}>🎣 낚시섬</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
-        <button style={{ ...button, fontSize: 18, padding: '10px 14px' }} onClick={() => setMode('explore')}>
+        <button
+          style={{ ...button, fontSize: 18, padding: '10px 14px' }}
+          onClick={() => {
+            // 연결 중이던 것도 그만둔다 (나중에 몰래 붙지 않게)
+            useNetStore.getState().leave()
+            setMode('explore')
+          }}
+        >
           혼자 하기
         </button>
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>

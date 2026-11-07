@@ -8,10 +8,13 @@ import { cleanText, normalizeNick, normalizeRoomName, passHashFor, roomIdFor, te
 import { connectSocket, type Connection, type Connector } from '../net/connection'
 import { forgetRemote, netNow, receiveState, selfBubble, showBubble } from '../net/remoteRig'
 import { roomUrl } from '../net/serverUrl'
+import { useFishingStore } from './fishingStore'
 import { useSessionStore } from './sessionStore'
 
 export type NetPhase = 'off' | 'connecting' | 'online' | 'reconnecting'
 export type Peer = { nick: string; look: CharacterLook }
+/** 로비에 띄울 실패 이유: 서버가 거절한 이유, 또는 서버에 닿지 못함 */
+export type NetError = ErrorCode | 'unreachable'
 export type ChatLine = { key: number; from: string; text: string; at: number; mine: boolean }
 
 type NetStore = {
@@ -22,7 +25,7 @@ type NetStore = {
   peers: Record<string, Peer>
   chat: ChatLine[]
   /** 마지막으로 서버가 거절한 이유 (로비에 띄운다) */
-  error: ErrorCode | null
+  error: NetError | null
   /** 저장: 마지막 방 이름·닉네임 */
   lastRoom: string
   nick: string
@@ -40,6 +43,10 @@ let connector: Connector = connectSocket
 let conn: Connection | null = null
 let chatKey = 0
 let lastChatAt = -Infinity
+/** join 할 때마다 늘린다. 해시 계산을 기다리는 동안 나가거나 다시 들어가면 앞의 join 은 연결하지 않는다 */
+let joinSeq = 0
+let lastProfileAt = -Infinity
+let profileTimer: ReturnType<typeof setTimeout> | undefined
 /** (다시) 연결될 때 보낼 hello 재료. 첫 welcome 뒤엔 mode 를 join 으로 바꾼다 (방이 이미 있으니) */
 const hello: { mode: JoinMode; passHash: string; nick: string; look: CharacterLook | null } = { mode: 'join', passHash: '', nick: '', look: null }
 
@@ -64,11 +71,18 @@ export const useNetStore = create<NetStore>()(
             set({ phase: 'online', you: m.you, peers, error: null })
             return
           }
-          case 'error':
+          case 'error': {
             conn = null
             forgetRemote()
             set({ phase: 'off', room: null, you: null, peers: {}, error: m.code })
+            // 같이 하던 중 거절당했으면(다시 붙다가 꽉 참 등) 이유를 볼 수 있게 로비로 돌아간다
+            const session = useSessionStore.getState()
+            if (session.mode !== 'lobby') {
+              useFishingStore.getState().end()
+              session.setMode('lobby')
+            }
             return
+          }
           case 'join':
             set((s) => ({ peers: { ...s.peers, [m.id]: { nick: m.nick, look: m.look } } }))
             notify(`${m.nick}님이 들어왔어요`)
@@ -99,6 +113,21 @@ export const useNetStore = create<NetStore>()(
         }
       }
 
+      /** 지금 이름·옷을 보낸다. 서버는 5초에 한 번만 받으므로, 그 안이면 창이 열릴 때 마지막 값을 보낸다 */
+      const flushProfile = () => {
+        if (get().phase !== 'online' || !conn || !hello.look || profileTimer) return
+        const now = netNow()
+        if (allowEvery(lastProfileAt, now, NET.profileEvery)) {
+          lastProfileAt = now
+          conn.send({ type: 'profile', nick: hello.nick, look: hello.look })
+          return
+        }
+        profileTimer = setTimeout(() => {
+          profileTimer = undefined
+          flushProfile()
+        }, (lastProfileAt + NET.profileEvery - now) * 1000)
+      }
+
       return {
         phase: 'off',
         room: null,
@@ -111,11 +140,17 @@ export const useNetStore = create<NetStore>()(
 
         async join({ mode, room, password, nick, look }) {
           get().leave()
+          const seq = ++joinSeq
           const name = normalizeRoomName(room)
           const roomId = await roomIdFor(name)
-          Object.assign(hello, { mode, passHash: await passHashFor(roomId, password), nick: normalizeNick(nick), look })
+          const passHash = await passHashFor(roomId, password)
+          // 기다리는 동안 나갔거나 다시 들어갔으면 이 join 은 그만둔다
+          if (seq !== joinSeq) return
+          Object.assign(hello, { mode, passHash, nick: normalizeNick(nick), look })
+          lastProfileAt = -Infinity
           set({ phase: 'connecting', room: name, error: null, lastRoom: name, nick: hello.nick, chat: [] })
-          conn = connector(
+          let mine: Connection | null = null
+          mine = connector(
             roomUrl(roomId),
             (): ClientMsg => ({ type: 'hello', v: NET.protocolVersion, mode: hello.mode, passHash: hello.passHash, nick: hello.nick, look: hello.look ?? look }),
             onMessage,
@@ -125,11 +160,20 @@ export const useNetStore = create<NetStore>()(
                 forgetRemote()
                 set({ phase: 'reconnecting', peers: {} })
               }
+              // 처음부터 끝내 안 붙었다 (서버가 꺼져 있음 등)
+              if (status === 'closed' && conn === mine && get().phase === 'connecting') {
+                conn = null
+                set({ phase: 'off', room: null, error: 'unreachable' })
+              }
             },
           )
+          conn = mine
         },
 
         leave() {
+          joinSeq++
+          clearTimeout(profileTimer)
+          profileTimer = undefined
           const c = conn
           conn = null
           c?.close()
@@ -158,7 +202,7 @@ export const useNetStore = create<NetStore>()(
           hello.nick = normalizeNick(nick)
           hello.look = look
           set({ nick: hello.nick })
-          if (get().phase === 'online') conn?.send({ type: 'profile', nick: hello.nick, look })
+          flushProfile()
         },
 
         _setConnector(c) {

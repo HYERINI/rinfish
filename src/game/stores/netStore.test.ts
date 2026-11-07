@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import type { ClientMsg, NetState, ServerMsg } from '../logic/netProtocol'
 import type { ConnStatus, Connector } from '../net/connection'
@@ -14,7 +14,9 @@ let helloFn: () => ClientMsg
 let push: (m: ServerMsg) => void
 let status: (s: ConnStatus) => void
 let closed = 0
+let connects = 0
 const fake: Connector = (_url, hello, onMessage, onStatus) => {
+  connects++
   helloFn = hello
   push = onMessage
   status = onStatus
@@ -30,6 +32,12 @@ beforeEach(() => {
   useNetStore.setState({ chat: [], error: null })
   sent = []
   closed = 0
+  connects = 0
+  useSessionStore.setState({ mode: 'explore' })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 describe('netStore', () => {
@@ -130,5 +138,48 @@ describe('netStore', () => {
     const saved = localStorage.getItem('fishing-island-net-v1') ?? ''
     expect(saved).toContain('study')
     expect(saved).not.toContain('secret1')
+  })
+
+  it('들어가는 중(암호 해시 계산 중)에 나가면 연결하지 않는다', async () => {
+    const pending = join()
+    useNetStore.getState().leave()
+    await pending
+    expect(connects).toBe(0)
+    expect(useNetStore.getState().phase).toBe('off')
+  })
+
+  it('들어가는 중에 또 들어가면 마지막 것만 연결한다 (앞의 소켓이 남지 않는다)', async () => {
+    const first = join()
+    const second = join('join')
+    await Promise.all([first, second])
+    expect(connects).toBe(1)
+    expect(helloFn()).toMatchObject({ mode: 'join' })
+  })
+
+  it('처음 연결이 끝내 안 되면 off 로 돌아가고 unreachable 을 남긴다', async () => {
+    await join()
+    status('closed')
+    expect(useNetStore.getState()).toMatchObject({ phase: 'off', error: 'unreachable' })
+  })
+
+  it('같이 하던 중 서버가 거절(error)하면 로비로 돌아간다', async () => {
+    await join()
+    push({ type: 'welcome', you: 'me', players: [] })
+    push({ type: 'error', code: 'full' })
+    expect(useSessionStore.getState().mode).toBe('lobby')
+    expect(useNetStore.getState().error).toBe('full')
+  })
+
+  it('profile 은 5초에 한 번만 보내고, 그 안에 또 바꾸면 창이 열릴 때 마지막 값을 보낸다', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'performance'] })
+    await join()
+    push({ type: 'welcome', you: 'me', players: [] })
+    useNetStore.getState().sendProfile('첫이름', DEFAULT_LOOK)
+    useNetStore.getState().sendProfile('둘째', DEFAULT_LOOK)
+    useNetStore.getState().sendProfile('셋째', DEFAULT_LOOK)
+    expect(sent.filter((m) => m.type === 'profile')).toEqual([{ type: 'profile', nick: '첫이름', look: DEFAULT_LOOK }])
+    expect(useNetStore.getState().nick).toBe('셋째')
+    vi.advanceTimersByTime(5300)
+    expect(sent.filter((m) => m.type === 'profile').map((m) => (m as { nick: string }).nick)).toEqual(['첫이름', '셋째'])
   })
 })

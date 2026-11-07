@@ -40,6 +40,10 @@ export const NET = {
   lowQualityMaxRemote: 10,
   /** 다시 연결할 때 기다리는 시간(초). 마지막 값을 계속 쓴다 */
   reconnectDelays: [1, 2, 4, 8, 10],
+  /** 처음 들어갈 때 이만큼 시도해도 안 붙으면 포기한다 (한 번 붙은 뒤 끊긴 건 계속 다시 붙는다) */
+  firstConnectTries: 3,
+  /** profile 을 보내는 최소 간격(초). 서버 제한(serverProfileEvery)보다 조금 길게 */
+  profileEvery: 5.2,
 }
 
 /** 마지막 방 이름·닉네임 저장 키 (암호는 저장하지 않는다) */

@@ -8,11 +8,13 @@ export type Connector = (url: string, hello: () => ClientMsg, onMessage: (m: Ser
 
 /**
  * 진짜 웹소켓. 끊기면 1·2·4·8·10초 간격으로 다시 붙는다.
- * 서버가 error 를 보내고 닫은 연결과 우리가 닫은 연결은 다시 붙지 않는다
+ * 서버가 error 를 보내고 닫은 연결, 우리가 닫은 연결, 처음부터 끝내 안 붙은 연결은 다시 붙지 않는다 ('closed')
  */
 export const connectSocket: Connector = (url, hello, onMessage, onStatus) => {
   let ws: WebSocket | null = null
   let attempt = 0
+  /** 한 번이라도 붙었나. 처음부터 안 붙으면 몇 번만 해 보고 포기한다 */
+  let opened = false
   let stopped = false
   let timer: ReturnType<typeof setTimeout> | undefined
 
@@ -22,6 +24,7 @@ export const connectSocket: Connector = (url, hello, onMessage, onStatus) => {
     ws = socket
     socket.onopen = () => {
       attempt = 0
+      opened = true
       socket.send(JSON.stringify(hello()))
       onStatus('open')
     }
@@ -33,7 +36,8 @@ export const connectSocket: Connector = (url, hello, onMessage, onStatus) => {
     }
     socket.onclose = () => {
       if (ws !== socket) return
-      if (stopped) {
+      if (stopped || (!opened && attempt + 1 >= NET.firstConnectTries)) {
+        stopped = true
         onStatus('closed')
         return
       }

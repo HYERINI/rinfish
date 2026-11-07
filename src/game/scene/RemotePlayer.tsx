@@ -33,6 +33,8 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
   const bobber = useRef<Mesh>(null)
   const lineRef = useRef<Line>(null)
   const [bubble, setBubble] = useState('')
+  /** 지금 그리는 중인가. drei Html 은 부모가 숨겨져도 글씨가 남아서, 그리지 않을 땐 이름표를 아예 빼야 한다 */
+  const [drawn, setDrawn] = useState(false)
   const line = useMemo(() => {
     const l = new Line(new BufferGeometry().setFromPoints(Array.from({ length: LINE_POINTS }, () => new Vector3())), new LineBasicMaterial({ color: 'white' }))
     l.frustumCulled = false
@@ -47,6 +49,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     const ln = lineRef.current
     if (!root.current || !visual.current || !ln) return
     root.current.visible = cur !== null
+    if ((cur !== null) !== drawn) setDrawn(cur !== null)
     ln.visible = false
     if (bobber.current) bobber.current.visible = false
     if (!cur || !e) return
@@ -98,12 +101,14 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
             <object3D ref={rodTip} position={[0, 2, 0]} />
           </group>
         </group>
-        <Html center position={[0, headY, 0]} zIndexRange={[50, 0]}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            {bubble && <div style={bubbleStyle}>{bubble}</div>}
-            <div style={nameTagStyle}>{nick}</div>
-          </div>
-        </Html>
+        {drawn && (
+          <Html center position={[0, headY, 0]} zIndexRange={[50, 0]}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {bubble && <div style={bubbleStyle}>{bubble}</div>}
+              <div style={nameTagStyle}>{nick}</div>
+            </div>
+          </Html>
+        )}
       </group>
       <mesh ref={bobber} visible={false}>
         <sphereGeometry args={[0.15, 12, 12]} />

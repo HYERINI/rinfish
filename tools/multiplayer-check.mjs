@@ -139,6 +139,23 @@ const after = await B.evaluate(remoteX)
 check(before && after && Math.hypot(after[0] - before[0], after[2] - before[2]) > 1, `B: A 가 걸어간 게 보인다 (${JSON.stringify(before)} → ${JSON.stringify(after)})`)
 await B.shot('b-sees-a')
 
+// 그리지 않는 사람(받은 모습이 없음)은 이름표도 숨긴다
+check(await B.evaluate(`[...document.querySelectorAll('div')].some((d) => d.textContent === '에이')`), 'B: A 의 이름표가 보인다')
+// 헤드리스는 프레임이 아주 느려서, 비우고 몇 프레임 기다리기를 3초까지 되풀이한다 (A 의 다음 모습이 오면 다시 생기므로)
+const hidden = await B.evaluate(`(async () => {
+  const { remoteRig } = await __mod('/src/game/net/remoteRig.ts')
+  const frame = () => new Promise((r) => requestAnimationFrame(() => r()))
+  const end = performance.now() + 3000
+  while (performance.now() < end) {
+    remoteRig.clear()
+    await frame()
+    await frame()
+    if (![...document.querySelectorAll('div')].some((d) => d.textContent === '에이')) return true
+  }
+  return false
+})()`)
+check(hidden, 'B: A 를 그리지 않는 동안엔 이름표도 없다')
+
 // 채팅
 await A.key('keydown', 'Enter', 'Enter')
 check(await A.until(`document.activeElement?.getAttribute('aria-label') === '채팅'`, 3000), 'A: Enter 로 채팅 칸이 열린다')
