@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED } from '../data/characters'
-import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, leanBack, poseClips } from './characterPose'
+import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, fishingLook, leanBack, poseClips } from './characterPose'
 import { createFight } from './fight'
 import type { FishingState } from './fishingSession'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
@@ -20,6 +20,8 @@ function fighting(tension: number, pulling: boolean): FishingState {
   }
 }
 
+const done = (result: 'caught' | 'snapped' | 'escaped') => ({ stage: 'done', result, castPower: 1, speciesId: 'sleepy-sardine', weight: 1 }) as const
+
 describe('characterPose', () => {
   it('낚시 중이 아니면 속도로 서기/걷기/뛰기를 고른다', () => {
     expect(characterPose(null, 0)).toBe('idle')
@@ -28,20 +30,31 @@ describe('characterPose', () => {
   })
 
   it('조준·대기 중엔 낚싯대를 쥔 자세', () => {
-    expect(characterPose({ stage: 'aiming', holding: true, holdTime: 0.5 }, 0)).toBe('aim')
+    expect(characterPose(fishingLook({ stage: 'aiming', holding: true, holdTime: 0.5 }), 0)).toBe('aim')
   })
 
   it('줄다리기: 평소엔 버티고, 물고기가 당기면 끌려간다', () => {
-    expect(characterPose(fighting(50, false), 0)).toBe('tug')
-    expect(characterPose(fighting(50, true), 0)).toBe('dragged')
+    expect(characterPose(fishingLook(fighting(50, false)), 0)).toBe('tug')
+    expect(characterPose(fishingLook(fighting(50, true)), 0)).toBe('dragged')
   })
 
   it('결과별 반응: 잡으면 춤, 끊기면 벌러덩, 놓치면 낙담', () => {
-    const done = (result: 'caught' | 'snapped' | 'escaped') => ({ stage: 'done', result, castPower: 1, speciesId: 'sleepy-sardine', weight: 1 }) as const
-    expect(characterPose(done('caught'), 0)).toBe('celebrate')
-    expect(characterPose(done('snapped'), 0)).toBe('fallBack')
-    expect(characterPose(done('escaped'), 0)).toBe('dejected')
-    expect(characterPose({ stage: 'done', result: 'missed', castPower: 1 }, 0)).toBe('dejected')
+    expect(characterPose(fishingLook(done('caught')), 0)).toBe('celebrate')
+    expect(characterPose(fishingLook(done('snapped')), 0)).toBe('fallBack')
+    expect(characterPose(fishingLook(done('escaped')), 0)).toBe('dejected')
+    expect(characterPose(fishingLook({ stage: 'done', result: 'missed', castPower: 1 }), 0)).toBe('dejected')
+  })
+})
+
+describe('fishingLook', () => {
+  it('낚시 상태를 자세 이름과 상체 젖힘으로 줄인다', () => {
+    expect(fishingLook(null)).toBeNull()
+    expect(fishingLook({ stage: 'aiming', holding: false, holdTime: 0 })).toEqual({ pose: 'aim', lean: 0 })
+    expect(fishingLook(done('snapped'))).toEqual({ pose: 'fallBack', lean: 0 })
+    const tug = fishingLook(fighting(50, false))!
+    expect(tug.pose).toBe('tug')
+    expect(tug.lean).toBeGreaterThan(0.3)
+    expect(fishingLook(fighting(50, true))).toEqual({ pose: 'dragged', lean: 0 })
   })
 })
 
@@ -127,7 +140,7 @@ describe('점프·질주·감정 표현', () => {
   })
 
   it('낚시·앉기 자세가 점프·감정 표현보다 먼저다', () => {
-    const aiming = { stage: 'aiming', holding: false, holdTime: 0 } as const
+    const aiming = fishingLook({ stage: 'aiming', holding: false, holdTime: 0 })
     expect(characterPose(aiming, 0, false, false, air(10), 10.1)).toBe('aim')
     expect(characterPose(aiming, 0, false, false, { ...IDLE_ACTION, landedAt: 11 }, 11.1)).toBe('aim')
     expect(characterPose(aiming, 0, false, false, { ...IDLE_ACTION, emote: 'dance', emoteAt: 10 }, 10.2)).toBe('aim')

@@ -5,8 +5,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { CHARACTER_CLIPS, CHARACTER_FILES, ONE_SHOT_CLIPS, OUTFIT_ALT_TEXTURES, type CharacterClip } from '../data/characters'
 import { EMOTES, type EmoteId } from '../data/emotes'
 import type { CharacterLook, OutfitId } from '../data/types'
-import { CHARACTER_POSES, characterPose, clipTimeScale, eatArm, leanBack, poseClips, type CharacterPose } from '../logic/characterPose'
-import type { FishingState } from '../logic/fishingSession'
+import { CHARACTER_POSES, characterPose, clipTimeScale, eatArm, poseClips, type CharacterPose, type FishingLook } from '../logic/characterPose'
 import type { PlayerAction } from '../logic/playerMotion'
 import { applyLook, measureLift, prepareCharacter } from './characterAppearance'
 
@@ -21,10 +20,10 @@ export type SeatShape = { surfaceY: number; backrestZ: number }
 export type PlayerModelHandle = {
   /**
    * 자세 고르기 → 애니메이션 섞기 → 줄다리기 상체 젖힘 덧입히기.
-   * 동작 상태(action: 감정 표현·점프)와 수평 속도만 보고 그리므로, 다른 사람 캐릭터도 그 사람의 값으로 똑같이 그릴 수 있다.
+   * 동작 상태(action: 감정 표현·점프)와 수평 속도, 낚시는 FishingLook(자세·젖힘)만 보고 그리므로, 다른 사람 캐릭터도 그 사람의 값으로 똑같이 그릴 수 있다.
    * seat 을 주면 앉아 있는 동안(앉기·일어나기 중엔 그만큼만) 골반을 그 자리에 붙인다
    */
-  update(delta: number, now: number, fishing: FishingState | null, action: PlayerAction, speed: number, rodAngle: number, resting: boolean, seat?: SeatShape): void
+  update(delta: number, now: number, fishing: FishingLook | null, action: PlayerAction, speed: number, rodAngle: number, resting: boolean, seat?: SeatShape): void
   /** 감정 표현 한 번의 재생 시간(초). 한 번짜리 감정 표현이 언제 끝나는지 정할 때 쓴다 */
   emoteLength(id: EmoteId): number
   /** 낚싯대를 쥔 손(주먹 가운데)의 월드 위치 */
@@ -238,7 +237,7 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
         if (pose === 'fallBack' && fall.time >= fall.getClip().duration * FALL_HOLD) fall.paused = true
 
         // 3) 줄다리기: 상체를 뒤로 젖히고 "영차영차" 들썩인다
-        a.lean += (leanBack(fishing) - a.lean) * k
+        a.lean += ((fishing?.lean ?? 0) - a.lean) * k
         if (bones.spine && a.lean > 1e-3) {
           const heave = Math.sin(now * 7) * 0.08 * Math.min(1, a.lean * 4)
           bendBone(bones.spine, object, -(a.lean + heave))

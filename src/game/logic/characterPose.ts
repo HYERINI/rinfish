@@ -50,6 +50,31 @@ export const CHARACTER_POSES: CharacterPose[] = [
   ...EMOTES.map((e) => e.id),
 ]
 
+/** 낚시 중 자세. 다른 사람 캐릭터는 FishingState 대신 이것만 받는다 */
+export type FishingPose = 'aim' | 'tug' | 'dragged' | 'celebrate' | 'fallBack' | 'dejected'
+export const FISHING_POSES: FishingPose[] = ['aim', 'tug', 'dragged', 'celebrate', 'fallBack', 'dejected']
+/** 캐릭터를 그리는 데 필요한 낚시 정보: 자세와 줄다리기 상체 젖힘(leanBack) */
+export type FishingLook = { pose: FishingPose; lean: number }
+
+function fishingPose(fishing: FishingState): FishingPose {
+  switch (fishing.stage) {
+    case 'aiming':
+    case 'waiting':
+      return 'aim'
+    case 'fighting':
+      return fishing.fight.pull.active ? 'dragged' : 'tug'
+    case 'done':
+      if (fishing.result === 'caught') return 'celebrate'
+      if (fishing.result === 'snapped') return 'fallBack'
+      return 'dejected'
+  }
+}
+
+/** 낚시 상태 → 캐릭터를 그릴 낚시 정보 (낚시 중이 아니면 null) */
+export function fishingLook(fishing: FishingState | null): FishingLook | null {
+  return fishing ? { pose: fishingPose(fishing), lean: leanBack(fishing) } : null
+}
+
 /** 이 속도(m/s)보다 느리면 서 있는다 */
 export const WALK_MIN_SPEED = 0.3
 /** 이 속도부터 뛴다 */
@@ -68,7 +93,7 @@ const AIM_DOWN_ANGLE = 1.3
  * resting: 벤치에 앉아 쉬는 중. standingUp: 막 일어나는 중(일어나기 클립 재생 시간 동안).
  * action·now: 점프·감정 표현 상태와 지금 시각. 앉기 → 낚시 → 점프 → 감정 표현 → 착지 → 이동 순으로 먼저 정해진다
  */
-export function characterPose(fishing: FishingState | null, speed: number, resting = false, standingUp = false, action: PlayerAction = IDLE_ACTION, now = 0): CharacterPose {
+export function characterPose(fishing: FishingLook | null, speed: number, resting = false, standingUp = false, action: PlayerAction = IDLE_ACTION, now = 0): CharacterPose {
   if (resting) return 'sit'
   if (!fishing) {
     if (action.airborne) return now - action.jumpAt < JUMP_POSE.startTime ? 'jumpStart' : 'jumpLoop'
@@ -81,17 +106,7 @@ export function characterPose(fishing: FishingState | null, speed: number, resti
     if (speed < RUN_MIN_SPEED) return 'walk'
     return speed < SPRINT_MIN_SPEED ? 'run' : 'sprint'
   }
-  switch (fishing.stage) {
-    case 'aiming':
-    case 'waiting':
-      return 'aim'
-    case 'fighting':
-      return fishing.fight.pull.active ? 'dragged' : 'tug'
-    case 'done':
-      if (fishing.result === 'caught') return 'celebrate'
-      if (fishing.result === 'snapped') return 'fallBack'
-      return 'dejected'
-  }
+  return fishing.pose
 }
 
 /** 낚싯대 각도 → 위/가운데/아래 조준 자세 비율 (합 1). 젖힐수록 팔을 머리 위로 든다 */

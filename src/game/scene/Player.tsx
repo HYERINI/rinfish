@@ -17,6 +17,7 @@ import { applyMouseLook, pitchedOffset } from '../logic/mouseLook'
 import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
+import { fishingLook } from '../logic/characterPose'
 import { cameraRig, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
 import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
@@ -317,7 +318,7 @@ export function Player() {
       if (m && visual.current) {
         // 골반은 벤치 자리에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
         // 캐릭터는 동작 상태와 속도로만 그린다 (다른 사람 캐릭터도 같은 값으로 그릴 수 있게)
-        m.update(delta, now, fishing, action, speed, rod.current.rotation.x, mode === 'rest', BENCH_SEAT_SHAPE)
+        m.update(delta, now, fishingLook(fishing), action, speed, rod.current.rotation.x, mode === 'rest', BENCH_SEAT_SHAPE)
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
