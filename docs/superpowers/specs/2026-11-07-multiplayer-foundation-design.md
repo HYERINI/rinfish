@@ -45,7 +45,7 @@
 ## 주고받는 것 (JSON 텍스트, 버전 `v: 1`)
 
 클라이언트 → 서버
-- `hello { v, mode: 'create'|'join', room, passHash, nick, look }` — 연결 직후 한 번.
+- `hello { v, mode: 'create'|'join', passHash, nick, look }` — 연결 직후 한 번. 방은 주소의 roomId 로 이미 정해져 있어서 방 이름은 보내지 않는다.
 - `state { s }` — 내 모습 (아래 `NetState`).
 - `chat { text }`
 - `profile { nick, look }`
