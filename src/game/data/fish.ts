@@ -48,6 +48,8 @@ export const FISH_SPECIES: FishSpecies[] = [
   { id: 'sleepy-catfish-king', name: '잠꾸러기 메기왕', description: '수면 모자를 쓰고 졸다가 갑자기 돌진한다.', zones: ['pond'], rarity: 'epic', pattern: 'dasher', strength: 7, weightRange: [4, 10], basePrice: 160, color: '#455a64' },
   // ③ 암초 앞바다
   { id: 'buff-seabream', name: '근육 도미', description: '매일 파도를 상대로 운동한다.', zones: ['reef'], rarity: 'common', pattern: 'endurance', strength: 4, weightRange: [1, 3], basePrice: 25, color: '#ef9a9a' },
+  { id: 'surfer-mullet', name: '서퍼 숭어', description: '파도만 보이면 올라탄다. 넘어져도 또 탄다.', zones: ['reef'], rarity: 'common', pattern: 'dasher', strength: 4, weightRange: [0.8, 2.5], basePrice: 24, color: '#4dd0e1' },
+  { id: 'grumpy-rockfish', name: '투덜이 우럭', description: '바위틈에서 하루 종일 투덜댄다. 끌려 나올 때도 투덜댄다.', zones: ['reef'], rarity: 'common', pattern: 'endurance', strength: 4, weightRange: [1, 3.5], basePrice: 26, color: '#6d4c41' },
   { id: 'disco-jelly', name: '디스코 해파리', description: '물속에서 혼자 조명을 켜고 춤춘다.', zones: ['reef'], rarity: 'rare', pattern: 'erratic', strength: 5, weightRange: [0.5, 2], basePrice: 60, color: '#e1bee7' },
   { id: 'pirate-tuna', name: '해적 참치', description: '안대를 찼다. 낚싯줄을 노리고 돌진한다.', zones: ['reef'], rarity: 'epic', pattern: 'dasher', strength: 8, weightRange: [10, 30], basePrice: 200, color: '#1a237e' },
   { id: 'thunder-eel', name: '번개 장어', description: '몸에서 찌릿찌릿 전기가 흐른다.', zones: ['reef'], rarity: 'epic', pattern: 'erratic', strength: 8, weightRange: [2, 5], basePrice: 180, color: '#ffee58' },

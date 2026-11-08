@@ -57,6 +57,14 @@ describe('rollSpecies', () => {
     expect(epics[0].weight).toBeCloseTo(epics[1].weight)
   })
 
+  it('동굴 밖에서는 한 어종이 30%를 넘게 나오지 않는다 (같은 물고기만 연달아 잡히지 않게)', () => {
+    for (const zone of ['beach', 'pond', 'reef'] as const) {
+      const table = catchWeights(zone, 0)
+      const total = table.reduce((s, e) => s + e.weight, 0)
+      for (const e of table) expect(e.weight / total, `${zone} ${e.species.id}`).toBeLessThanOrEqual(0.3 + 1e-9)
+    }
+  })
+
   it('같은 희귀도 어종끼리는 확률이 똑같다', () => {
     const rares = catchWeights('reef', 0.5).filter((e) => e.species.rarity === 'rare')
     for (const e of rares) expect(e.weight).toBeCloseTo(rares[0].weight)
@@ -94,8 +102,30 @@ describe('미끼', () => {
     expect(good('lure')).toBeGreaterThan(good('shrimp'))
   })
 
-  it('루어는 전설 묶음 가중치를 2배로 한다', () => {
-    expect(rarityWeight('cave', 'legendary', 0, 'lure')).toBeCloseTo(rarityWeight('cave', 'legendary', 0, null) * 2)
+  it('루어는 전설 묶음 가중치를 3배로 한다', () => {
+    expect(rarityWeight('cave', 'legendary', 0, 'lure')).toBeCloseTo(rarityWeight('cave', 'legendary', 0, null) * 3)
+  })
+
+  it('미끼 설명의 배율은 실제 확률 배율과 맞다 (해변, 약하게 던졌을 때)', () => {
+    const ratio = (rarity: string, bait: B) => share('beach', rarity, 0, bait) / share('beach', rarity, 0, null)
+    expect(ratio('junk', 'worm')).toBeCloseTo(0.5, 1)
+    expect(ratio('rare', 'shrimp')).toBeCloseTo(1.3, 1)
+    expect(ratio('epic', 'shrimp')).toBeCloseTo(1.3, 1)
+    expect(ratio('rare', 'lure')).toBeCloseTo(1.5, 1)
+    expect(ratio('epic', 'lure')).toBeCloseTo(1.8, 1)
+  })
+
+  it('동굴에서 미끼나 세게 던지기가 전설 확률을 깎지 않는다', () => {
+    const base = share('cave', 'legendary', 0, null)
+    for (const power of [0, 0.5, 1])
+      for (const bait of [null, 'worm', 'shrimp', 'lure'] as B[])
+        expect(share('cave', 'legendary', power, bait), `${bait} power ${power}`).toBeGreaterThanOrEqual(base - 1e-9)
+  })
+
+  it('동굴에서 루어와 세게 던지기는 전설 확률을 올린다', () => {
+    const base = share('cave', 'legendary', 0, null)
+    expect(share('cave', 'legendary', 0, 'lure')).toBeGreaterThan(base)
+    expect(share('cave', 'legendary', 1, null)).toBeGreaterThan(base)
   })
 })
 

@@ -74,6 +74,8 @@ export const FISH_LOOKS: Record<string, FishLook> = {
   'frog-prince-carp': { model: 'flowerhorn', tint: '#9ccc65', size: 1, accessories: ['frogCrown'] },
   'sleepy-catfish-king': { model: 'armored-catfish', tint: '#455a64', size: 1.4, accessories: ['nightcap'] },
   'buff-seabream': { model: 'red-snapper', size: 1, accessories: ['headband'] },
+  'surfer-mullet': { model: 'mackerel', tint: '#4dd0e1', size: 1.1, accessories: ['sunglasses'] },
+  'grumpy-rockfish': { model: 'red-snapper', tint: '#6d4c41', size: 1.05, accessories: ['sadBrows'] },
   'disco-jelly': { model: 'blobfish', tint: '#e1bee7', glow: '#ff4fd8', size: 0.9 },
   'pirate-tuna': { model: 'tuna', size: 1.3, accessories: ['eyepatch'] },
   'thunder-eel': { model: 'goblin-shark', tint: '#ffee58', glow: '#ffd600', size: 1.2 },

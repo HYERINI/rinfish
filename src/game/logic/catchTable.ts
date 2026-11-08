@@ -20,9 +20,7 @@ export function catchWeights(zone: ZoneId, castPower: number, bait: BaitId | nul
 
 function rarityWeight(zone: ZoneId, rarity: Rarity, castPower: number): number {
   const base = ZONE_RARITY_WEIGHTS[zone]?.[rarity] ?? RARITY_WEIGHTS[rarity]
-  if (rarity === 'rare') return base * (1 + CAST_RARITY_BONUS.rare * castPower)
-  if (rarity === 'epic') return base * (1 + CAST_RARITY_BONUS.epic * castPower)
-  return base
+  return base * (1 + (CAST_RARITY_BONUS[rarity] ?? 0) * castPower)
 }
 
 function baitMul(bait: BaitId | null, rarity: Rarity): number {

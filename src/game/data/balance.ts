@@ -80,8 +80,9 @@ export const ZONE_RARITY_WEIGHTS: Partial<Record<ZoneId, Partial<Record<Rarity, 
   cave: { legendary: 16 },
 }
 
-/** 최대 파워로 던졌을 때 가중치 증가 배율 (rare ×2, epic ×3) */
-export const CAST_RARITY_BONUS = { rare: 1, epic: 2 }
+/** 최대 파워로 던졌을 때 가중치 증가 배율 (rare ×2, epic ×3, legendary ×4).
+ * 전설이 에픽보다 덜 오르면 에픽과 같이 사는 동굴에서 세게 던질수록 전설이 줄어든다 */
+export const CAST_RARITY_BONUS: Partial<Record<Rarity, number>> = { rare: 1, epic: 2, legendary: 3 }
 
 /** 한 프레임에서 진행시킬 최대 시간(초). 탭 전환 후 큰 delta 방지 */
 export const MAX_FRAME_DELTA = 0.1
