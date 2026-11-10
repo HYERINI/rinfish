@@ -182,4 +182,52 @@ describe('netStore', () => {
     vi.advanceTimersByTime(5300)
     expect(sent.filter((m) => m.type === 'profile').map((m) => (m as { nick: string }).nick)).toEqual(['첫이름', '셋째'])
   })
+
+  it('허브 방: 먼저 들어가 보고, 방이 없으면 만든다', async () => {
+    await useNetStore.getState().joinHub({ code: 'abc234', nick: '철수', look: DEFAULT_LOOK })
+    expect(helloFn()).toMatchObject({ mode: 'join', nick: '철수' })
+    expect(useNetStore.getState().room).toBe('hub-abc234')
+    const firstHash = (helloFn() as { passHash: string }).passHash
+    push({ type: 'error', code: 'no-room' })
+    await vi.waitFor(() => expect(connects).toBe(2))
+    expect(helloFn()).toMatchObject({ mode: 'create', passHash: firstHash })
+    push({ type: 'welcome', you: 'me', players: [] })
+    expect(useNetStore.getState()).toMatchObject({ phase: 'online', error: null, room: 'hub-abc234' })
+  })
+
+  it('허브 방: 동시에 만들어 겹치면 다시 들어간다', async () => {
+    await useNetStore.getState().joinHub({ code: 'abc234', nick: '철수', look: DEFAULT_LOOK })
+    push({ type: 'error', code: 'no-room' })
+    await vi.waitFor(() => expect(connects).toBe(2))
+    push({ type: 'error', code: 'room-exists' })
+    await vi.waitFor(() => expect(connects).toBe(3))
+    expect(helloFn()).toMatchObject({ mode: 'join' })
+  })
+
+  it('허브 방: 계속 엇갈리면 몇 번 뒤 그만두고 이유를 보인다', async () => {
+    await useNetStore.getState().joinHub({ code: 'abc234', nick: '철수', look: DEFAULT_LOOK })
+    for (let i = 0; i < 6; i++) {
+      push({ type: 'error', code: i % 2 ? 'room-exists' : 'no-room' })
+      await new Promise((r) => setTimeout(r, 20))
+    }
+    expect(connects).toBeLessThanOrEqual(4)
+    expect(useNetStore.getState()).toMatchObject({ phase: 'off' })
+    expect(useNetStore.getState().error).not.toBeNull()
+  })
+
+  it('허브 방: 다른 거절(꽉 참)은 다시 시도하지 않는다', async () => {
+    await useNetStore.getState().joinHub({ code: 'abc234', nick: '철수', look: DEFAULT_LOOK })
+    push({ type: 'error', code: 'full' })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(connects).toBe(1)
+    expect(useNetStore.getState().error).toBe('full')
+  })
+
+  it('보통 들어가기는 방이 없으면 그대로 "없는 방" 을 보인다', async () => {
+    await join('join')
+    push({ type: 'error', code: 'no-room' })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(connects).toBe(1)
+    expect(useNetStore.getState().error).toBe('no-room')
+  })
 })

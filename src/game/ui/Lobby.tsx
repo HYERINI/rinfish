@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import type { HubHint } from '../Game'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { NET } from '../data/net'
 import type { JoinMode } from '../logic/netProtocol'
@@ -25,15 +26,18 @@ const FIELD_TEXT: Record<LobbyField, string> = {
 const input: CSSProperties = { width: '100%', padding: '10px 12px', fontSize: 16, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', pointerEvents: 'auto' }
 const errorText: CSSProperties = { margin: 0, color: '#ff8a80', fontSize: 14 }
 
-/** 시작 창: 혼자 하기 / 같이 하기(방 만들기·들어가기). 공유 링크(?room=)로 오면 들어가기 탭에 방 이름이 채워져 있다 */
-export function Lobby() {
+/**
+ * 시작 창: 혼자 하기 / 같이 하기(방 만들기·들어가기). 공유 링크(?room=)로 오면 들어가기 탭에 방 이름이 채워져 있다.
+ * 허브 로비에서 왔으면 이름을 채우고, 허브 방 친구들과 바로 들어가는 버튼과 허브로 돌아가는 버튼을 띄운다
+ */
+export function Lobby({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) {
   const phase = useNetStore((s) => s.phase)
   const error = useNetStore((s) => s.error)
   const [linkRoom] = useState(() => readRoomParam(window.location.search))
   const [tab, setTab] = useState<JoinMode>(linkRoom ? 'join' : 'create')
   const [room, setRoom] = useState(() => linkRoom || useNetStore.getState().lastRoom)
   const [password, setPassword] = useState('')
-  const [nick, setNick] = useState(() => useNetStore.getState().nick)
+  const [nick, setNick] = useState(() => hub?.name ?? useNetStore.getState().nick)
   const [bad, setBad] = useState<LobbyField[]>([])
   const setMode = useSessionStore((s) => s.setMode)
 
@@ -48,12 +52,23 @@ export function Lobby() {
     if (errors.length > 0) return
     void useNetStore.getState().join({ mode: tab, room, password, nick, look: useProgressStore.getState().look ?? DEFAULT_LOOK })
   }
+  const joinHub = (code: string) => {
+    const errors = lobbyErrors({ room: 'hub', password: 'hub-room', nick })
+    setBad(errors)
+    if (errors.length > 0) return
+    void useNetStore.getState().joinHub({ code, nick, look: useProgressStore.getState().look ?? DEFAULT_LOOK })
+  }
   const busy = phase === 'connecting'
 
   return (
     <div style={{ ...panelBox, width: 'min(400px, 92vw)' }}>
       <h2 style={{ margin: '0 0 12px', fontSize: 22 }}>🎣 낚시섬</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+        {hub?.room && (
+          <button style={{ ...button, fontSize: 18, padding: '10px 14px', background: '#81c784' }} disabled={busy} onClick={() => joinHub(hub.room!)}>
+            {busy ? '연결 중…' : '👥 허브 방 친구들과 같이 하기'}
+          </button>
+        )}
         <button
           style={{ ...button, fontSize: 18, padding: '10px 14px' }}
           onClick={() => {
@@ -94,6 +109,17 @@ export function Lobby() {
           </form>
           <p style={{ margin: '8px 0 0', fontSize: 13, opacity: 0.75 }}>암호를 아는 사람끼리만 같은 섬에서 만나요. 암호는 저장되지 않아요.</p>
         </div>
+        {onExit && (
+          <button
+            style={{ ...button, opacity: 0.85 }}
+            onClick={() => {
+              useNetStore.getState().leave()
+              onExit()
+            }}
+          >
+            🏠 허브 로비로
+          </button>
+        )}
       </div>
     </div>
   )

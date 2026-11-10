@@ -50,13 +50,17 @@ export type GameProps = {
   onExit?: () => void
   /** 전설의 물고기를 처음 잡았을 때 결과 전달 (1차-B에서 연결) */
   onFinish?: (result: GameResult) => void
+  /** 허브 로비에서 받은 이름·방 코드 (없으면 null). 로비에서 닉네임을 채우고 허브 방 버튼을 띄운다 */
+  hub?: HubHint
 }
+
+export type HubHint = { name: string | null; room: string | null }
 
 /**
  * 게임 전체를 감싸는 단일 컴포넌트. 로비 앱은 이것만 import 해서 쓰면 된다.
  * 부모 요소의 크기를 100% 채운다.
  */
-export function Game({ onExit }: GameProps) {
+export function Game({ onExit, hub }: GameProps) {
   useKeyboardTracking()
   usePointerTracking()
   useTouchUiTracking()
@@ -106,7 +110,17 @@ export function Game({ onExit }: GameProps) {
       <FishingOverlay />
       <ChatBox />
       <TouchControls />
-      <Panels onExit={onExit} />
+      <Panels
+        hub={hub}
+        onExit={
+          onExit &&
+          (() => {
+            // 페이지를 떠나기 전에 방 연결을 닫는다 (진행 상황은 이미 저장돼 있다)
+            useNetStore.getState().leave()
+            onExit()
+          })
+        }
+      />
       <NoticeLayer />
       <LoadingScreen />
     </div>

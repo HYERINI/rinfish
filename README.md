@@ -50,23 +50,12 @@ src/
 - 3D 관련 코드는 `scene/`, 일반 HTML UI는 `ui/`에 둡니다.
 - 게임 코드는 전부 `src/game/` 안에만 둡니다. 로비에 붙일 때 이 폴더만 옮기면 되도록 하기 위함입니다.
 
-## 로비 연동 계약 (Game 컴포넌트 props)
+## 허브 로비 연결 (game-entry-contract v3)
 
-게임은 `src/game/Game.tsx`의 `Game` 컴포넌트 하나로 외부에 노출됩니다.
+팀 허브 로비는 낚시섬을 iframe 이나 import 없이 **주소로** 연다: `https://rinfish.vercel.app/?hub_return=<복귀 주소>&hub_name=<이름>&hub_room=<방 코드>`.
 
-```tsx
-import { Game } from './game/Game'
-
-type GameProps = {
-  onExit?: () => void                            // "나가기" 버튼을 눌렀을 때
-  onFinish?: (result: { score: number }) => void // 한 판이 끝났을 때 결과 전달
-}
-
-<div style={{ width: '100vw', height: '100vh' }}>
-  <Game onExit={() => goLobby()} onFinish={(r) => saveScore(r.score)} />
-</div>
-```
-
-- `Game`은 **부모 요소 크기를 100% 채웁니다.** 로비 쪽에서 감싸는 요소의 크기를 정해 주세요.
-- 게임 상태는 마운트될 때마다 초기화됩니다.
-- 필요 의존성: `react`, `react-dom`, `three`, `@react-three/fiber`, `@react-three/drei`, `zustand`
+- 등록 정보: `id: rinfish`, `title: 낚시섬`, `url: https://rinfish.vercel.app/`
+- `hub_return`: http(s) 일 때만 받아 이번 탭(sessionStorage)에 기억한다. 첫 화면과 ESC 메뉴에 「🏠 허브 로비로」가 생기고, 누르면 방 연결을 닫고 그 주소로 **고치지 않고** 이동한다. 없으면 버튼도 없다.
+- `hub_name`: 닉네임 칸을 미리 채운다 (10자로 자름). 표시용 힌트일 뿐이고 서버가 다시 검사한다.
+- `hub_room`: 형식(6자, `23456789abcdefghjkmnpqrstuvwxyz`)이 맞으면 「👥 허브 방 친구들과 같이 하기」 버튼이 생긴다. 낚시섬 방 `hub-<코드>` 로 들어가고, 없으면 만든다. 이 방의 암호는 코드에서 만들므로 비밀이 아니다.
+- 읽는 곳: `src/App.tsx` → `logic/hubParams.ts`. 확인: `node tools/hub-entry-check.mjs http://localhost:5190` (서버·Vite 준비는 스크립트 머리말).

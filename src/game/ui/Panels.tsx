@@ -1,3 +1,4 @@
+import type { HubHint } from '../Game'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { AquariumPanel } from './AquariumPanel'
@@ -12,7 +13,7 @@ import { SellPanel } from './SellPanel'
 import { UnlockPanel } from './UnlockPanel'
 
 /** 현재 mode에 맞는 패널 하나를 띄운다 */
-export function Panels({ onExit }: { onExit?: () => void }) {
+export function Panels({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) {
   const mode = useSessionStore((s) => s.mode)
   const look = useProgressStore((s) => s.look)
   switch (mode) {
@@ -33,7 +34,7 @@ export function Panels({ onExit }: { onExit?: () => void }) {
     case 'unlock':
       return <UnlockPanel />
     case 'lobby':
-      return <Lobby />
+      return <Lobby onExit={onExit} hub={hub} />
     case 'wardrobe':
       return <CharacterCreator firstTime={!look} />
     default:

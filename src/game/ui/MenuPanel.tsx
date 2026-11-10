@@ -18,9 +18,12 @@ export function MenuPanel({ onExit }: { onExit?: () => void }) {
         <button style={button} onClick={() => setMode('dex')}>
           도감
         </button>
-        <button style={button} onClick={() => onExit?.()}>
-          로비로 나가기
-        </button>
+        {/* 허브 로비에서 들어왔을 때만 (혼자 실행하면 돌아갈 곳이 없다) */}
+        {onExit && (
+          <button style={button} onClick={onExit}>
+            🏠 허브 로비로
+          </button>
+        )}
       </div>
       <SettingsSection />
     </Panel>
