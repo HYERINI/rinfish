@@ -71,13 +71,16 @@ export function takeLoot(key: number): Loot | null {
   return l
 }
 
-/** 맞았을 때 할 일 (scene/animals/HerdRunner 가 붙인다: 체력을 깎고 죽음). 서버 hurt 와 혼자 시뮬레이션이 같이 쓴다 */
-let hurtHandler: (dmg: number) => void = () => {}
-export function setHurtHandler(f: (dmg: number) => void) {
+/**
+ * 맞았을 때 할 일 (scene/animals/HerdRunner 가 붙인다: 체력을 깎고 죽음). 서버 hurt 와 혼자 시뮬레이션이 같이 쓴다.
+ * from: PvP 로 맞았으면 쏜 사람 id (쓰러지면 died 로 알린다)
+ */
+let hurtHandler: (dmg: number, from?: string) => void = () => {}
+export function setHurtHandler(f: (dmg: number, from?: string) => void) {
   hurtHandler = f
 }
-export function receiveHurt(dmg: number) {
-  hurtHandler(dmg)
+export function receiveHurt(dmg: number, from?: string) {
+  hurtHandler(dmg, from)
 }
 
 /** 테스트용: 다 지운다 */

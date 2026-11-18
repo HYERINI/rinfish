@@ -11,7 +11,7 @@ import type { FishingPlace } from './fishingEdge'
  * unlock = 잠긴 구역 문 앞에서 여는 창, cutscene = 수리기사님 연출 (조작 없음), boat = 배 타고 건너는 중 (조작 없음),
  * map = 큰 지도 (이동·E 막힘, ESC·Tab 으로 닫는다), sleep = 잠·죽음으로 화면이 어두워지는 중이거나 같이 하기에서 침대에 누워 아침을 기다리는 중 (이동 막힘),
  * emote = T 를 누르고 있는 동안 감정 표현 바퀴 (이동·E 막힘, 떼면 고른 것을 한다. ui/EmoteWheel), bag = 가방 (I, 가스레인지에선 요리법),
- * vendor = 마을 상인 사고팔기 (어느 상인인지는 sessionStore.vendor)
+ * vendor = 마을 상인 사고팔기 (어느 상인인지는 sessionStore.vendor), rack = 사격장 무기 선반에서 무기 고르기
  */
 export type Mode =
   | 'explore'
@@ -34,6 +34,7 @@ export type Mode =
   | 'emote'
   | 'bag'
   | 'vendor'
+  | 'rack'
 
 /** E 키로 상호작용할 수 있는 대상. fishingSpot 은 물가에 선 자리에서 그때그때 만든 낚시 자리 (logic/fishingEdge) */
 export type Interactable =
@@ -57,6 +58,8 @@ export type Interactable =
   | { kind: 'vendor'; id: VendorId }
   /** 바닥에 떨어진 사냥 전리품 (key: hunt/animalRig 번호) */
   | { kind: 'loot'; key: number; item: RawItemId }
+  /** 사격장 무기 선반 */
+  | { kind: 'rack' }
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
@@ -88,6 +91,12 @@ export type KeyAction =
   | { type: 'equip'; tool: ToolId | null }
   /** F: 가방에서 배고픔을 가장 많이 채우는 것을 먹는다 */
   | { type: 'eatBest' }
+  /** R: 든 총 장전 */
+  | { type: 'reload' }
+  /** V: 1인칭 / 3인칭 */
+  | { type: 'toggleView' }
+  /** G: 사격장 연습 게임 시작·그만 */
+  | { type: 'rangeGame' }
   /** 버섯·호박 따기 */
   | { type: 'harvest'; index: number }
   /** 문 열기/닫기 */
@@ -129,6 +138,9 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
     if (slot !== null) return HOTBAR[slot] ? { type: 'equip', tool: HOTBAR[slot] } : { type: 'none' }
     if (code === 'KeyX') return { type: 'equip', tool: null }
     if (code === 'KeyF') return { type: 'eatBest' }
+    if (code === 'KeyR') return { type: 'reload' }
+    if (code === 'KeyV') return { type: 'toggleView' }
+    if (code === 'KeyG') return { type: 'rangeGame' }
     if (code === 'KeyI') return { type: 'openMode', mode: 'bag' }
   }
   // 가방은 I 로도 닫는다
@@ -165,6 +177,8 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
         return { type: 'openVendor', id: nearby.id }
       case 'loot':
         return { type: 'pickLoot', key: nearby.key }
+      case 'rack':
+        return { type: 'openMode', mode: 'rack' }
       case 'stove':
         // 가방의 요리법 탭이 열린다 (BagPanel 이 가스레인지 앞인지 본다)
         return { type: 'openMode', mode: 'bag' }

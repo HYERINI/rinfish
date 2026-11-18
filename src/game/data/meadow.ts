@@ -53,6 +53,13 @@ export function isIndoor(x: number, z: number): boolean {
   return MEADOW_ROOMS.some((r) => lx >= r.minX && lx < r.maxX && lz >= r.minZ && lz <= r.maxZ)
 }
 
+/** 세계 (x, z) 가 사격장 방 안인가 (은지 roomAt 'range': 은지 x 15..27, z -5..5 → 세계 x 173..185). G 연습 게임은 여기서만 */
+export function inRangeRoom(x: number, z: number): boolean {
+  const [lx, lz] = toMeadowLocal(x, z)
+  const r = MEADOW_ROOMS[3]
+  return lx >= r.minX && lx < r.maxX && lz >= r.minZ && lz <= r.maxZ
+}
+
 /** 은지 침실 침대 (은지 world.bedSpot 3.5, 3.6) */
 export const BED_SPOT: [number, number] = toWorld(3.5, 3.6)
 /** E "잠자기" 감지 상자: 침대와 그 앞을 덮고 침실 벽(은지 x 5, z 5) 밖으로 나가지 않는다 (은지 2m 와 비슷) */
@@ -78,6 +85,6 @@ export const MEADOW_DOORS = ['거실 문', '사격장 문', '주방 문', '현�
  */
 export const MEADOW_VENDORS: { id: VendorId; name: string; greet: string; at: [number, number]; npc: [number, number]; look: string }[] = [
   { id: 'butcher', name: '정육점', greet: '고기와 요리를 삽니다', at: [46, 11.5], npc: [46, 12.4], look: 'grandpa' },
-  { id: 'general', name: '잡화점', greet: '뼈·비계를 삽니다 · 탄약은 곧 들어와요', at: [52, 11.5], npc: [52, 12.4], look: 'lady' },
+  { id: 'general', name: '잡화점', greet: '탄약을 팝니다 · 뼈·비계는 삽니다', at: [52, 11.5], npc: [52, 12.4], look: 'lady' },
   { id: 'grocer', name: '농산물 가게', greet: '달걀·호박·버섯을 사고팝니다', at: [58, 11.5], npc: [58, 12.4], look: 'rangerMale' },
 ]

@@ -25,11 +25,16 @@ export const TOUCH = {
   },
   /**
    * 도구 칸 아래 여백: 가로 화면은 아래 가운데(조이스틱·버튼 사이), 세로 화면은 좁아서 오른쪽 버튼 세 줄
-   * (가장자리 20 + 점프 84 + 가방 62 + 상호작용 56 + 사이 12 × 2 = 246) 위로 올린다
+   * (가장자리 20 + 점프 84 + 가방 62 + 상호작용 56 + 사이 12 × 2 = 246) 위로 올린다.
+   * 총·칼을 든 세로 화면(portraitWeapon)은 버튼이 네 줄 (20 + 점프 84 + 쏘기 84 + 가방 62 + 상호작용 56 + 사이 12 × 3 = 342)
    */
-  hotbarBottom: { landscape: 12, portrait: 256 },
+  hotbarBottom: { landscape: 12, portrait: 256, portraitWeapon: 352 },
   /** 채팅 아래 여백: 가로 화면은 조이스틱 바로 위(위쪽 체력 줄과 겹치지 않게), 세로 화면은 도구 칸과 조작 안내(도구 칸 위 54, 세 줄) 위로 */
-  chatBottom: { landscape: 170, portrait: 364 },
+  chatBottom: { landscape: 170, portrait: 364, portraitWeapon: 460 },
+  /** 가로 화면 채팅 폭: 코인·체력 칸(200)만큼. 그 오른쪽 위는 목표 띠 자리라 겹치지 않게 */
+  chatWidthLandscape: 200,
+  /** 가로 화면 채팅 줄은 화면 위에서 이만큼 아래까지만 올라간다 (코인·시계·체력·배고픔 칸 아래 끝). 폭이 줄어 줄이 두 줄로 접혀도 그 칸을 덮지 않게 */
+  chatTopLandscape: 108,
   /** 세로 화면 안내를 띄워 두는 시간 (ms). 그 뒤 저절로 사라진다 */
   portraitHintMs: 9000,
 }

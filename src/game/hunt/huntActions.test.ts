@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { INITIAL_PROGRESS, useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
-import { lootList, resetAnimalRig, spawnLoot } from './animalRig'
-import { pickLoot } from './huntActions'
+import { lootList, resetAnimalRig, soloHerd, spawnLoot } from './animalRig'
+import { pickLoot, shootAnimal } from './huntActions'
 
 beforeEach(() => {
   localStorage.clear()
@@ -26,5 +26,16 @@ describe('전리품 줍기', () => {
   it('이미 주운 번호는 아무 일도 없다', () => {
     pickLoot(9)
     expect(useProgressStore.getState().items.beef).toBe(0)
+  })
+})
+
+describe('총으로 사냥 (혼자)', () => {
+  it('알마다 은지 피해: 산탄 3알이 소(체력 3)를 쓰러뜨리고 전리품, 권총 한 알은 1', () => {
+    // 새 무리는 1번 소(체력 3), 2번 돼지(체력 2)
+    shootAnimal(2, 'pistol', 1)
+    expect(soloHerd().animals.find((a) => a.id === 2)?.hp).toBe(1)
+    shootAnimal(1, 'shotgun', 3)
+    expect(soloHerd().animals.find((a) => a.id === 1)?.state).toBe('dead')
+    expect(useSessionStore.getState().notice?.text).toContain('사냥 성공')
   })
 })

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { EMOTES } from '../data/emotes'
+import { isGun } from '../data/guns'
 import { TOUCH } from '../data/touch'
 import { resetStick, setStick } from '../input/move'
 import { pressAttack, pressFishingButton } from '../input/pointer'
@@ -10,6 +11,8 @@ import { stickFromDrag, type Stick } from '../logic/joystick'
 import { useFishingStore } from '../stores/fishingStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { interactLabel } from './interactLabel'
+import { TapButton } from './TapButton'
+import { AimButton, CycleButton, FireButton, KnifeButton, ReloadButton } from './WeaponTouchControls'
 import { overlayLayer, touchHint } from './styles'
 
 const { joystick: JOY, buttons: BTN } = TOUCH
@@ -44,14 +47,16 @@ function ExploreControls() {
   const tool = useSessionStore((s) => s.tool)
   const [emotesOpen, setEmotesOpen] = useState(false)
   const portrait = useMediaQuery('(orientation: portrait)')
+  /** 총·칼을 들면 무기 버튼 줄 */
+  const weapon = isGun(tool) ? 'gun' : tool === 'knife' ? 'knife' : null
   const bag = (
     <TapButton className="tc-btn tc-small" ariaLabel="가방" onTap={() => useSessionStore.getState().setMode('bag')}>
       <span style={{ fontSize: 22, lineHeight: 1 }}>🎒</span>
       <span style={{ fontSize: 11 }}>가방</span>
     </TapButton>
   )
-  // 주먹·칼을 들면 휘두르기 (누르는 순간 바로. 칼 찌르기 버튼은 3-4 의 총 버튼과 같이). 세로 화면은 가방 줄에
-  const attack = (tool === 'fists' || tool === 'knife') && (
+  // 주먹을 들면 휘두르기 (누르는 순간 바로). 세로 화면은 가방 줄에
+  const attack = tool === 'fists' && (
     <button
       className="tc-btn tc-small"
       aria-label="휘두르기"
@@ -60,38 +65,121 @@ function ExploreControls() {
         pressAttack('primary')
       }}
     >
-      <span style={{ fontSize: 22, lineHeight: 1 }}>{tool === 'fists' ? '✊' : '🔪'}</span>
-      <span style={{ fontSize: 11 }}>{tool === 'fists' ? '치기' : '베기'}</span>
+      <span style={{ fontSize: 22, lineHeight: 1 }}>✊</span>
+      <span style={{ fontSize: 11 }}>치기</span>
     </button>
   )
+  const emote = (
+    <TapButton className={`tc-btn tc-small${emotesOpen ? ' on' : ''}`} ariaLabel="감정 표현" onTap={() => setEmotesOpen((o) => !o)}>
+      <span style={{ fontSize: 22, lineHeight: 1 }}>😀</span>
+      <span style={{ fontSize: 11 }}>표현</span>
+    </TapButton>
+  )
+  // 점프는 누르는 순간 바로
+  const jump = (
+    <button
+      className="tc-btn tc-jump"
+      aria-label="점프"
+      onPointerDown={(e) => {
+        e.preventDefault()
+        pressJump()
+      }}
+    >
+      <span style={{ fontSize: 26, lineHeight: 1 }}>⤒</span>
+      <span style={{ fontSize: 12 }}>점프</span>
+    </button>
+  )
+  const action = nearby && (
+    <TapButton className={`tc-btn tc-pill tc-action${weapon && !portrait ? ' tc-side' : ''}`} onTap={() => runKeyAction('KeyE')}>
+      {interactLabel(nearby)}
+    </TapButton>
+  )
+  const emotes = emotesOpen && (
+    <div className="tc-emotes" role="menu" aria-label="감정 표현">
+      {EMOTES.map((em) => (
+        <TapButton
+          key={em.id}
+          className="tc-btn tc-emote"
+          ariaLabel={em.label}
+          onTap={() => {
+            pressEmote(em.id)
+            setEmotesOpen(false)
+          }}
+        >
+          <span style={{ fontSize: 22, lineHeight: 1 }}>{em.icon}</span>
+          <span style={{ fontSize: 11 }}>{em.label}</span>
+        </TapButton>
+      ))}
+    </div>
+  )
+  if (weapon) {
+    // 총·칼 (3-4): 은지 touch.js 처럼 쏘기(크게, 끌면 시점)·조준·장전·무기 바꾸기 / 베기(크게)·찌르기.
+    // 세로 화면은 세 줄 (표현·무기·가방 / 장전·쏘기 / 조준·점프), 가로 화면은 두 줄 (가방·무기·장전·조준 / 표현·쏘기·점프).
+    // 가로 화면은 키가 낮아(360) 위 줄을 미니맵 왼쪽에 두고, 상호작용 버튼은 그 왼쪽에
+    const gun = weapon === 'gun'
+    const top = gun ? (
+      <>
+        {bag}
+        <CycleButton />
+        <ReloadButton />
+        {isGun(tool) && <AimButton key={tool} gun={tool} />}
+      </>
+    ) : (
+      <>
+        {bag}
+        <CycleButton />
+        <KnifeButton stab />
+      </>
+    )
+    return (
+      <>
+        <Joystick />
+        {!portrait && (
+          <>
+            <div className="tc-row tc-weapon-top">{top}</div>
+            {action && <div style={{ display: 'contents' }} className={gun ? 'tc-side-gun' : 'tc-side-knife'}>{action}</div>}
+          </>
+        )}
+        <div className="tc-right">
+          {emotes}
+          {portrait ? (
+            <>
+              {action}
+              <div className="tc-row">
+                {emote}
+                <CycleButton />
+                {bag}
+              </div>
+              <div className="tc-row">
+                {gun ? <ReloadButton /> : <KnifeButton stab />}
+                {gun ? <FireButton /> : <KnifeButton />}
+              </div>
+              <div className="tc-row">
+                {isGun(tool) && <AimButton key={tool} gun={tool} />}
+                {jump}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="tc-row">
+                {emote}
+                {gun ? <FireButton /> : <KnifeButton />}
+                {jump}
+              </div>
+            </>
+          )}
+        </div>
+        {!emotesOpen && <TouchHelp weapon={weapon} />}
+      </>
+    )
+  }
   return (
     <>
       <Joystick />
       <div className="tc-right">
-        {emotesOpen && (
-          <div className="tc-emotes" role="menu" aria-label="감정 표현">
-            {EMOTES.map((em) => (
-              <TapButton
-                key={em.id}
-                className="tc-btn tc-emote"
-                ariaLabel={em.label}
-                onTap={() => {
-                  pressEmote(em.id)
-                  setEmotesOpen(false)
-                }}
-              >
-                <span style={{ fontSize: 22, lineHeight: 1 }}>{em.icon}</span>
-                <span style={{ fontSize: 11 }}>{em.label}</span>
-              </TapButton>
-            ))}
-          </div>
-        )}
+        {emotes}
         {/* 가까이 있는 대상이 있을 때만: E 와 같은 길로 (낚시 시작·가게 열기·구역 문 살펴보기). 글이 길어도 조이스틱 위에 오도록 가방 줄 위 */}
-        {nearby && (
-          <TapButton className="tc-btn tc-pill tc-action" onTap={() => runKeyAction('KeyE')}>
-            {interactLabel(nearby)}
-          </TapButton>
-        )}
+        {action}
         {/* 세로 화면은 좁아서 가방(과 휘두르기)을 점프 위 오른쪽 끝에 둔다 (한 줄에 셋이면 조이스틱 자리와 겹친다). 가로 화면은 한 줄 그대로 */}
         {portrait && (
           <div className="tc-row">
@@ -101,23 +189,9 @@ function ExploreControls() {
         )}
         <div className="tc-row">
           {!portrait && bag}
-          <TapButton className={`tc-btn tc-small${emotesOpen ? ' on' : ''}`} ariaLabel="감정 표현" onTap={() => setEmotesOpen((o) => !o)}>
-            <span style={{ fontSize: 22, lineHeight: 1 }}>😀</span>
-            <span style={{ fontSize: 11 }}>표현</span>
-          </TapButton>
+          {emote}
           {!portrait && attack}
-          {/* 점프는 누르는 순간 바로 */}
-          <button
-            className="tc-btn tc-jump"
-            aria-label="점프"
-            onPointerDown={(e) => {
-              e.preventDefault()
-              pressJump()
-            }}
-          >
-            <span style={{ fontSize: 26, lineHeight: 1 }}>⤒</span>
-            <span style={{ fontSize: 12 }}>점프</span>
-          </button>
+          {jump}
         </div>
       </div>
       {/* 감정 표현 메뉴를 펼치면 안내 글씨와 겹치므로 잠깐 숨긴다 */}
@@ -126,8 +200,8 @@ function ExploreControls() {
   )
 }
 
-/** 조작 안내 (키보드 안내 대신) + 세로 화면이면 가로로 돌려 보라는 안내 */
-function TouchHelp() {
+/** 조작 안내 (키보드 안내 대신) + 세로 화면이면 가로로 돌려 보라는 안내. weapon: 총·칼 버튼 줄 (세로 화면은 도구 칸이 더 위) */
+function TouchHelp({ weapon = null }: { weapon?: 'gun' | 'knife' | null }) {
   const portrait = useMediaQuery('(orientation: portrait)')
   const [hintGone, setHintGone] = useState(false)
   useEffect(() => {
@@ -137,7 +211,13 @@ function TouchHelp() {
   }, [portrait, hintGone])
   return (
     <>
-      <div className="tc-help">왼쪽 스틱으로 이동 · 끝까지 밀면 달리기 · 화면을 끌어 시점 회전 · 두 손가락으로 확대·축소</div>
+      <div className={`tc-help${weapon ? ' tc-weapon' : ''}`}>
+        {weapon === 'gun'
+          ? '쏘기 버튼을 누른 채 끌면 시점 회전 · ⌖ 조준(누를 때마다 배율) · R 장전 · ⇄ 무기 바꾸기'
+          : weapon === 'knife'
+            ? '베기 · 찌르기 · ⇄ 무기 바꾸기 · 화면을 끌어 시점 회전'
+            : '왼쪽 스틱으로 이동 · 끝까지 밀면 달리기 · 화면을 끌어 시점 회전 · 두 손가락으로 확대·축소'}
+      </div>
       {portrait && !hintGone && (
         <div style={{ ...touchHint, pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: 10, fontSize: 14 }}>
           <span>📱↻ 가로로 돌리면 더 넓게 볼 수 있어요</span>
@@ -188,38 +268,6 @@ function FishingButton({ stage, biting }: { stage: 'aiming' | 'waiting' | 'fight
     >
       <span style={{ fontSize: 19, fontWeight: 800 }}>{label}</span>
       {sub && <span style={{ fontSize: 11, opacity: 0.85 }}>{sub}</span>}
-    </button>
-  )
-}
-
-/**
- * 손가락을 뗄 때 버튼 위면 누른 것으로 친다 (누르는 순간 바로 패널이 열리면, 떼는 손가락이 새로 열린 패널 버튼을 누를 수 있다).
- * 다른 손가락이 조이스틱을 밀고 있어도 따로 받는다
- */
-function TapButton({ className, onTap, ariaLabel, children }: { className: string; onTap: () => void; ariaLabel?: string; children: ReactNode }) {
-  const down = useRef<number | null>(null)
-  return (
-    <button
-      className={className}
-      aria-label={ariaLabel}
-      onPointerDown={(e) => {
-        e.preventDefault()
-        e.currentTarget.setPointerCapture(e.pointerId)
-        down.current = e.pointerId
-      }}
-      onPointerUp={(e) => {
-        if (down.current !== e.pointerId) return
-        down.current = null
-        const r = e.currentTarget.getBoundingClientRect()
-        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) onTap()
-      }}
-      onPointerCancel={() => (down.current = null)}
-      onClick={(e) => {
-        // 키보드(Enter·Space)로 누른 경우만. 포인터는 위에서 처리했다
-        if (e.detail === 0) onTap()
-      }}
-    >
-      {children}
     </button>
   )
 }
@@ -283,6 +331,11 @@ const JOY_PAD = 18
 const ROW_WIDTH = BTN.margin + BTN.big + 3 * (BTN.small + BTN.gap)
 /** 조이스틱 오른쪽 끝 */
 const JOY_RIGHT = JOY.margin + JOY.radius * 2
+/** 폰 가로 화면 미니맵 왼쪽 끝 (오른쪽 16 + 지름 110, ui/MiniMap) */
+const MINIMAP_LEFT = 16 + 110
+/** 가로 화면 무기 위 줄(총: 가방·무기·장전·조준, 칼: 가방·무기·찌르기)의 왼쪽 끝. 상호작용 버튼은 이 왼쪽에 */
+const GUN_TOP_LEFT = MINIMAP_LEFT + BTN.gap + 4 * BTN.small + 3 * BTN.gap + BTN.gap
+const KNIFE_TOP_LEFT = MINIMAP_LEFT + BTN.gap + 3 * BTN.small + 2 * BTN.gap + BTN.gap
 
 const CSS = `
 .tc button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
@@ -296,6 +349,12 @@ const CSS = `
 .tc-small { width: ${px(BTN.small)}; height: ${px(BTN.small)}; border-radius: 50%; background: rgba(20, 30, 45, 0.55); color: #fff; }
 .tc-small.on { background: rgba(255, 209, 102, 0.85); color: #222; }
 .tc-jump { width: ${px(BTN.big)}; height: ${px(BTN.big)}; border-radius: 50%; }
+.tc-fire { width: ${px(BTN.big)}; height: ${px(BTN.big)}; border-radius: 50%; background: rgba(239, 83, 80, 0.85); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.4); }
+.tc-fire.on, .tc-fire:active { background: rgba(255, 138, 128, 0.95); }
+.tc-weapon-top { position: absolute; pointer-events: none; bottom: ${safe('bottom', BTN.margin + BTN.big + BTN.gap)}; right: ${safe('right', MINIMAP_LEFT + BTN.gap)}; }
+.tc-side { position: absolute; bottom: ${safe('bottom', BTN.margin + BTN.big + BTN.gap)}; overflow: hidden; text-overflow: ellipsis; display: block; line-height: 52px; }
+.tc-side-gun .tc-side { right: ${safe('right', GUN_TOP_LEFT)}; max-width: calc(100vw - ${px(GUN_TOP_LEFT + JOY_RIGHT + 24)}); }
+.tc-side-knife .tc-side { right: ${safe('right', KNIFE_TOP_LEFT)}; max-width: calc(100vw - ${px(KNIFE_TOP_LEFT + JOY_RIGHT + 24)}); }
 .tc-pill { min-height: 56px; min-width: ${px(BTN.big)}; padding: 0 20px; border-radius: 999px; font-size: 17px; white-space: nowrap; }
 .tc-action { background: rgba(102, 187, 106, 0.88); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.35); max-width: calc(100vw - 2 * ${px(BTN.margin)}); }
 .tc-quit { position: absolute; top: ${safe('top', 16)}; right: ${safe('right', 16)}; min-height: 44px; font-size: 15px; background: rgba(20, 30, 45, 0.7); color: #fff; }
@@ -320,6 +379,7 @@ const CSS = `
 @media (orientation: portrait) {
   .tc-help { left: ${safe('left', 16)}; right: auto; text-align: left; max-width: 60%;
     bottom: ${safe('bottom', TOUCH.hotbarBottom.portrait + 54)}; }
+  .tc-help.tc-weapon { bottom: ${safe('bottom', TOUCH.hotbarBottom.portraitWeapon + 54)}; }
 }
 `
 

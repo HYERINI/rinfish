@@ -10,6 +10,7 @@ import { GearShopPanel } from './GearShopPanel'
 import { Lobby } from './Lobby'
 import { MarketPanel } from './MarketPanel'
 import { MenuPanel } from './MenuPanel'
+import { RackPanel } from './RackPanel'
 import { SellPanel } from './SellPanel'
 import { UnlockPanel } from './UnlockPanel'
 import { VendorPanel } from './VendorPanel'
@@ -41,6 +42,8 @@ export function Panels({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) 
       return <BagPanel />
     case 'vendor':
       return <VendorPanel />
+    case 'rack':
+      return <RackPanel />
     case 'wardrobe':
       return <CharacterCreator firstTime={!look} />
     default:

@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { getZone } from '../data/zones'
 import { nextGoal } from '../logic/zoneUnlock'
 import { useProgressStore } from '../stores/progressStore'
-import { useTouchUi } from '../input/touchDevice'
+import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { useSessionStore } from '../stores/sessionStore'
 import { safeTop } from './styles'
-import { useNarrow } from './useNarrow'
+import { goalTrackerMode, goalTrackerPlace, useTopRowStore } from './goalPlace'
+import { useNarrow, useViewWidth } from './useNarrow'
 
 /**
  * 화면 위 가운데 "다음 목표" 띠. 아직 안 열린 구역을 어떻게 여는지 알려 준다 (다 열리면 사라진다).
- * 누르면 접고 펼친다. 화면이 좁으면(폰·좁은 창) 위쪽 버튼들과 겹치지 않게 그 아래에 두고, 폰에선 처음엔 접어 둔다
+ * 누르면 접고 펼친다. 컴퓨터·폰 가로에선 코인 칸과 위쪽 버튼 줄 사이 빈 틈에 둔다 (goalTrackerPlace, 폰 가로는 왼쪽 채팅과 겹치지 않게).
+ * 폰 세로·좁은 창이거나 빈 틈이 모자라면 위쪽 버튼들과 겹치지 않게 그 아래에 두고, 폰에선 처음엔 접어 둔다
  */
 export function GoalTracker() {
   const mode = useSessionStore((s) => s.mode)
@@ -20,13 +22,18 @@ export function GoalTracker() {
   const touchUi = useTouchUi()
   const [folded, setFolded] = useState(touchUi)
   const narrow = useNarrow() || touchUi
+  const portrait = useMediaQuery('(orientation: portrait)')
+  const viewW = useViewWidth()
+  const rowW = useTopRowStore((s) => s.width)
   if (mode !== 'explore') return null
   const goal = nextGoal({ coins, dexCount, lineLevel, unlocked })
   if (!goal) return null
   const ready = goal.ratio >= 1
+  const place = goalTrackerMode({ touchUi, narrow, portrait }) === 'gap' ? goalTrackerPlace(viewW, rowW) : null
+  const placeStyle = !place || place.kind === 'below' ? narrowPlace : { left: place.left, width: place.width, transform: 'none', minWidth: 0 }
 
   return (
-    <button style={{ ...box, ...(narrow ? narrowPlace : null) }} onClick={(e) => { e.currentTarget.blur(); setFolded((f) => !f) }} title={folded ? '목표 펼치기' : '목표 접기'}>
+    <button style={{ ...box, ...placeStyle }} onClick={(e) => { e.currentTarget.blur(); setFolded((f) => !f) }} title={folded ? '목표 펼치기' : '목표 접기'}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
         <span>🎯</span>
         <strong>다음 목표 · {goal.title}</strong>
@@ -45,7 +52,7 @@ export function GoalTracker() {
   )
 }
 
-/** 좁은 화면: 코인·체력 줄과 위쪽 버튼 줄 아래, 화면 폭에 맞춰 */
+/** 좁은 화면(또는 빈 틈이 모자란 컴퓨터 화면): 코인·체력 줄과 위쪽 버튼 줄 아래, 화면 폭에 맞춰 */
 const narrowPlace = {
   top: safeTop(102),
   width: 'min(400px, calc(100vw - 32px))',

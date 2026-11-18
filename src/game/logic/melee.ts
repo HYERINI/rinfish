@@ -1,6 +1,8 @@
 import { hitRadius } from '../data/animals'
 import { MELEE, hitDelay, type MeleeId } from '../data/melee'
+import { PEER_HIT } from '../data/guns'
 import type { AnimalView } from './animalSim'
+import type { PeerBody } from './hitscan'
 import type { Mode } from './interaction'
 import type { PlayerAction } from './playerMotion'
 
@@ -42,15 +44,27 @@ export function meleeTarget(x: number, z: number, dx: number, dz: number, reach:
   let best: { id: number; dist: number } | null = null
   for (const a of animals) {
     if (a.pose === 'dead') continue
-    const r = hitRadius(a.sp)
-    const cx = a.x - x
-    const cz = a.z - z
-    const t = cx * dx + cz * dz
-    const perp2 = cx * cx + cz * cz - t * t
-    if (perp2 > r * r) continue
-    const enter = Math.max(0, t - Math.sqrt(r * r - perp2))
-    if (t + r < 0 || enter > reach) continue
-    if (!best || enter < best.dist) best = { id: a.id, dist: enter }
+    const enter = segmentEnter(a.x - x, a.z - z, dx, dz, reach, hitRadius(a.sp))
+    if (enter !== null && (!best || enter < best.dist)) best = { id: a.id, dist: enter }
   }
   return best
+}
+
+/** 같은 판정으로 다른 사람 (PvP, 몸 반지름 0.32 원). 없으면 null */
+export function meleePeer(x: number, z: number, dx: number, dz: number, reach: number, peers: readonly PeerBody[]): { id: string; dist: number } | null {
+  let best: { id: string; dist: number } | null = null
+  for (const p of peers) {
+    const enter = segmentEnter(p.x - x, p.z - z, dx, dz, reach, PEER_HIT.radius)
+    if (enter !== null && (!best || enter < best.dist)) best = { id: p.id, dist: enter }
+  }
+  return best
+}
+
+/** 내 자리에서 (cx, cz) 만큼 떨어진 반지름 r 원에, 방향 (dx, dz) 로 reach 만큼 그은 선분이 닿는 거리 (원 안이면 0). 안 닿으면 null */
+function segmentEnter(cx: number, cz: number, dx: number, dz: number, reach: number, r: number): number | null {
+  const t = cx * dx + cz * dz
+  const perp2 = cx * cx + cz * cz - t * t
+  if (perp2 > r * r) return null
+  const enter = Math.max(0, t - Math.sqrt(r * r - perp2))
+  return t + r < 0 || enter > reach ? null : enter
 }

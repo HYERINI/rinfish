@@ -98,6 +98,27 @@ describe('도구 칸', () => {
     useSessionStore.getState().resetSession()
     expect(useSessionStore.getState().tool).toBe('rod')
   })
+
+  it('총을 들면 마지막에 든 총으로 기억한다 (폰 도구 칸의 총 한 칸). 다른 도구를 들어도 그대로', () => {
+    expect(useSessionStore.getState().lastGun).toBe('pistol')
+    useSessionStore.getState().equip('sniper')
+    useSessionStore.getState().equip('knife')
+    expect(useSessionStore.getState().lastGun).toBe('sniper')
+    useSessionStore.getState().resetSession()
+    expect(useSessionStore.getState().lastGun).toBe('pistol')
+  })
+})
+
+describe('시점 (V)', () => {
+  beforeEach(() => useSessionStore.getState().resetSession())
+
+  it('1인칭과 3인칭을 오가고, 판을 새로 시작하면 3인칭', () => {
+    expect(useSessionStore.getState().view).toBe('third')
+    useSessionStore.getState().toggleView()
+    expect(useSessionStore.getState().view).toBe('first')
+    useSessionStore.getState().resetSession()
+    expect(useSessionStore.getState().view).toBe('third')
+  })
 })
 
 describe('마을 상인 창', () => {

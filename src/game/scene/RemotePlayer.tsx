@@ -4,10 +4,12 @@ import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, Line, LineBasicMaterial, Vector3, type Group, type Mesh, type Object3D } from 'three'
 import { BOAT_FLOOR, BOAT_SEAT_SHAPE } from '../data/boat'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
+import { isGun, type GunId } from '../data/guns'
 import { NET } from '../data/net'
 import type { CharacterLook } from '../data/types'
 import { saggingLinePoint } from '../logic/castArc'
 import { sampleAt } from '../logic/interpolate'
+import { remoteMode } from '../logic/netProtocol'
 import { shownTool } from '../logic/playerMotion'
 import { netNow, remoteRig } from '../net/remoteRig'
 import { BoatModel } from './boat/BoatModel'
@@ -15,6 +17,7 @@ import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { bubbleStyle, nameTagStyle } from './nameTag'
 import { FOOT_Y } from './Player'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
+import { GunModel } from './tools/GunModel'
 import { KnifeModel } from './tools/KnifeModel'
 
 const LINE_POINTS = 16
@@ -34,11 +37,16 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
   const model = useRef<PlayerModelHandle>(null)
   const rod = useRef<Group>(null)
   const knife = useRef<Group>(null)
+  const gun = useRef<Group>(null)
+  /** 남이 든 총 (바뀔 때만 React 상태를 바꾼다) */
+  const [gunId, setGunId] = useState<GunId | null>(null)
   const boatRef = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const bobber = useRef<Mesh>(null)
   const lineRef = useRef<Line>(null)
   const [bubble, setBubble] = useState('')
+  /** 이름표 아래 체력 막대 (모습의 hp. 옛 클라이언트면 없다) */
+  const [hp, setHp] = useState<number | null>(null)
   /** 지금 그리는 중인가. drei Html 은 부모가 숨겨져도 글씨가 남아서, 그리지 않을 땐 이름표를 아예 빼야 한다 */
   const [drawn, setDrawn] = useState(false)
   const line = useMemo(() => {
@@ -66,6 +74,8 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     // 말풍선: 바뀌었을 때만 React 상태를 바꾼다
     const text = e.bubble && now - e.bubble.at < NET.bubbleSeconds ? e.bubble.text : ''
     if (text !== bubble) setBubble(text)
+    const life = s.hp ?? null
+    if (life !== hp) setHp(life)
 
     const m = model.current
     if (!m || !rod.current) return
@@ -76,11 +86,18 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     visual.current.updateWorldMatrix(true, false)
     m.gripPosition(grip)
     rod.current.position.copy(visual.current.worldToLocal(grip))
-    // 남이 든 칼 (낚싯대는 rodOn 이 정한다). 앉았거나 감정 표현·점프·먹는 중엔 숨긴다
+    // 남이 든 칼·총 (낚싯대는 rodOn 이 정한다). 앉았거나 침대에 누웠거나 감정 표현·점프·먹는 중엔 숨긴다
+    const held = shownTool(remoteMode(s), Infinity, e.action, s.tool ?? null)
     if (knife.current) {
-      knife.current.visible = shownTool(s.fish ? 'fishing' : s.boat ? 'boat' : s.rest ? 'rest' : 'explore', Infinity, e.action, s.tool ?? null) === 'knife'
+      knife.current.visible = held === 'knife'
       knife.current.position.copy(rod.current.position)
       knife.current.rotation.x = s.rod
+    }
+    const nextGun = isGun(s.tool) ? s.tool : null
+    if (nextGun !== gunId) setGunId(nextGun)
+    if (gun.current) {
+      gun.current.visible = isGun(held)
+      gun.current.position.copy(rod.current.position)
     }
     // 찌와 낚싯줄 (낚싯대 끝 → 찌)
     if (s.bob && bobber.current && rodTip.current) {
@@ -120,12 +137,22 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
           <group ref={knife} visible={false}>
             <KnifeModel />
           </group>
+          {gunId && (
+            <group ref={gun} visible={false}>
+              <GunModel id={gunId} />
+            </group>
+          )}
         </group>
         {drawn && (
           <Html center position={[0, headY, 0]} zIndexRange={[50, 0]}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {bubble && <div style={bubbleStyle}>{bubble}</div>}
               <div style={nameTagStyle}>{nick}</div>
+              {hp !== null && (
+                <div style={hpTrack} aria-label={`체력 ${hp}`}>
+                  <div style={{ width: `${hp}%`, height: '100%', background: hpColor(hp) }} />
+                </div>
+              )}
             </div>
           </Html>
         )}
@@ -138,3 +165,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     </>
   )
 }
+
+/** 은지 이름표 체력 막대: 50 넘으면 초록, 25 넘으면 노랑, 그 아래 빨강 */
+const hpColor = (hp: number) => (hp > 50 ? '#6fdc6f' : hp > 25 ? '#ffc94d' : '#ff5a5a')
+const hpTrack = { width: 48, height: 5, marginTop: 2, borderRadius: 3, overflow: 'hidden', background: 'rgba(0,0,0,0.5)' } as const

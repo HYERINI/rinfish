@@ -28,11 +28,13 @@ describe('animalRig', () => {
     expect(takeLoot(2)).toBeNull()
     expect(lootList().map((l) => l.key)).toEqual([1, 3])
   })
-  it('hurt 는 붙여 둔 처리기로 간다 (없으면 아무 일도 없다)', () => {
+  it('hurt 는 붙여 둔 처리기로 간다 (없으면 아무 일도 없다). PvP 면 맞힌 사람도', () => {
     receiveHurt(5)
     const f = vi.fn()
     setHurtHandler(f)
     receiveHurt(15)
-    expect(f).toHaveBeenCalledWith(15)
+    expect(f).toHaveBeenCalledWith(15, undefined)
+    receiveHurt(20, 'k1')
+    expect(f).toHaveBeenLastCalledWith(20, 'k1')
   })
 })

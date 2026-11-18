@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { NET } from '../data/net'
+import { isGun } from '../data/guns'
 import { TOUCH } from '../data/touch'
 import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { isTypingTarget } from '../input/typing'
@@ -13,6 +14,8 @@ import { button, safeBottom, safeLeft } from './styles'
 const CHAT_MODES: Mode[] = ['explore', 'fishing', 'rest', 'sleep']
 /** 컴퓨터: 도구 칸(아래 44 + 높이 46) 위. 좁은 창에서도 도구 칸·조작 안내와 겹치지 않는다 */
 const DESKTOP_CHAT_BOTTOM = 100
+/** 폰 가로 채팅 줄 높이: 18vh 까지, 위쪽 코인·체력 칸 아래 끝(chatTopLandscape)을 넘지 않게 (💬 버튼 줄 34 + 사이 4 를 뺀다) */
+const LANDSCAPE_LINES_MAX = `min(18vh, calc(100vh - ${TOUCH.chatBottom.landscape + 38 + TOUCH.chatTopLandscape}px))`
 /** 흐려지기 시작해서 사라질 때까지(초) */
 const FADE_OUT = 3
 
@@ -21,6 +24,8 @@ export function ChatBox() {
   const phase = useNetStore((s) => s.phase)
   const chat = useNetStore((s) => s.chat)
   const mode = useSessionStore((s) => s.mode)
+  // 폰 세로 화면에서 총·칼을 들면 도구 칸이 더 위라 채팅도 그 위로
+  const weaponRows = useSessionStore((s) => isGun(s.tool) || s.tool === 'knife')
   const touchUi = useTouchUi()
   const portrait = useMediaQuery('(orientation: portrait)')
   const [open, setOpen] = useState(false)
@@ -60,8 +65,8 @@ export function ChatBox() {
   }
 
   return (
-    <div style={{ position: 'absolute', left: safeLeft(16), bottom: safeBottom(touchUi ? TOUCH.chatBottom[portrait ? 'portrait' : 'landscape'] : DESKTOP_CHAT_BOTTOM), width: 'min(340px, 58vw)', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: touchUi ? (portrait ? '24vh' : '18vh') : '30vh', overflow: 'hidden', justifyContent: 'flex-end' }}>
+    <div style={{ position: 'absolute', left: safeLeft(16), bottom: safeBottom(touchUi ? TOUCH.chatBottom[portrait ? (weaponRows ? 'portraitWeapon' : 'portrait') : 'landscape'] : DESKTOP_CHAT_BOTTOM), width: touchUi && !portrait ? `min(${TOUCH.chatWidthLandscape}px, 42vw)` : 'min(340px, 58vw)', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: touchUi ? (portrait ? '24vh' : LANDSCAPE_LINES_MAX) : '30vh', overflow: 'hidden', justifyContent: 'flex-end' }}>
         {chat.map((line) => {
           const age = now - line.at
           const opacity = open ? 1 : Math.max(0, 1 - Math.max(0, age - NET.chatFadeSeconds) / FADE_OUT)

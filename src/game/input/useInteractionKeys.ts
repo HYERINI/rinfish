@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { isCookingSkipKey, resolveKeyAction } from '../logic/interaction'
 import { harvest, toggleDoor } from '../../meadow/meadowActions'
+import { toggleRangeGame } from '../../meadow/rangeActions'
 import { pickLoot } from '../hunt/huntActions'
+import { pressReload } from './pointer'
 import { finishCooking } from '../scene/cooking/finishCooking'
 import { startSleep, wake } from '../scene/day/dayActions'
 import { useFishingStore } from '../stores/fishingStore'
@@ -86,6 +88,15 @@ export function runKeyAction(code: string): boolean {
       break
     case 'eatBest':
       eatBestNow()
+      break
+    case 'reload':
+      pressReload()
+      break
+    case 'toggleView':
+      session.toggleView()
+      break
+    case 'rangeGame':
+      toggleRangeGame()
       break
     case 'toggleMap':
       if (session.mode === 'map') session.closeMap()

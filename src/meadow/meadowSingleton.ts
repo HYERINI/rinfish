@@ -5,6 +5,7 @@ import { skyNow } from '../game/scene/skyNow'
 import { DayNight } from './vendor/daynight.js'
 import { boxesToCuboids, doorBox, type Cuboid } from '../game/logic/meadowColliders'
 import { MEADOW_REACH, type MeadowSpot } from '../game/logic/meadowInteract'
+import type { EunjiRange } from './vendor/range.js'
 import { ROOMS, createWorld, type EunjiPickup, type EunjiWorld } from './vendor/world.js'
 
 let world: EunjiWorld | null = null
@@ -125,7 +126,12 @@ export function regrowPickups(dt: number) {
 let spots: MeadowSpot[] = []
 let spotsKey = ''
 
-/** 초원 E 대상 (은지 좌표): 가스레인지·문·상인·버섯·호박. 모델이 들어와 자리·개수가 바뀔 때만 다시 만든다 */
+/** 사격장 표적·무기 선반·연습 게임 (은지 range.js) */
+export function meadowRange(): EunjiRange {
+  return meadowWorld().range
+}
+
+/** 초원 E 대상 (은지 좌표): 가스레인지·문·상인·사격장 무기 선반·버섯·호박. 모델이 들어와 자리·개수가 바뀔 때만 다시 만든다 */
 export function meadowSpots(): MeadowSpot[] {
   const w = meadowWorld()
   const pickups = w.outdoor.pickups
@@ -136,6 +142,7 @@ export function meadowSpots(): MeadowSpot[] {
       { target: { kind: 'stove' }, x: w.stove.center.x, z: w.stove.center.z, reach: MEADOW_REACH.stove },
       ...w.doors.map((d, index): MeadowSpot => ({ target: { kind: 'door', index }, x: d.center.x, z: d.center.z, reach: MEADOW_REACH.door })),
       ...MEADOW_VENDORS.map((v): MeadowSpot => ({ target: { kind: 'vendor', id: v.id }, x: v.at[0], z: v.at[1], reach: MEADOW_REACH.vendor })),
+      { target: { kind: 'rack' }, x: w.range.rack.center.x, z: w.range.rack.center.z, reach: MEADOW_REACH.rack },
       ...pickups.map((p, index): MeadowSpot => ({ target: { kind: 'pickup', index, item: p.id }, x: p.center.x, z: p.center.z, reach: MEADOW_REACH.pickup })),
     ]
   }

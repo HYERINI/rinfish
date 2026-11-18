@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AQUARIUM, HUNGER, STAMINA } from '../data/balance'
 import { DEFAULT_LOOK, LOOK_PRESETS } from '../data/characterParts'
 import { EMPTY_AQUARIUM } from '../logic/aquarium'
 import { FIRST_MORNING } from '../logic/dayClock'
 import { NO_ITEMS } from '../logic/inventory'
 import { NO_SNACKS } from '../logic/snacks'
-import { INITIAL_PROGRESS, SAVE_KEY, useProgressStore } from './progressStore'
+import { INITIAL_PROGRESS, SAVE_KEY, flushProgressSave, useProgressStore } from './progressStore'
 
 const store = () => useProgressStore.getState()
 
@@ -469,25 +469,82 @@ describe('progressStore', () => {
     expect(store().coins).toBe(34)
     expect(store().items.beef).toBe(0)
     expect(store().sellItem('butcher', 'beef', 1)).toBe(0)
-    expect(store().buyItem('grocer', 'mushroom', 2, 1)).toBe(true)
+    expect(store().buyItem('grocer', 'mushroom', 2, 'solo', 1)).toBe(true)
     expect([store().coins, store().items.mushroom]).toEqual([18, 2])
-    expect(store().buyItem('grocer', 'pumpkin', 2, 1)).toBe(false)
+    expect(store().buyItem('grocer', 'pumpkin', 2, 'solo', 1)).toBe(false)
     expect(store().coins).toBe(18)
   })
 
   it('농산물 가게 하루 수량을 저장한다 (없던 저장본은 가득)', async () => {
     useProgressStore.setState({ coins: 100 })
-    expect(store().buyItem('grocer', 'egg', 3, 2)).toBe(true)
-    expect(store().buyItem('grocer', 'egg', 1, 2)).toBe(false)
+    expect(store().buyItem('grocer', 'egg', 3, 'solo', 2)).toBe(true)
+    expect(store().buyItem('grocer', 'egg', 1, 'solo', 2)).toBe(false)
     expect(store().coins).toBe(76)
-    expect(store().stock).toEqual({ day: 2, bought: { egg: 3 } })
-    expect(store().buyItem('grocer', 'egg', 1, 3)).toBe(true)
+    expect(store().stock.solo).toEqual({ day: 2, bought: { egg: 3 } })
+    expect(store().buyItem('grocer', 'egg', 1, 'solo', 3)).toBe(true)
     useProgressStore.setState({ ...INITIAL_PROGRESS })
     localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { stock: { day: 4, bought: { pumpkin: 3 } } }, version: 4 }))
     await useProgressStore.persist.rehydrate()
-    expect(store().stock).toEqual({ day: 4, bought: { pumpkin: 3 } })
+    expect(store().stock).toEqual({ solo: { day: 4, bought: { pumpkin: 3 } }, room: { day: 4, bought: { pumpkin: 3 } } })
     localStorage.setItem(SAVE_KEY, JSON.stringify({ state: {}, version: 3 }))
     await useProgressStore.persist.rehydrate()
     expect(store().stock).toEqual(INITIAL_PROGRESS.stock)
+  })
+
+  it('쏠 때마다 바로 저장하지 않고 1초 안에 한 번 (연사 소총이 초당 11번 저장하지 않게). 다른 일은 바로 저장하며 그때 탄도 같이', () => {
+    vi.useFakeTimers()
+    try {
+      const saved = () => JSON.parse(localStorage.getItem(SAVE_KEY) ?? '{"state":{}}').state
+      store().addItem('beef')
+      for (let i = 0; i < 5; i++) store().fireRound('rifle')
+      expect(saved().ammo.rifle).toBe(30)
+      vi.advanceTimersByTime(1000)
+      expect(saved().ammo.rifle).toBe(25)
+      store().fireRound('rifle')
+      store().addItem('beef')
+      expect(saved().ammo.rifle).toBe(24)
+      store().fireRound('rifle')
+      flushProgressSave()
+      expect(saved().ammo.rifle).toBe(23)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('탭을 숨기거나 닫으면 미룬 탄을 바로 저장한다', () => {
+    store().fireRound('pistol')
+    window.dispatchEvent(new Event('pagehide'))
+    expect(JSON.parse(localStorage.getItem(SAVE_KEY)!).state.ammo.pistol).toBe(11)
+  })
+
+  it('총: 쏘면 탄창이 줄고, 장전하면 예비에서 채운다. 탄약 묶음은 코인으로 산다', () => {
+    expect(store().ammo.pistol).toBe(12)
+    expect(store().fireRound('pistol')).toBe(true)
+    expect(store().ammo.pistol).toBe(11)
+    expect(store().reloadGun('pistol')).toBe(true)
+    expect([store().ammo.pistol, store().reserve.pistol]).toEqual([12, 47])
+    expect(store().buyAmmo('sniper', 1)).toBe(false)
+    useProgressStore.setState({ coins: 300 })
+    expect(store().buyAmmo('sniper', 1)).toBe(true)
+    expect([store().coins, store().reserve.sniper]).toEqual([50, 25])
+  })
+
+  it('사격장 최고 점수는 더 높을 때만 바뀐다', () => {
+    expect(store().recordRangeScore(30)).toBe(true)
+    expect(store().recordRangeScore(12)).toBe(false)
+    expect(store().rangeBest).toBe(30)
+  })
+
+  it('탄약이 없는 예전 저장본(version 4)은 탄창 가득·은지 기본 예비·최고 점수 0, 깨진 값은 그 총만 기본값', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 4 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().ammo).toEqual({ pistol: 12, rifle: 30, shotgun: 6, sniper: 5 })
+    expect(store().reserve).toEqual({ pistol: 48, rifle: 120, shotgun: 24, sniper: 20 })
+    expect(store().rangeBest).toBe(0)
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { ammo: { pistol: 13, rifle: 7 }, reserve: { sniper: 2, shotgun: 1.5 }, rangeBest: 88 }, version: 5 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().ammo).toEqual({ pistol: 12, rifle: 7, shotgun: 6, sniper: 5 })
+    expect(store().reserve).toEqual({ pistol: 48, rifle: 120, shotgun: 24, sniper: 2 })
+    expect(store().rangeBest).toBe(88)
   })
 })

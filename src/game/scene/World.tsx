@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { MeadowLighting } from '../../meadow/MeadowLighting'
 import { MeadowInteractions } from '../../meadow/MeadowInteractions'
+import { RangeRunner } from '../../meadow/RangeRunner'
 import { MeadowVendors } from '../../meadow/MeadowVendors'
 import { MeadowWorld } from '../../meadow/MeadowWorld'
 import { NetBridge } from '../net/NetBridge'
@@ -8,6 +9,9 @@ import { Animals } from './animals/Animals'
 import { HerdRunner } from './animals/HerdRunner'
 import { LootItems } from './animals/LootItems'
 import { MeleeController } from './melee/MeleeController'
+import { GunController } from './guns/GunController'
+import { GunEffects } from './guns/GunEffects'
+import { FirstPersonView } from './guns/FirstPersonView'
 import { Docks } from './boat/Docks'
 import { DayCycle } from './day/DayCycle'
 import { FishingSpots } from './facilities/FishingSpots'
@@ -40,6 +44,7 @@ export function World() {
       <MeadowLighting />
       <MeadowWorld />
       <MeadowInteractions />
+      <RangeRunner />
       <MeadowVendors />
       <Docks />
       <Island />
@@ -48,6 +53,7 @@ export function World() {
       <ZoneGates />
       <RepairCutscene />
       <Player />
+      <FirstPersonView />
       <NetBridge />
       <RemotePlayers />
       <FishingSpots />
@@ -69,6 +75,8 @@ export function World() {
       </Suspense>
       <LootItems />
       <MeleeController />
+      <GunController />
+      <GunEffects />
       <DayCycle />
     </>
   )

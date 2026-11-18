@@ -6,7 +6,7 @@ import { herdViews, hitAnimal, newHerd, stepHerd, type Herd, type HerdPlayer } f
 import { newRoomClock, roomMorning, roomTime, type RoomClock } from '../../src/game/logic/dayClock'
 import { packAnimals, parseClientMsg, type ClientMsg, type ErrorCode, type PeerInfo, type ServerMsg } from '../../src/game/logic/netProtocol'
 import { NEW_WINDOW } from '../../src/game/logic/rateLimit'
-import { handleMemberMsg, herdStepDt, judgeAnimalHit, judgeHello, memberFrom, sleepGuardEnd, tallySleep, type Member, type RoomMeta } from './roomRules'
+import { handleMemberMsg, herdStepDt, judgeAnimalHit, judgeDied, judgeHello, judgePvpHit, memberFrom, screenAnimalHit, sleepGuardEnd, tallySleep, type Member, type RoomMeta } from './roomRules'
 
 /** 웹소켓 붙임 정보: 아직 hello 전이거나, 들어온 사람 */
 type Attachment = { phase: 'hello' } | ({ phase: 'in' } & Member)
@@ -21,7 +21,8 @@ const toMember = (a: Extract<Attachment, { phase: 'in' }>): Member => memberFrom
  * 들판 동물은 alarm 없이 사람 메시지가 올 때 지난번부터 지난 만큼(0.15초에 한 번까지, 최대 1초) 움직여 모두에게 보낸다:
  * 들판 근처 사람은 가만히 있어도 5Hz 로 모습을 보내므로 그동안 5Hz 로 움직이고, 아무도 안 보내면 멈춘다 (메시지는 alarm 보다 20배 싸다).
  * alarm 은 사람이 있는 동안만 30초마다 건다 (시계 확인·잠 표시 다시 세기). 미룬 잠 표시가 있으면 그때 잠깐 당겨 건다.
- * 동물은 메모리에만 둔다 (방이 비거나 메모리가 사라지면 버리고 다음 메시지에 새로 만든다)
+ * 동물은 메모리에만 둔다 (방이 비거나 메모리가 사라지면 버리고 다음 메시지에 새로 만든다).
+ * PvP (3-4): 쏜 사람의 pvpHit 를 무기 표·간격으로 검사해 맞은 사람에게만 hurt, 쓰러진 사람의 died 로 모두에게 kill
  */
 export class Room extends DurableObject<Env> {
   /** 들판 동물과 마지막으로 움직인 때(ms, 무리가 없으면 null) */
@@ -65,6 +66,13 @@ export class Room extends DurableObject<Env> {
         lastHit: -Infinity,
         lastW: null,
         hitWin: NEW_WINDOW,
+        hitShot: null,
+        pvpLast: null,
+        pvpWin: NEW_WINDOW,
+        pvpShot: null,
+        pvpBy: null,
+        lastShot: -Infinity,
+        lastDied: -Infinity,
       }
       ws.serializeAttachment({ phase: 'in', ...me } satisfies Attachment)
       const players: PeerInfo[] = this.members(ws).map(({ m }) => ({ id: m.id, nick: m.nick, look: m.look, s: m.s }))
@@ -82,6 +90,8 @@ export class Room extends DurableObject<Env> {
     const member = toMember(att)
     const now = Date.now()
     if (msg.type === 'animalHit') return this.hitAnimal(ws, member, msg, now)
+    if (msg.type === 'pvpHit') return this.hitPeer(ws, member, msg, now)
+    if (msg.type === 'died') return this.died(ws, member, msg.by, now)
     const r = handleMemberMsg(member, msg, now / 1000)
     if (r.member !== member) ws.serializeAttachment({ phase: 'in', ...r.member } satisfies Attachment)
     if (r.out) this.broadcast(r.out, ws)
@@ -92,19 +102,50 @@ export class Room extends DurableObject<Env> {
     this.stepAnimals(now)
   }
 
-  /** 동물 명중: 무리를 지금까지 움직이고 검사해서, 맞으면 체력을 깎고 쓰러뜨렸으면 잡은 사람에게만 전리품. 모두에게 새 목록 */
+  /**
+   * 동물 명중: 먼저 창·모습·도구·간격을 보고(screenAnimalHit) 버리면 무리를 움직이지도 보내지도 않는다 (메시지를 쏟아부어도 방이 바빠지지 않게).
+   * 거르기를 지나면 무리를 때가 됐을 때만 움직이고 검사해서, 맞으면 체력을 깎고 쓰러뜨렸으면 잡은 사람에게만 전리품.
+   * 움직였거나 맞았을 때만 모두에게 새 목록
+   */
   private hitAnimal(ws: WebSocket, member: Member, msg: Extract<ClientMsg, { type: 'animalHit' }>, now: number) {
+    const sc = screenAnimalHit(member, msg, now / 1000)
+    if (!sc.ok) {
+      if (sc.member !== member) ws.serializeAttachment({ phase: 'in', ...sc.member } satisfies Attachment)
+      return
+    }
     const all = this.members()
-    const herd = this.advanceHerd(all, now, true)
+    const stepped = this.advanceHerd(all, now, false) !== null
+    const herd = this.herd
     if (!herd) return
     const v = judgeAnimalHit(member, msg, herd.animals.find((a) => a.id === msg.id), now / 1000)
     if (v.member !== member) ws.serializeAttachment({ phase: 'in', ...v.member } satisfies Attachment)
+    let changed = false
     if (v.ok) {
       const r = hitAnimal(herd, msg.id, v.dmg, member.id)
       this.herd = r.herd
+      changed = r.result !== 'miss'
       if (r.result === 'killed' && r.animal) send(ws, { type: 'loot', items: rollDrops(r.animal.sp), x: Math.round(r.animal.x * 100) / 100, z: Math.round(r.animal.z * 100) / 100 })
     }
-    this.sendAnimals(all)
+    if (stepped || changed) this.sendAnimals(all)
+  }
+
+  /** PvP 명중: 검사해서 맞은 사람에게만 hurt (그 사람 화면이 체력을 깎는다). 맞은 사람에게 누가 맞혔는지 남긴다 (kill 알림) */
+  private hitPeer(ws: WebSocket, member: Member, msg: Extract<ClientMsg, { type: 'pvpHit' }>, now: number) {
+    const target = this.members().find(({ m }) => m.id === msg.target)
+    const v = judgePvpHit(member, msg, target?.m, now / 1000)
+    // 버려도 1초 창은 남긴다 (버린 것도 센다)
+    if (v.shooter !== member) ws.serializeAttachment({ phase: 'in', ...v.shooter } satisfies Attachment)
+    if (!v.ok || !target) return
+    target.ws.serializeAttachment({ phase: 'in', ...target.m, pvpBy: { id: member.id, at: now / 1000 } } satisfies Attachment)
+    send(target.ws, { type: 'hurt', dmg: v.dmg, by: 'pvp', from: member.id })
+  }
+
+  /** 쓰러짐: 모두에게 kill (쓰러뜨린 사람은 정말 방금 맞힌 사람일 때만) */
+  private died(ws: WebSocket, member: Member, by: string | undefined, now: number) {
+    const v = judgeDied(member, by, by !== undefined && this.members(ws).some(({ m }) => m.id === by), now / 1000)
+    if (!v.ok) return
+    ws.serializeAttachment({ phase: 'in', ...v.member } satisfies Attachment)
+    this.broadcastAll(v.out)
   }
 
   /** 동물을 움직일 때가 됐으면(force 면 늘) 움직이고 모두에게 보낸다 */

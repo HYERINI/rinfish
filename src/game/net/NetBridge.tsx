@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { boatProgress } from '../logic/boatRoute'
 import { fishingLook } from '../logic/characterPose'
-import { roundState, stateKey, stateSendDue, toNetAct, type NetState } from '../logic/netProtocol'
+import { netHp, roundState, stateKey, stateSendDue, toNetAct, type NetState } from '../logic/netProtocol'
 import { playerRig } from '../scene/Player'
 import { fishingFx } from '../scene/fishing/fishingFx'
 import { useFishingStore } from '../stores/fishingStore'
@@ -12,11 +12,11 @@ import { useSessionStore } from '../stores/sessionStore'
 
 /**
  * 캔버스 안에서 내 모습을 방에 보낸다: 바뀐 게 있으면 초당 최대 NET.sendHz 번, 없으면 NET.idleSendEvery 초마다
- * (들판 근처는 그대로여도 NET.sendHz 로. stateSendDue).
+ * (들판 근처는 그대로여도 NET.sendHz 로. 든 도구가 바뀌면 바로. stateSendDue).
  * 옷을 바꾸면 profile 도 보낸다. 같이 하는 중이 아니면 아무것도 하지 않는다
  */
 export function NetBridge() {
-  const last = useRef({ at: -Infinity, key: '' })
+  const last = useRef<{ at: number; key: string; tool: string | null }>({ at: -Infinity, key: '', tool: null })
 
   useEffect(
     () =>
@@ -49,11 +49,16 @@ export function NetBridge() {
     // 배 타는 동안 내내 보낸다 (mode 는 잠깐 lobby·menu 일 수 있어 session.boat 기준)
     if (session.boat) raw.boat = { dir: session.boat.dir, t: boatProgress(performance.now() / 1000 - session.boat.startedAt) }
     if (session.tool) raw.tool = session.tool
+    // 침대에 누워 있으면 (잠 투표·쓰러져 깨어나는 중) 남의 화면에서도 든 도구를 숨긴다
+    if (session.mode === 'sleep') raw.sleep = true
+    // 이름표 아래 체력 막대 (5 단위로 보내서 회복 중에도 모습을 자주 다시 보내지 않는다)
+    raw.hp = netHp(useProgressStore.getState().survival.stamina)
     const s = roundState(raw)
     const key = stateKey(s)
     const since = now - last.current.at
-    if (stateSendDue(s, key !== last.current.key, since)) {
-      last.current = { at: now, key }
+    const tool = s.tool ?? null
+    if (stateSendDue(s, key !== last.current.key, since, tool !== last.current.tool)) {
+      last.current = { at: now, key, tool }
       useNetStore.getState().sendState(s)
     }
   })

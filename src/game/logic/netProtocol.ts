@@ -2,6 +2,7 @@ import { SPECIES_IDS } from '../data/animals'
 import { DAY_LENGTH } from '../data/balance'
 import { DISHES } from '../data/dishes'
 import { EMOTES, type EmoteId } from '../data/emotes'
+import { GUN_IDS, PVP_WEAPONS, type GunId, type PvpWeapon } from '../data/guns'
 import { MEADOW_DISH_IDS, RAW_ITEM_IDS, isMeadowDish, type MeadowDishId, type RawItemId } from '../data/meadowItems'
 import { MELEE_IDS, type MeleeId } from '../data/melee'
 import { NET } from '../data/net'
@@ -13,6 +14,7 @@ import { FISHING_POSES, type FishingLook, type FishingPose } from './characterPo
 import { normalizeLook } from './characterLook'
 import { ANIMAL_POSES, nearAnimalField, type AnimalView } from './animalSim'
 import type { ClockTime } from './dayClock'
+import type { Mode } from './interaction'
 import type { PlayerAction } from './playerMotion'
 import { cleanText, textLength } from './roomKey'
 
@@ -35,9 +37,11 @@ export type NetBoat = { dir: BoatDir; t: number }
 const BOAT_DIRS: BoatDir[] = ['toIsland', 'toMeadow']
 /**
  * 내 모습 한 장면. p: 몸 가운데(캡슐 가운데) 위치, f: 바라보는 각도, v: 수평 속도.
- * tool: 손에 든 도구 (3-2. 빈손이거나 옛 클라이언트면 없다. 낚싯대가 보이는지는 rodOn 이 정한다)
+ * tool: 손에 든 도구 (3-2. 빈손이거나 옛 클라이언트면 없다. 낚싯대가 보이는지는 rodOn 이 정한다).
+ * hp: 체력 0~100 정수 (3-4, 이름표 아래 체력 막대. 옛 클라이언트면 없다).
+ * sleep: 침대에 누워 있다 (잠 투표·쓰러져 깨어나는 중). 아니면 없다 (옛 클라이언트도 보내지 않는다)
  */
-export type NetState = { p: Vec3; f: number; v: number; rest: boolean; fish: FishingLook | null; rod: number; rodOn: boolean; bob: Vec3 | null; act: NetAct; boat?: NetBoat; tool?: ToolId }
+export type NetState = { p: Vec3; f: number; v: number; rest: boolean; fish: FishingLook | null; rod: number; rodOn: boolean; bob: Vec3 | null; act: NetAct; boat?: NetBoat; tool?: ToolId; hp?: number; sleep?: true }
 export type JoinMode = 'create' | 'join'
 export type ErrorCode = 'bad-hello' | 'room-exists' | 'no-room' | 'bad-password' | 'full' | 'version'
 export const ERROR_CODES: ErrorCode[] = ['bad-hello', 'room-exists', 'no-room', 'bad-password', 'full', 'version']
@@ -50,14 +54,30 @@ export type ClientMsg =
   | { type: 'profile'; nick: string; look: CharacterLook }
   /** 같이 하기 잠 투표: 침대에 누웠다(on) / 일어났다 */
   | { type: 'sleep'; on: boolean }
-  /** 들판 동물을 때렸다 (3-3). 피해는 서버가 공격 종류(w)로 정한다 (dmg 는 내 화면에서 본 값) */
-  | { type: 'animalHit'; id: number; dmg: number; w: MeleeId }
+  /**
+   * 들판 동물을 때렸다 (3-3) · 쐈다 (3-4). 피해는 서버가 무기(w)로 정한다 (dmg 는 내 화면에서 본 값).
+   * n: 맞은 알 수 (산탄총, 최대 8. 없으면 1). shot: 한 발 번호 (총, 선택. 한 발이 여럿을 맞히면 같은 번호로 보내 서버가 모두 받는다)
+   */
+  | { type: 'animalHit'; id: number; dmg: number; w: HitWeapon; n?: number; shot?: number }
+  /** 다른 사람을 맞혔다 (3-4 PvP, 쏜 사람 화면이 판정한다). n: 맞은 알 수 (산탄총, 최대 8), shot: 한 발 번호 (animalHit 과 같다) */
+  | { type: 'pvpHit'; target: string; weapon: PvpWeapon; n: number; shot?: number }
+  /** 쐈다: 남의 화면에 궤적·불꽃·소리 (판정 없음). o: 총구, d: 방향 (단위 벡터) */
+  | { type: 'shot'; o: Vec3; d: Vec3; w: GunId }
+  /** 내가 쓰러졌다. by: 마지막으로 나를 맞힌 사람 (PvP) */
+  | { type: 'died'; by?: string }
 
 /** 동물 한 마리 보내는 모양: [번호, 종(SPECIES_IDS 순서), x, z, 방향, 동작(ANIMAL_POSES 순서), 체력]. 소수 둘째 자리 */
 export type AnimalTuple = [number, number, number, number, number, number, number]
-/** 누구에게 맞았나: 동물 (3-4 에서 pvp) */
-export type HurtBy = 'animal'
-const HURT_BY: HurtBy[] = ['animal']
+/** 동물을 맞힌 무기: 근접 (3-3) · 총 (3-4) */
+export type HitWeapon = MeleeId | GunId
+const HIT_WEAPONS: HitWeapon[] = [...MELEE_IDS, ...GUN_IDS]
+/** 산탄총 한 발의 알 수 상한 (은지 n ≤ 8) */
+const MAX_PELLETS = 8
+/** 한 발 번호(shot) 상한. 넘으면 1 로 돌아간다 */
+export const MAX_SHOT_ID = 1e9
+/** 누구에게 맞았나: 동물 (3-3) · 다른 사람 (3-4, from 이 쏜 사람) */
+export type HurtBy = 'animal' | 'pvp'
+const HURT_BY: HurtBy[] = ['animal', 'pvp']
 
 /**
  * 서버 → 클라이언트. 3-1 에서 더한 것: welcome.time (방 시계), time (30초마다 시계 확인), sleepers (자는 사람 수 / 필요한 수), morning (모두 아침).
@@ -79,6 +99,9 @@ export type ServerMsg =
   | { type: 'animals'; list: AnimalTuple[] }
   | { type: 'loot'; items: RawItemId[]; x: number; z: number }
   | { type: 'hurt'; dmg: number; by: HurtBy; from?: string }
+  /** 3-4: 남이 쐈다 (궤적만 그린다), 누가 쓰러졌다 (killer: 쓰러뜨린 사람, 없으면 혼자 쓰러짐) */
+  | { type: 'shot'; id: string; o: Vec3; d: Vec3; w: GunId }
+  | { type: 'kill'; victim: string; killer?: string }
 
 const EMOTE_IDS = EMOTES.map((e) => e.id)
 const FOOD_IDS: FoodId[] = [...DISHES.map((d) => d.id), ...SNACK_IDS, ...MEADOW_DISH_IDS]
@@ -168,10 +191,32 @@ export function readNetState(v: unknown): NetState | null {
   // 배 정보는 틀려도 그 필드만 버린다 (모습 전체를 버리지 않는다)
   const boat = readBoat(v.boat)
   if (boat) out.boat = boat
-  // 도구도 틀리면 그 필드만 버린다 (모르는 도구 = 3-4 의 총을 든 새 클라이언트)
+  // 도구도 틀리면 그 필드만 버린다 (모르는 도구 = 더 새 클라이언트)
   const tool = oneOf(v.tool, TOOL_IDS)
   if (tool) out.tool = tool
+  // 체력도 틀리면 그 필드만 버린다
+  const hp = int(v.hp, 0, 100)
+  if (hp !== null) out.hp = hp
+  // 침대: true 만 싣는다 (틀리면 그 필드만 버린다)
+  if (v.sleep === true) out.sleep = true
   return out
+}
+
+/** 남의 모습에서 그 사람의 모드 (든 도구를 그릴지 shownTool 로 정할 때). 낚시 > 배 > 침대 > 벤치 > 탐험 */
+export function remoteMode(s: NetState): Mode {
+  if (s.fish) return 'fishing'
+  if (s.boat) return 'boat'
+  if (s.sleep) return 'sleep'
+  return s.rest ? 'rest' : 'explore'
+}
+
+/** 단위 벡터 (길이 0.9~1.1 만 받고 1 로 맞춘다). 틀리면 null */
+function unit(v: unknown): Vec3 | null {
+  const d = Array.isArray(v) && v.length === 3 ? v.map((x) => num(x, -1.1, 1.1)) : null
+  if (!d || d.some((x) => x === null)) return null
+  const [x, y, z] = d as number[]
+  const l = Math.hypot(x, y, z)
+  return l >= 0.9 && l <= 1.1 ? [x / l, y / l, z / l] : null
 }
 
 function parse(raw: string): Record<string, unknown> | null {
@@ -212,9 +257,32 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return typeof m.on === 'boolean' ? { type: 'sleep', on: m.on } : null
     case 'animalHit': {
       const i = int(m.id, 1, 1e9)
-      const dmg = num(m.dmg, 0, 10)
-      const w = oneOf(m.w, MELEE_IDS)
-      return i !== null && dmg !== null && w ? { type: 'animalHit', id: i, dmg, w } : null
+      const dmg = num(m.dmg, 0, 30)
+      const w = oneOf(m.w, HIT_WEAPONS)
+      const n = m.n === undefined ? 1 : int(m.n, 1, MAX_PELLETS)
+      const shot = m.shot === undefined ? undefined : int(m.shot, 1, MAX_SHOT_ID)
+      if (i === null || dmg === null || !w || n === null || shot === null) return null
+      const out: ClientMsg = n > 1 ? { type: 'animalHit', id: i, dmg, w, n } : { type: 'animalHit', id: i, dmg, w }
+      return shot === undefined ? out : { ...out, shot }
+    }
+    case 'pvpHit': {
+      const target = id(m.target)
+      const weapon = oneOf(m.weapon, PVP_WEAPONS)
+      const n = int(m.n, 1, MAX_PELLETS)
+      const shot = m.shot === undefined ? undefined : int(m.shot, 1, MAX_SHOT_ID)
+      if (!target || !weapon || n === null || shot === null) return null
+      return shot === undefined ? { type: 'pvpHit', target, weapon, n } : { type: 'pvpHit', target, weapon, n, shot }
+    }
+    case 'shot': {
+      const o = vec3(m.o)
+      const d = unit(m.d)
+      const w = oneOf(m.w, GUN_IDS)
+      return o && d && w ? { type: 'shot', o, d, w } : null
+    }
+    case 'died': {
+      if (m.by === undefined) return { type: 'died' }
+      const by = id(m.by)
+      return by ? { type: 'died', by } : null
     }
     default:
       return null
@@ -316,6 +384,20 @@ export function parseServerMsg(raw: string): ServerMsg | null {
       const from = id(m.from)
       return from ? { type: 'hurt', dmg, by, from } : { type: 'hurt', dmg, by }
     }
+    case 'shot': {
+      const i = id(m.id)
+      const o = vec3(m.o)
+      const d = unit(m.d)
+      const w = oneOf(m.w, GUN_IDS)
+      return i && o && d && w ? { type: 'shot', id: i, o, d, w } : null
+    }
+    case 'kill': {
+      const victim = id(m.victim)
+      if (!victim) return null
+      if (m.killer === undefined) return { type: 'kill', victim }
+      const killer = id(m.killer)
+      return killer ? { type: 'kill', victim, killer } : null
+    }
     default:
       return null
   }
@@ -352,21 +434,37 @@ export function roundState(s: NetState): NetState {
   if (a.meal) out.act.meal = a.meal
   if (s.boat) out.boat = { dir: s.boat.dir, t: r2(s.boat.t) }
   if (s.tool) out.tool = s.tool
+  if (s.hp !== undefined) out.hp = Math.round(s.hp)
+  if (s.sleep) out.sleep = true
   return out
+}
+
+/** 보내기 전 사격 (총구 소수 둘째, 방향 소수 셋째 자리. 은지 그대로) */
+export function roundShot(o: Vec3, d: Vec3): { o: Vec3; d: Vec3 } {
+  const r3d = (n: number) => Math.round(n * 1000) / 1000 + 0
+  return { o: r3(o), d: [r3d(d[0]), r3d(d[1]), r3d(d[2])] }
+}
+
+/** 모습에 싣는 체력: NET.hpStep 단위로 올린다 (회복 중에도 1 마다 모습을 다시 보내지 않게. 조금이라도 남으면 0 이 아니다) */
+export function netHp(stamina: number): number {
+  return Math.min(100, Math.max(0, Math.ceil(stamina / NET.hpStep) * NET.hpStep))
 }
 
 /** "바뀐 게 있나" 비교용 열쇠. 저절로 늘어나는 나이(몇 초 전)는 빼고 무엇을 하는지만 넣는다 */
 export function stateKey(s: NetState): string {
-  return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.meal ?? null, s.act.airAge !== null, s.boat?.dir ?? null, s.tool ?? null])
+  return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.meal ?? null, s.act.airAge !== null, s.boat?.dir ?? null, s.tool ?? null, s.hp ?? null, s.sleep ?? false])
 }
 
 /**
  * 내 모습을 지금 보낼까. since: 지난번 보낸 뒤 초, changed: stateKey 가 바뀌었나.
  * 바뀌었으면 초당 최대 NET.sendHz 번, 그대로면 NET.idleSendEvery 초마다. 단 들판 근처(nearAnimalField)면 그대로여도 NET.sendHz 로:
- * 서버는 alarm 없이 이 메시지에 맞춰 동물을 움직인다 (창이 뒤에 있으면 그리지 않아 보내지도 않는다)
+ * 서버는 alarm 없이 이 메시지에 맞춰 동물을 움직인다 (창이 뒤에 있으면 그리지 않아 보내지도 않는다).
+ * toolChanged: 든 도구가 바뀌었다. 서버 state 창(초당 NET.serverStatePerSecond)이 허락하는 만큼만 지나면 바로 보낸다
+ * (서버가 명중을 마지막 모습의 도구로 보므로, 바꾸고 바로 휘두른 명중이 옛 도구로 버려지지 않게)
  */
-export function stateSendDue(s: NetState, changed: boolean, since: number): boolean {
+export function stateSendDue(s: NetState, changed: boolean, since: number, toolChanged = false): boolean {
   if (since >= NET.idleSendEvery) return true
+  if (toolChanged && since >= 1 / NET.serverStatePerSecond) return true
   if (since < 1 / NET.sendHz) return false
   return changed || nearAnimalField(s.p[0], s.p[2])
 }

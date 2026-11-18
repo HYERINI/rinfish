@@ -5,6 +5,7 @@ import type { ClientMsg, NetState, ServerMsg } from '../logic/netProtocol'
 import type { ConnStatus, Connector } from '../net/connection'
 import { remoteRig, selfBubble } from '../net/remoteRig'
 import { animalViews, lootList, resetAnimalRig, setHurtHandler } from '../hunt/animalRig'
+import { setShotHandler } from '../guns/gunNet'
 import { liveClock, useDayStore } from './dayStore'
 import { useNetStore } from './netStore'
 import { useProgressStore } from './progressStore'
@@ -289,7 +290,7 @@ describe('들판 동물 메시지 (3-3)', () => {
     const hurt = vi.fn()
     setHurtHandler(hurt)
     push({ type: 'hurt', dmg: 15, by: 'animal' })
-    expect(hurt).toHaveBeenCalledWith(15)
+    expect(hurt).toHaveBeenCalledWith(15, undefined)
     useNetStore.getState().leave()
     expect(animalViews(true, performance.now() / 1000 + 1)).toEqual([])
   })
@@ -300,5 +301,53 @@ describe('들판 동물 메시지 (3-3)', () => {
     push({ type: 'welcome', you: 'me', players: [] })
     useNetStore.getState().sendAnimalHit(3, 2, 'stab')
     expect(sent.at(-1)).toEqual({ type: 'animalHit', id: 3, dmg: 2, w: 'stab' })
+  })
+})
+
+describe('PvP·사격 메시지 (3-4)', () => {
+  it('맞힌 것·쏜 것·쓰러짐은 같이 하는 중에만 보낸다 (사격은 소수 둘째·셋째 자리)', async () => {
+    useNetStore.getState().sendPvpHit('p1', 'pistol', 1)
+    useNetStore.getState().sendShot([1, 2, 3], [1, 0, 0], 'pistol')
+    useNetStore.getState().sendDied('p1')
+    expect(sent).toEqual([])
+    await join()
+    push({ type: 'welcome', you: 'me', players: [] })
+    useNetStore.getState().sendPvpHit('p1', 'shotgun', 5)
+    useNetStore.getState().sendShot([180.1234, 1.5, -40], [0.70712, 0, -0.70712], 'rifle')
+    useNetStore.getState().sendDied('p1')
+    useNetStore.getState().sendDied()
+    useNetStore.getState().sendAnimalHit(4, 3, 'shotgun', 3)
+    useNetStore.getState().sendPvpHit('p2', 'shotgun', 3, 77)
+    useNetStore.getState().sendAnimalHit(5, 2, 'shotgun', 2, 77)
+    expect(sent.slice(-7)).toEqual([
+      { type: 'pvpHit', target: 'p1', weapon: 'shotgun', n: 5 },
+      { type: 'shot', o: [180.12, 1.5, -40], d: [0.707, 0, -0.707], w: 'rifle' },
+      { type: 'died', by: 'p1' },
+      { type: 'died' },
+      { type: 'animalHit', id: 4, dmg: 3, w: 'shotgun', n: 3 },
+      // 한 발 번호: 산탄총 한 발이 여럿을 맞히면 같은 번호로 (서버가 모두 받는다)
+      { type: 'pvpHit', target: 'p2', weapon: 'shotgun', n: 3, shot: 77 },
+      { type: 'animalHit', id: 5, dmg: 2, w: 'shotgun', n: 2, shot: 77 },
+    ])
+  })
+  it('PvP hurt 는 쏜 사람과 함께 처리기로, shot 은 방에 있는 사람 것만 그리고, kill 은 채팅 기록·알림으로', async () => {
+    await join()
+    push({ type: 'welcome', you: 'me', players: [{ id: 'p1', nick: '정빈', look: DEFAULT_LOOK, s: st }] })
+    const hurt = vi.fn()
+    setHurtHandler(hurt)
+    push({ type: 'hurt', dmg: 20, by: 'pvp', from: 'p1' })
+    expect(hurt).toHaveBeenCalledWith(20, 'p1')
+    const shot = vi.fn()
+    setShotHandler(shot)
+    push({ type: 'shot', id: 'p1', o: [1, 2, 3], d: [1, 0, 0], w: 'sniper' })
+    push({ type: 'shot', id: 'ghost', o: [1, 2, 3], d: [1, 0, 0], w: 'sniper' })
+    expect(shot).toHaveBeenCalledTimes(1)
+    expect(shot).toHaveBeenCalledWith([1, 2, 3], [1, 0, 0], 'sniper')
+    push({ type: 'kill', victim: 'me', killer: 'p1' })
+    expect(useNetStore.getState().chat.at(-1)).toMatchObject({ from: '💀', text: '정빈 님이 혜린 님을 쓰러뜨렸어요' })
+    push({ type: 'kill', victim: 'p1' })
+    expect(useNetStore.getState().chat.at(-1)?.text).toBe('정빈 님이 쓰러졌어요')
+    expect(notice()).toBe('💀 정빈 님이 쓰러졌어요')
+    setShotHandler(() => {})
   })
 })
