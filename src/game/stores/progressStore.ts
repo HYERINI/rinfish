@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { TANK_LEVELS, TANK_TYPES } from '../data/aquarium'
-import { AQUARIUM, STAMINA } from '../data/balance'
+import { AQUARIUM, HUNGER, STAMINA } from '../data/balance'
 import { BAIT_IDS, type BaitId } from '../data/bait'
 import { SNACK_IDS, type SnackId } from '../data/snacks'
 import { getDish } from '../data/dishes'
@@ -30,7 +30,9 @@ import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
 import { migrateSave } from '../logic/saveMigration'
 import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
-import { FRESH_SURVIVAL, faintPenalty, spendStamina, tickSurvival, type Survival, type SurvivalTickContext } from '../logic/stamina'
+import { FIRST_MORNING, readClock, type Clock } from '../logic/dayClock'
+import { FRESH_SURVIVAL, faintPenalty, spendStamina, type Survival } from '../logic/stamina'
+import { afterDeath, afterSleep, tickSurvival, type SurvivalTickContext } from '../logic/survival'
 
 export const SAVE_KEY = 'fishing-island-save-v1'
 
@@ -47,7 +49,7 @@ type ProgressData = {
   dex: Record<string, DexEntry>
   /** 누적 플레이 시간(초) */
   playTime: number
-  /** 체력, 약화 유예 시간, 요리 버프 */
+  /** 체력, 배고픔, 약화 유예 시간, 요리 버프 */
   survival: Survival
   /** 보유 사료 개수 */
   feed: number
@@ -60,10 +62,13 @@ type ProgressData = {
   unlockedZones: ZoneId[]
   /** 가방 속 간식 개수 */
   snacks: SnackCounts
+  /** 혼자 할 때 시계 (다시 들어오면 이어서). 같이 하는 동안엔 방 시계를 따르고 이 값은 건드리지 않는다 */
+  clock: Clock
 }
 
 
-export type TickEvents = { fainted: boolean; aquarium: AquariumEvent[] }
+/** fainted: 지쳐 쓰러짐 (진료소), died: 굶어 죽음 (침대 — 깨우는 건 dayActions 가 화면이 어두워진 뒤 reviveAtBed 로) */
+export type TickEvents = { fainted: boolean; died: boolean; aquarium: AquariumEvent[] }
 
 type ProgressActions = {
   addPlayTime: (seconds: number) => void
@@ -73,8 +78,12 @@ type ProgressActions = {
   buyGear: (slot: GearSlot) => boolean
   resetProgress: () => void
   spendCastStamina: () => void
-  /** 1초 안팎마다 호출. 플레이 시간·체력·어항 시간을 함께 진행하고 생긴 일을 돌려준다 */
-  tick: (seconds: number, ctx: SurvivalTickContext) => TickEvents
+  /** 1초 안팎마다 호출. 플레이 시간·체력·배고픔·어항 시간을 함께 진행하고 생긴 일을 돌려준다. clock: 혼자 할 때 지금 시계 (같이 하는 중이면 null) */
+  tick: (seconds: number, ctx: SurvivalTickContext, clock?: Clock | null) => TickEvents
+  /** 자고 일어났다: 체력 가득, 배고픔 −15. clock 이 있으면(혼자) 그 시계로 */
+  sleepWell: (clock: Clock | null) => void
+  /** 죽었다 침대에서 깨어났다: 체력 가득, 배고픔 60. 가방·코인·물고기는 그대로. clock 이 있으면(혼자) 그 시계로 */
+  reviveAtBed: (clock: Clock | null) => void
   /** 물고기(한 마리 또는 여러 마리)로 요리해 먹는다. 재료가 안 맞거나 코인이 모자라면 false */
   cookDish: (dishId: DishId, fishIds: string | string[]) => boolean
   displayFish: (fishId: string) => boolean
@@ -118,6 +127,7 @@ export const INITIAL_PROGRESS: ProgressData = {
   selectedBait: null,
   unlockedZones: [],
   snacks: NO_SNACKS,
+  clock: FIRST_MORNING,
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -184,9 +194,10 @@ function isValidBuff(v: unknown): v is Buff {
 function readSurvival(v: unknown, fallback: Survival): Survival {
   if (!isRecord(v)) return fallback
   const stamina = isFiniteNumber(v.stamina) && v.stamina >= 0 && v.stamina <= STAMINA.max ? v.stamina : fallback.stamina
+  const hunger = isFiniteNumber(v.hunger) && v.hunger >= 0 && v.hunger <= HUNGER.max ? v.hunger : fallback.hunger
   const graceLeft = isFiniteNumber(v.graceLeft) && v.graceLeft > 0 ? v.graceLeft : null
   const buffs = Array.isArray(v.buffs) ? v.buffs.filter(isValidBuff) : fallback.buffs
-  return { stamina, graceLeft, buffs }
+  return { stamina, hunger, graceLeft, buffs }
 }
 
 function readAquarium(v: unknown, fallback: AquariumState): AquariumState {
@@ -286,25 +297,31 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
 
       spendCastStamina: () => set((s) => ({ survival: spendStamina(s.survival, STAMINA.castCost) })),
 
-      tick: (seconds, ctx) => {
+      tick: (seconds, ctx, clock = null) => {
         const s = get()
         const playTime = s.playTime + seconds
         const survivalTick = tickSurvival(s.survival, seconds, ctx)
         const aquariumTick = tickAquarium(s.aquarium, playTime, seconds)
+        const time = clock ? { clock } : {}
         if (survivalTick.fainted) {
-          // 쓰러짐: 팔지 않은 물고기를 잃고 진료비를 낸다. 어항·장비·도감은 그대로
+          // 쓰러짐: 팔지 않은 물고기를 잃고 진료비를 낸다. 어항·장비·도감·배고픔은 그대로
           set({
+            ...time,
             playTime,
             aquarium: aquariumTick.aquarium,
-            survival: FRESH_SURVIVAL,
+            survival: { ...FRESH_SURVIVAL, hunger: survivalTick.survival.hunger },
             inventory: [],
             coins: s.coins - faintPenalty(s.coins),
           })
         } else {
-          set({ playTime, aquarium: aquariumTick.aquarium, survival: survivalTick.survival })
+          set({ ...time, playTime, aquarium: aquariumTick.aquarium, survival: survivalTick.survival })
         }
-        return { fainted: survivalTick.fainted, aquarium: aquariumTick.events }
+        return { fainted: survivalTick.fainted, died: survivalTick.died, aquarium: aquariumTick.events }
       },
+
+      sleepWell: (clock) => set((s) => ({ survival: afterSleep(s.survival), ...(clock ? { clock } : {}) })),
+
+      reviveAtBed: (clock) => set({ survival: afterDeath(), ...(clock ? { clock } : {}) }),
 
       cookDish: (dishId, fishIds) => {
         const s = get()
@@ -434,8 +451,8 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
     }),
     {
       name: SAVE_KEY,
-      // 2: 장비·어항이 5단계 → 10단계
-      version: 2,
+      // 2: 장비·어항이 5단계 → 10단계. 3: 배고픔(survival.hunger)·혼자 시계(clock) 추가 (필드만 늘어 옮길 것 없다)
+      version: 3,
       migrate: (persisted, version) => migrateSave(persisted, version) as ProgressData & ProgressActions,
       storage: createJSONStorage(() => localStorage),
       // 저장본의 각 필드를 검증해서, 틀린 값은 기본값을 쓰고 지금은 없는 물고기는 버린다
@@ -456,6 +473,7 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           selectedBait: readSelectedBait(saved.selectedBait),
           unlockedZones: readUnlockedZones(saved.unlockedZones),
           snacks: readSnacks(saved.snacks, current.snacks),
+          clock: readClock(saved.clock) ?? current.clock,
         }
       },
     },

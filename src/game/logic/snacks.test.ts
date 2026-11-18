@@ -15,6 +15,18 @@ describe('간식', () => {
     ])
   })
 
+  it('배고픔: 김밥 +30, 컵라면 +50, 에너지 음료 +10 (최대 100)', () => {
+    expect(SNACKS.map((s) => [s.id, s.hunger])).toEqual([
+      ['gimbap', 30],
+      ['ramen', 50],
+      ['energy', 10],
+    ])
+    const r = buyAndEatSnack(30, NO_SNACKS, { ...tired, hunger: 20 }, 'ramen')
+    if (r.ok) expect(r.survival.hunger).toBe(70)
+    const full = eatSnackFromBag(0, { ...NO_SNACKS, gimbap: 1 }, { ...tired, hunger: 90 }, 'gimbap')
+    if (full.ok) expect(full.survival.hunger).toBe(100)
+  })
+
   it('사서 바로 먹으면 코인을 내고 체력이 오른다 (최대치를 넘지 않는다)', () => {
     const r = buyAndEatSnack(30, NO_SNACKS, tired, 'ramen')
     expect(r).toMatchObject({ ok: true, coins: 10, snacks: NO_SNACKS })

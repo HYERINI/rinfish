@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest'
-import { AQUARIUM, STAMINA } from '../data/balance'
+import { AQUARIUM, HUNGER, STAMINA } from '../data/balance'
 import { DEFAULT_LOOK, LOOK_PRESETS } from '../data/characterParts'
 import { EMPTY_AQUARIUM } from '../logic/aquarium'
+import { FIRST_MORNING } from '../logic/dayClock'
 import { INITIAL_PROGRESS, SAVE_KEY, useProgressStore } from './progressStore'
 
 const store = () => useProgressStore.getState()
@@ -114,7 +115,7 @@ describe('progressStore', () => {
 
   it('요리하면 물고기 1마리와 조리비를 쓰고 체력이 오른다', () => {
     const fish = store().addCatch('sleepy-sardine', 0.2)
-    useProgressStore.setState({ coins: 10, survival: { stamina: 30, graceLeft: null, buffs: [] } })
+    useProgressStore.setState({ coins: 10, survival: { stamina: 30, hunger: 100, graceLeft: null, buffs: [] } })
     expect(store().cookDish('sashimi', fish.id)).toBe(true)
     expect(store().coins).toBe(5)
     expect(store().survival.stamina).toBe(50)
@@ -137,13 +138,14 @@ describe('progressStore', () => {
     const displayed = store().addCatch('pirate-tuna', 20)
     store().displayFish(displayed.id)
     store().addCatch('sleepy-sardine', 0.2)
-    useProgressStore.setState({ coins: 9, survival: { stamina: 0, graceLeft: 0.5, buffs: [] } })
+    useProgressStore.setState({ coins: 9, survival: { stamina: 0, hunger: 50, graceLeft: 0.5, buffs: [] } })
     const events = store().tick(1, { fighting: false, resting: false })
     expect(events.fainted).toBe(true)
     expect(store().coins).toBe(8)
     expect(store().inventory).toEqual([])
     expect(store().aquarium.displayed.map((f) => f.id)).toEqual([displayed.id])
     expect(store().survival.stamina).toBe(STAMINA.max)
+    expect(store().survival.hunger).toBeCloseTo(50 - HUNGER.perSecond)
   })
 
   it('tick은 플레이 시간을 늘리고 어항 입장료를 쌓는다', () => {
@@ -231,7 +233,7 @@ describe('progressStore', () => {
     )
     await useProgressStore.persist.rehydrate()
     expect(store().feed).toBe(0)
-    expect(store().survival).toEqual({ stamina: STAMINA.max, graceLeft: null, buffs: [{ kind: 'reel', mul: 1.3, remaining: 10 }] })
+    expect(store().survival).toEqual({ stamina: STAMINA.max, hunger: 100, graceLeft: null, buffs: [{ kind: 'reel', mul: 1.3, remaining: 10 }] })
     expect(store().aquarium).toEqual({
       level: 0,
       ownedTypes: ['basic', 'sea'],
@@ -315,7 +317,7 @@ describe('progressStore', () => {
   })
 
   it('간식은 사서 바로 먹거나 가방에 넣었다가 꺼내 먹는다', () => {
-    useProgressStore.setState({ coins: 60, survival: { stamina: 10, graceLeft: null, buffs: [] } })
+    useProgressStore.setState({ coins: 60, survival: { stamina: 10, hunger: 100, graceLeft: null, buffs: [] } })
     expect(store().buyAndEatSnack('gimbap')).toBe(true)
     expect(store().coins).toBe(50)
     expect(store().survival.stamina).toBe(35)
@@ -337,7 +339,7 @@ describe('progressStore', () => {
   })
 
   it('찜: 매콤 해물찜은 두 마리, 대왕찜은 희귀 이상, 물고기찜은 일반만', () => {
-    useProgressStore.setState({ coins: 200, survival: { stamina: 10, graceLeft: null, buffs: [] } })
+    useProgressStore.setState({ coins: 200, survival: { stamina: 10, hunger: 100, graceLeft: null, buffs: [] } })
     const a = store().addCatch('sleepy-sardine', 0.2)
     const b = store().addCatch('chatty-mackerel', 0.4)
     const rare = store().addCatch('sunglasses-mackerel', 1)
@@ -350,5 +352,53 @@ describe('progressStore', () => {
     expect(store().coins).toBe(175)
     expect(store().cookDish('bossSteam', rare.id)).toBe(true)
     expect(store().inventory).toEqual([])
+  })
+  it('배고픔 0 인 채로 체력이 다 떨어지면 died (가방·코인·물고기는 그대로, 깨우는 건 reviveAtBed)', () => {
+    store().addCatch('sleepy-sardine', 0.2)
+    useProgressStore.setState({ coins: 50, survival: { stamina: 1, hunger: 0, graceLeft: null, buffs: [] } })
+    const events = store().tick(1, { fighting: false, resting: false })
+    expect(events).toMatchObject({ fainted: false, died: true })
+    expect(store().coins).toBe(50)
+    expect(store().inventory).toHaveLength(1)
+    store().reviveAtBed({ t: 0, day: 4 })
+    expect(store().survival).toEqual({ stamina: STAMINA.max, hunger: 60, graceLeft: null, buffs: [] })
+    expect(store().clock).toEqual({ t: 0, day: 4 })
+    expect(store().inventory).toHaveLength(1)
+  })
+
+  it('같이 하는 중(시계 null)엔 저장된 혼자 시계를 건드리지 않는다', () => {
+    useProgressStore.setState({ clock: { t: 0.3, day: 2 } })
+    store().tick(1, { fighting: false, resting: false }, null)
+    store().reviveAtBed(null)
+    store().sleepWell(null)
+    expect(store().clock).toEqual({ t: 0.3, day: 2 })
+    store().tick(1, { fighting: false, resting: false }, { t: 0.4, day: 2 })
+    expect(store().clock).toEqual({ t: 0.4, day: 2 })
+  })
+
+  it('자고 나면 체력 가득, 배고픔 −15 (최소 10), 혼자면 시계도', () => {
+    useProgressStore.setState({ survival: { stamina: 20, hunger: 50, graceLeft: null, buffs: [] } })
+    store().sleepWell({ t: 0, day: 3 })
+    expect(store().survival).toMatchObject({ stamina: STAMINA.max, hunger: 35 })
+    expect(store().clock).toEqual({ t: 0, day: 3 })
+  })
+
+  it('배고픔·시계가 없는 예전 저장본(version 2)은 배고픔 100, 1일차 06:00 로 연다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 4, survival: { stamina: 40, graceLeft: null, buffs: [] } }, version: 2 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().coins).toBe(4)
+    expect(store().survival).toEqual({ stamina: 40, hunger: 100, graceLeft: null, buffs: [] })
+    expect(store().clock).toEqual(FIRST_MORNING)
+  })
+
+  it('깨진 배고픔·시계는 기본값으로, 맞는 값은 살린다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { survival: { stamina: 40, hunger: 130 }, clock: { t: 1.5, day: 3 } }, version: 3 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().survival.hunger).toBe(100)
+    expect(store().clock).toEqual(FIRST_MORNING)
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { survival: { stamina: 40, hunger: 12.5 }, clock: { t: 0.6, day: 9 } }, version: 3 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().survival.hunger).toBe(12.5)
+    expect(store().clock).toEqual({ t: 0.6, day: 9 })
   })
 })

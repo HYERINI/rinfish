@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Color, PlaneGeometry, ShaderMaterial, Vector2, Vector3 } from 'three'
-import { MEADOW_RECT, SKY_DAY } from '../data/meadow'
+import { Color, PlaneGeometry, ShaderMaterial, Vector2 } from 'three'
+import { MEADOW_RECT } from '../data/meadow'
 import { ISLAND_RADIUS, WATER_Y } from '../data/zones'
 import { WAVES } from '../logic/waves'
+import { skyNow } from './skyNow'
 
 /** 바다 판: 섬(원점)과 초원(x 90..290)을 다 덮는다 (x -90..360, z -180..160). 격자 한 칸 1.5m */
 const SEA = { width: 450, depth: 340, centerX: 135, centerZ: -10, segX: 300, segZ: 230 }
@@ -133,10 +134,10 @@ export function Ocean() {
           uTime: { value: 0 },
           uDeep: { value: new Color('#0b5ea8') },
           uShallow: { value: new Color('#36c9cf') },
-          uSky: { value: new Color(SKY_DAY) },
+          // 하늘과 해 방향은 낮과 밤을 따라 MeadowLighting 이 고치는 객체를 그대로 쓴다
+          uSky: { value: skyNow.sea },
           uFoam: { value: new Color('#ffffff') },
-          // 은지 해(정오): 은지 좌표 (0, 18, 6) → 180° 돌려 세계 (0, 18, -6)
-          uSunDir: { value: new Vector3(0, 18, -6).normalize() },
+          uSunDir: { value: skyNow.sunDir },
           uShore: { value: ISLAND_RADIUS },
           uMeadowCenter: { value: new Vector2((MEADOW_RECT.x0 + MEADOW_RECT.x1) / 2, (MEADOW_RECT.z0 + MEADOW_RECT.z1) / 2) },
           uMeadowHalf: { value: new Vector2((MEADOW_RECT.x1 - MEADOW_RECT.x0) / 2, (MEADOW_RECT.z1 - MEADOW_RECT.z0) / 2) },

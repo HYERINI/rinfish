@@ -47,7 +47,7 @@ export function GoalTracker() {
 
 /** 좁은 화면: 코인·체력 줄과 위쪽 버튼 줄 아래, 화면 폭에 맞춰 */
 const narrowPlace = {
-  top: safeTop(78),
+  top: safeTop(102),
   width: 'min(400px, calc(100vw - 32px))',
   minWidth: 0,
 }

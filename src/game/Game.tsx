@@ -11,6 +11,7 @@ import { useQualityPreset, useTouchUiTracking } from './input/touchDevice'
 import { usePointerLock } from './input/pointerLock'
 import { useBackgroundMusic } from './audio/backgroundMusic'
 import { World } from './scene/World'
+import { useDayStore } from './stores/dayStore'
 import { useFishingStore } from './stores/fishingStore'
 import { useProgressStore } from './stores/progressStore'
 import { usePlaceStore } from './stores/placeStore'
@@ -25,6 +26,7 @@ import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
 import { LoadingScreen } from './ui/LoadingScreen'
+import { SleepOverlay } from './ui/SleepOverlay'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
 import { Panels } from './ui/Panels'
 import { TouchControls } from './ui/TouchControls'
@@ -77,6 +79,8 @@ export function Game({ onExit, hub }: GameProps) {
   useEffect(() => {
     useSessionStore.getState().resetSession()
     useFishingStore.getState().end()
+    // 시계는 저장된 혼자 시계에서 (같이 하면 welcome 에서 방 시계로 바꾼다)
+    useDayStore.getState().reset()
     // 아직 캐릭터를 만들지 않았으면 꾸미기 화면부터
     if (!useProgressStore.getState().look) useSessionStore.getState().setMode('wardrobe')
     else {
@@ -123,6 +127,7 @@ export function Game({ onExit, hub }: GameProps) {
           })
         }
       />
+      <SleepOverlay />
       <NoticeLayer />
       <LoadingScreen />
     </div>

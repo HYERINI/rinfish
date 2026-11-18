@@ -1,15 +1,18 @@
 import { useEffect, useState, type CSSProperties } from 'react'
-import { STAMINA } from '../data/balance'
+import { HUNGER, STAMINA } from '../data/balance'
 import { BUFF_LABEL, getDish } from '../data/dishes'
 import { MARKET } from '../data/market'
 import { SNACKS } from '../data/snacks'
 import { pressEat } from '../input/usePlayerActionKeys'
 import { finishCooking } from '../scene/cooking/finishCooking'
+import { isStarving } from '../logic/survival'
+import { useDayStore } from '../stores/dayStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { canUseMouseLook, usePointerLockStore } from '../input/pointerLock'
 import { useTouchUi } from '../input/touchDevice'
+import { useNarrow } from './useNarrow'
 import { interactLabel } from './interactLabel'
 import { ItemIcon } from './ItemIcon'
 import { button, hint, overlayLayer, safeLeft, safeRight, safeTop, touchHint } from './styles'
@@ -27,29 +30,47 @@ const NOTICE_MS = 4000
 export function Hud() {
   const coins = useProgressStore((s) => s.coins)
   const survival = useProgressStore((s) => s.survival)
+  const clock = useDayStore((s) => s.clockText)
   const mode = useSessionStore((s) => s.mode)
   const nearby = useSessionStore((s) => s.nearby)
   const setMode = useSessionStore((s) => s.setMode)
   const locked = usePointerLockStore((s) => s.locked)
   const touchUi = useTouchUi()
+  // 좁은 화면: 위쪽 버튼 줄이 코인 옆까지 와서(아래 끝 50px) 시계를 그 아래로 내린다. 목표 안내는 102px 아래부터
+  const narrow = useNarrow() || touchUi
   // 터치 화면을 쓰는 중이면 마우스 안내는 숨긴다 (터치 화면 노트북 등)
   const mouseLook = canUseMouseLook() && !touchUi
   const cutscene = useSessionStore((s) => s.cutscene)
   const cooking = useSessionStore((s) => s.cooking)
 
   const ratio = survival.stamina / STAMINA.max
+  const hungerRatio = survival.hunger / HUNGER.max
   return (
     <div style={overlayLayer}>
       <div style={{ position: 'absolute', top: safeTop(16), left: safeLeft(16), fontSize: 18, width: 'min(200px, 42vw)', display: mode === 'cutscene' ? 'none' : undefined }}>
-        <strong>코인 {coins}</strong>
-        <div style={{ fontSize: 13, marginTop: 6 }}>
-          체력 {Math.ceil(survival.stamina)} <span style={{ fontSize: 11, opacity: 0.75 }}>· 음식·벤치로 회복</span>
+        <div style={narrow ? undefined : { display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', columnGap: 10 }}>
+          <strong>코인 {coins}</strong>
+          <span style={{ fontSize: 14, whiteSpace: 'nowrap', display: narrow ? 'block' : undefined, marginTop: narrow ? 14 : undefined, lineHeight: narrow ? '18px' : undefined }}>{clock}</span>
         </div>
-        <div style={{ height: 8, background: '#333', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
-          <div style={{ width: `${ratio * 100}%`, height: '100%', background: ratio < 0.25 ? '#ef5350' : '#66bb6a' }} />
+        <div style={narrow ? { display: 'flex', gap: 8, marginTop: 4 } : undefined}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: narrow ? 12 : 13, marginTop: narrow ? 0 : 6, whiteSpace: 'nowrap' }}>
+              체력 {Math.ceil(survival.stamina)} {!narrow && <span style={{ fontSize: 11, opacity: 0.75 }}>· 음식·벤치로 회복</span>}
+            </div>
+            <div style={{ height: narrow ? 6 : 8, background: '#333', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
+              <div style={{ width: `${ratio * 100}%`, height: '100%', background: ratio < 0.25 ? '#ef5350' : '#66bb6a' }} />
+            </div>
+          </div>
+          <div style={{ flex: narrow ? 1 : undefined, minWidth: 0 }}>
+            <div style={{ fontSize: narrow ? 12 : 13, marginTop: narrow ? 0 : 4, whiteSpace: 'nowrap' }}>배고픔 {Math.ceil(survival.hunger)}</div>
+            <div style={{ height: 6, background: '#333', borderRadius: 3, overflow: 'hidden', marginTop: 2 }}>
+              <div style={{ width: `${hungerRatio * 100}%`, height: '100%', background: hungerRatio < 0.25 ? '#ef5350' : '#ffb74d' }} />
+            </div>
+          </div>
         </div>
-        {survival.stamina < STAMINA.lowHint && (
-          <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>배고파요! {MARKET.name}에서 음식을 사 먹거나 벤치에서 쉬세요</div>
+        {/* 굶을 때 경고는 WeaknessOverlay 가 화면 가운데에 띄운다 */}
+        {survival.stamina < STAMINA.lowHint && !isStarving(survival) && (
+          <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>지쳤어요! {MARKET.name}에서 음식을 사 먹거나 벤치에서 쉬세요</div>
         )}
         {mode === 'explore' && <SnackBag />}
         {survival.buffs.map((b) => (

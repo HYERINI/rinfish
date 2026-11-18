@@ -168,7 +168,7 @@ export function MiniMap() {
   }, [big])
 
   if (mode === 'cutscene' || mode === 'lobby' || mode === 'aquariumView' || mode === 'wardrobe') return null
-  const box: CSSProperties = { position: 'absolute', top: safeTop(narrow ? 164 : 140), right: safeRight(16), width: size, height: size, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)', overflow: 'hidden', cursor: 'pointer', pointerEvents: 'auto', zIndex: 1000 }
+  const box: CSSProperties = { position: 'absolute', top: safeTop(narrow ? 188 : 140), right: safeRight(16), width: size, height: size, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)', overflow: 'hidden', cursor: 'pointer', pointerEvents: 'auto', zIndex: 1000 }
   return (
     <>
       <canvas ref={mini} width={size * 2} height={size * 2} style={box} onClick={openMap} aria-label="미니맵 (누르면 큰 지도)" />

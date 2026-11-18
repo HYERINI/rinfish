@@ -23,6 +23,14 @@ describe('isSameInteractable', () => {
 })
 
 describe('resolveKeyAction', () => {
+  it('침대에서 E 로 잠자기', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'bed' })).toEqual({ type: 'sleep' })
+  })
+  it('누워 있는 동안(sleep) E·ESC 는 일어나기, 그 밖의 키는 무시 (메뉴를 열지 않는다)', () => {
+    expect(resolveKeyAction('KeyE', 'sleep', { kind: 'bed' })).toEqual({ type: 'wake' })
+    expect(resolveKeyAction('Escape', 'sleep', null)).toEqual({ type: 'wake' })
+    for (const code of ['Digit1', 'Space', 'KeyM']) expect(resolveKeyAction(code, 'sleep', { kind: 'bed' })).toEqual({ type: 'none' })
+  })
   it('선착장에서 E 로 배를 탄다', () => {
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'dock', dir: 'toIsland' })).toEqual({ type: 'boardBoat', dir: 'toIsland' })
   })

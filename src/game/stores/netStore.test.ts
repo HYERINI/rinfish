@@ -4,7 +4,9 @@ import { DEFAULT_LOOK } from '../data/characterParts'
 import type { ClientMsg, NetState, ServerMsg } from '../logic/netProtocol'
 import type { ConnStatus, Connector } from '../net/connection'
 import { remoteRig, selfBubble } from '../net/remoteRig'
+import { liveClock, useDayStore } from './dayStore'
 import { useNetStore } from './netStore'
+import { useProgressStore } from './progressStore'
 import { useSessionStore } from './sessionStore'
 
 const st: NetState = { p: [1, 1, 1], f: 0, v: 0, rest: false, fish: null, rod: 0.5, rodOn: true, bob: null, act: { emote: null, emoteAge: 30, airAge: null, landedAge: 30, eat: null, eatAge: 30 } }
@@ -229,5 +231,45 @@ describe('netStore', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect(connects).toBe(1)
     expect(useNetStore.getState().error).toBe('no-room')
+  })
+  it('방 시계: welcome 의 시각을 따르고, time·morning 으로 맞추고, 나가면 혼자 시계로', async () => {
+    useProgressStore.setState({ clock: { t: 0.25, day: 3 } })
+    useDayStore.getState().reset()
+    await join()
+    push({ type: 'welcome', you: 'me', players: [], time: { tm: 240, day: 2 } })
+    expect(useDayStore.getState().roomClock).toBe(true)
+    expect(liveClock.day).toBe(2)
+    expect(liveClock.t).toBeCloseTo(0.5)
+    push({ type: 'time', tm: 120, day: 6 })
+    expect(liveClock.day).toBe(6)
+    push({ type: 'sleepers', n: 1, need: 2 })
+    expect(useDayStore.getState().sleepers).toEqual({ n: 1, need: 2 })
+    push({ type: 'morning', day: 7 })
+    expect(liveClock).toEqual({ t: 0, day: 7 })
+    useNetStore.getState().leave()
+    expect(useDayStore.getState().roomClock).toBe(false)
+    expect(liveClock).toEqual({ t: 0.25, day: 3 })
+  })
+
+  it('자는 중에 아침이 오면 sleep false 를 보낸다 (아침 뒤에 닿은 sleep true 가 서버에 남지 않게). 안 자던 사람은 보내지 않는다', async () => {
+    useDayStore.getState().reset()
+    await join()
+    push({ type: 'welcome', you: 'me', players: [], time: { tm: 400, day: 1 } })
+    push({ type: 'morning', day: 2 })
+    expect(sent).toEqual([])
+    useDayStore.getState().setVoting(true)
+    push({ type: 'morning', day: 3 })
+    expect(sent).toEqual([{ type: 'sleep', on: false }])
+    expect(useDayStore.getState().voting).toBe(false)
+  })
+
+  it('잠 투표는 같이 하는 중에만 보낸다', async () => {
+    useNetStore.getState().sendSleep(true)
+    expect(sent).toEqual([])
+    await join()
+    push({ type: 'welcome', you: 'me', players: [] })
+    useNetStore.getState().sendSleep(true)
+    useNetStore.getState().sendSleep(false)
+    expect(sent).toEqual([{ type: 'sleep', on: true }, { type: 'sleep', on: false }])
   })
 })

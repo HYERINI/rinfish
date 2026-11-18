@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { isCookingSkipKey, resolveKeyAction } from '../logic/interaction'
 import { finishCooking } from '../scene/cooking/finishCooking'
+import { startSleep, wake } from '../scene/day/dayActions'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
@@ -54,6 +55,12 @@ export function runKeyAction(code: string) {
       break
     case 'boardBoat':
       session.startBoat(action.dir)
+      break
+    case 'sleep':
+      startSleep()
+      break
+    case 'wake':
+      wake()
       break
     case 'none':
       break

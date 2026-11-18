@@ -59,4 +59,10 @@ describe('배경 음악', () => {
     expect(musicTrackFor('explore')).toBe('island')
     expect(musicTrackFor('aquarium')).toBe('island')
   })
+
+  it('밤엔 어디서든 조용한 곡', () => {
+    expect(musicTrackFor('explore', true)).toBe('calm')
+    expect(musicTrackFor('fishing', true)).toBe('calm')
+    expect(musicTrackFor('explore', false)).toBe('island')
+  })
 })

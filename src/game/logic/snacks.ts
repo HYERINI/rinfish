@@ -1,5 +1,6 @@
 import { SNACK_IDS, getSnack, type SnackId } from '../data/snacks'
-import { healStamina, type Survival } from './stamina'
+import type { Survival } from './stamina'
+import { eatFood } from './survival'
 
 /** 간식별 가방 속 개수 */
 export type SnackCounts = Record<SnackId, number>
@@ -22,11 +23,12 @@ export type SnackEatResult = { ok: true; coins: number; snacks: SnackCounts; sur
 export function buyAndEatSnack(coins: number, snacks: SnackCounts, survival: Survival, id: SnackId): SnackEatResult {
   const snack = getSnack(id)
   if (coins < snack.price) return { ok: false, reason: 'coins' }
-  return { ok: true, coins: coins - snack.price, snacks, survival: healStamina(survival, snack.heal) }
+  return { ok: true, coins: coins - snack.price, snacks, survival: eatFood(survival, snack.heal, snack.hunger) }
 }
 
 /** 가방에서 하나 꺼내 먹는다 */
 export function eatSnackFromBag(coins: number, snacks: SnackCounts, survival: Survival, id: SnackId): SnackEatResult {
   if (snacks[id] <= 0) return { ok: false, reason: 'empty' }
-  return { ok: true, coins, snacks: { ...snacks, [id]: snacks[id] - 1 }, survival: healStamina(survival, getSnack(id).heal) }
+  const snack = getSnack(id)
+  return { ok: true, coins, snacks: { ...snacks, [id]: snacks[id] - 1 }, survival: eatFood(survival, snack.heal, snack.hunger) }
 }

@@ -8,6 +8,9 @@ import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
 import { BOAT_ARRIVE, BOAT_FLOOR, BOAT_SEAT_SHAPE } from '../data/boat'
 import { BENCH_SEAT, WATER_Y } from '../data/zones'
+import { MEADOW_RECT, toMeadowLocal } from '../data/meadow'
+import { ROOMS, WALL_H } from '../../meadow/vendor/world.js'
+import { fitDistance, indoorCeiling, underCeiling } from '../logic/cameraFit'
 import { boatDestination, boatPose, boatProgress } from '../logic/boatRoute'
 import { waveHeight } from '../logic/waves'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
@@ -118,6 +121,7 @@ const cameraTarget = new Vector3()
 const grip = new Vector3()
 const lookTarget = new Vector3()
 const cutLook = new Vector3()
+const camDir = new Vector3()
 
 export function Player() {
   const body = useRef<RapierRigidBody>(null)
@@ -142,6 +146,8 @@ export function Player() {
   const { world, rapier } = useRapier()
   /** 땅 판정용 공 모양 */
   const groundBall = useRef<InstanceType<typeof rapier.Ball> | null>(null)
+  /** 카메라가 벽을 뚫지 않게 시선점에서 카메라 쪽으로 쏘는 광선 */
+  const camRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
   /** 마지막으로 움직인 시각 (가까이 당겼을 때 카메라 쪽으로 돌아서기용) */
   const movedAt = useRef(0)
   /**
@@ -418,6 +424,24 @@ export function Player() {
     c.feetY += (y + FOOT_Y - c.feetY) * k
     camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
     lookTarget.set(x, c.feetY + c.lookY, z)
+
+    // 6-1) 초원(은지 집·마을)에선 카메라가 천장·벽을 뚫지 않게: 실내면 천장 아래로 낮추고,
+    //      시선점에서 카메라 쪽 광선이 고정 충돌체(벽·건물)에 닿으면 그 앞으로 당긴다 (내 몸·감지 상자는 빼고)
+    if (x >= MEADOW_RECT.x0 && x <= MEADOW_RECT.x1 && z >= MEADOW_RECT.z0 && z <= MEADOW_RECT.z1) {
+      const [lx, lz] = toMeadowLocal(x, z)
+      camera.position.setY(underCeiling(camera.position.y, indoorCeiling(ROOMS, lx, lz, WALL_H)))
+      camDir.subVectors(camera.position, lookTarget)
+      const dist = camDir.length()
+      if (dist > 1e-3) {
+        camDir.divideScalar(dist)
+        const ray = (camRay.current ??= new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }))
+        ray.origin = { x: lookTarget.x, y: lookTarget.y, z: lookTarget.z }
+        ray.dir = { x: camDir.x, y: camDir.y, z: camDir.z }
+        const wall = world.castRay(ray, dist, true, rapier.QueryFilterFlags.ONLY_FIXED | rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)
+        const fit = fitDistance(dist, wall ? wall.timeOfImpact : null)
+        if (fit < dist) camera.position.copy(lookTarget).addScaledVector(camDir, fit)
+      }
+    }
 
     // 7) 수리 연출 중엔 연출 자리를 비추는 카메라로 옮겨 가고, 끝나면 부드럽게 돌아온다
     const cs = session.cutscene

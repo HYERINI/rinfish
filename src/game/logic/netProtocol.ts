@@ -1,3 +1,4 @@
+import { DAY_LENGTH } from '../data/balance'
 import { DISHES } from '../data/dishes'
 import { EMOTES, type EmoteId } from '../data/emotes'
 import { NET } from '../data/net'
@@ -6,6 +7,7 @@ import type { CharacterLook, FoodId } from '../data/types'
 import type { BoatDir } from './boatRoute'
 import { FISHING_POSES, type FishingLook, type FishingPose } from './characterPose'
 import { normalizeLook } from './characterLook'
+import type { ClockTime } from './dayClock'
 import type { PlayerAction } from './playerMotion'
 import { cleanText, textLength } from './roomKey'
 
@@ -32,15 +34,24 @@ export type ClientMsg =
   | { type: 'state'; s: NetState }
   | { type: 'chat'; text: string }
   | { type: 'profile'; nick: string; look: CharacterLook }
+  /** 같이 하기 잠 투표: 침대에 누웠다(on) / 일어났다 */
+  | { type: 'sleep'; on: boolean }
 
+/**
+ * 서버 → 클라이언트. 3-1 에서 더한 것: welcome.time (방 시계), time (30초마다 시계 확인), sleepers (자는 사람 수 / 필요한 수), morning (모두 아침).
+ * 옛 클라이언트는 모르는 종류를 버리고(parseServerMsg 가 null) welcome 의 time 은 읽지 않는다
+ */
 export type ServerMsg =
-  | { type: 'welcome'; you: string; players: PeerInfo[] }
+  | { type: 'welcome'; you: string; players: PeerInfo[]; time?: ClockTime }
   | { type: 'error'; code: ErrorCode }
   | { type: 'join'; id: string; nick: string; look: CharacterLook }
   | { type: 'leave'; id: string }
   | { type: 'profile'; id: string; nick: string; look: CharacterLook }
   | { type: 'state'; id: string; s: NetState }
   | { type: 'chat'; id: string; text: string }
+  | { type: 'time'; tm: number; day: number }
+  | { type: 'sleepers'; n: number; need: number }
+  | { type: 'morning'; day: number }
 
 const EMOTE_IDS = EMOTES.map((e) => e.id)
 const FOOD_IDS: FoodId[] = [...DISHES.map((d) => d.id), ...SNACK_IDS]
@@ -49,6 +60,16 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null)
 const oneOf = <T extends string>(v: unknown, list: readonly T[]): T | null => (typeof v === 'string' && (list as readonly string[]).includes(v) ? (v as T) : null)
 const id = (v: unknown): string | null => (typeof v === 'string' && v.length >= 1 && v.length <= 40 ? v : null)
+const int = (v: unknown, lo: number, hi: number): number | null => (Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi ? (v as number) : null)
+/** 날짜 상한 (하루 8분이라 백만 일이면 15년) */
+const MAX_DAY = 1e6
+
+/** 방 시각. 틀리면 null */
+function clockTime(tmRaw: unknown, dayRaw: unknown): ClockTime | null {
+  const tm = typeof tmRaw === 'number' && Number.isFinite(tmRaw) && tmRaw >= 0 && tmRaw < DAY_LENGTH ? tmRaw : null
+  const day = int(dayRaw, 1, MAX_DAY)
+  return tm === null || day === null ? null : { tm, day }
+}
 
 function vec3(v: unknown): Vec3 | null {
   if (!Array.isArray(v) || v.length !== 3) return null
@@ -151,6 +172,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       const l = look(m.look)
       return n && l ? { type: 'profile', nick: n, look: l } : null
     }
+    case 'sleep':
+      return typeof m.on === 'boolean' ? { type: 'sleep', on: m.on } : null
     default:
       return null
   }
@@ -173,7 +196,11 @@ export function parseServerMsg(raw: string): ServerMsg | null {
     case 'welcome': {
       const you = id(m.you)
       if (!you || !Array.isArray(m.players)) return null
-      return { type: 'welcome', you, players: m.players.map(readPeer).filter((p): p is PeerInfo => p !== null) }
+      const out: ServerMsg = { type: 'welcome', you, players: m.players.map(readPeer).filter((p): p is PeerInfo => p !== null) }
+      // 방 시계는 틀려도 그 필드만 버린다 (옛 서버는 보내지 않는다)
+      const time = isRecord(m.time) ? clockTime(m.time.tm, m.time.day) : null
+      if (time) out.time = time
+      return out
     }
     case 'error': {
       const code = oneOf(m.code, ERROR_CODES)
@@ -199,6 +226,19 @@ export function parseServerMsg(raw: string): ServerMsg | null {
       const i = id(m.id)
       const t = text(m.text, 1, NET.chatLength)
       return i && t ? { type: 'chat', id: i, text: t } : null
+    }
+    case 'time': {
+      const time = clockTime(m.tm, m.day)
+      return time ? { type: 'time', ...time } : null
+    }
+    case 'sleepers': {
+      const n = int(m.n, 0, NET.maxPlayers)
+      const need = int(m.need, 1, NET.maxPlayers)
+      return n !== null && need !== null ? { type: 'sleepers', n, need } : null
+    }
+    case 'morning': {
+      const day = int(m.day, 1, MAX_DAY)
+      return day !== null ? { type: 'morning', day } : null
     }
     default:
       return null

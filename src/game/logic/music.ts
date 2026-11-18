@@ -8,7 +8,7 @@ export function musicGain(volume: number, muted: boolean): number {
   return muted ? 0 : clampVolume(volume) ** 2
 }
 
-/** 지금 틀 곡: 어항 크게 보기에서는 조용한 곡, 그 밖엔 섬 곡 */
-export function musicTrackFor(mode: Mode): MusicTrack {
-  return mode === 'aquariumView' ? 'calm' : 'island'
+/** 지금 틀 곡: 어항 크게 보기와 밤에는 조용한 곡, 그 밖엔 섬 곡 */
+export function musicTrackFor(mode: Mode, night = false): MusicTrack {
+  return mode === 'aquariumView' || night ? 'calm' : 'island'
 }

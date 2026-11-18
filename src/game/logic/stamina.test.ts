@@ -8,12 +8,10 @@ import {
   healStamina,
   isWeak,
   spendStamina,
-  tickSurvival,
   type Survival,
 } from './stamina'
 
-const at = (stamina: number, graceLeft: number | null = null): Survival => ({ stamina, graceLeft, buffs: [] })
-const rest = { fighting: false, resting: false }
+const at = (stamina: number, graceLeft: number | null = null): Survival => ({ stamina, hunger: 100, graceLeft, buffs: [] })
 
 describe('spendStamina / healStamina', () => {
   it('0이 되는 순간 유예 시간이 시작되고, 더 써도 유예 시간은 그대로다', () => {
@@ -48,43 +46,6 @@ describe('addBuff', () => {
   })
 })
 
-describe('tickSurvival', () => {
-  it('줄다리기 중이면 체력이 줄고, 벤치에서 쉬면 회복한다', () => {
-    expect(tickSurvival(at(50), 2, { fighting: true, resting: false }).survival.stamina).toBe(50 - STAMINA.fightCostPerSecond * 2)
-    expect(tickSurvival(at(50), 2, { fighting: false, resting: true }).survival.stamina).toBe(50 + STAMINA.benchRegenPerSecond * 2)
-  })
-
-  it('돌아다니는 동안엔 조금씩 저절로 회복하지만, 약화(체력 0)는 풀지 않는다', () => {
-    expect(tickSurvival(at(50), 10, { fighting: false, resting: false, exploring: true }).survival.stamina).toBeCloseTo(50 + STAMINA.passiveRegenPerSecond * 10)
-    const weak = tickSurvival(at(0, 100), 10, { fighting: false, resting: false, exploring: true }).survival
-    expect(weak.stamina).toBe(0)
-    expect(isWeak(weak)).toBe(true)
-    expect(tickSurvival(at(50), 10, rest).survival.stamina).toBe(50)
-  })
-
-  it('밸런스: 던지기 2, 줄다리기 초당 0.6, 벤치 초당 6, 저절로 초당 0.3', () => {
-    expect(STAMINA).toMatchObject({ castCost: 2, fightCostPerSecond: 0.6, benchRegenPerSecond: 6, passiveRegenPerSecond: 0.3 })
-  })
-
-  it('버프 남은 시간이 줄고, 다 되면 사라진다', () => {
-    const s: Survival = { ...FRESH_SURVIVAL, buffs: [{ kind: 'reel', mul: 1.3, remaining: 1.5 }] }
-    const once = tickSurvival(s, 1, rest).survival
-    expect(once.buffs[0].remaining).toBeCloseTo(0.5)
-    expect(tickSurvival(once, 1, rest).survival.buffs).toEqual([])
-  })
-
-  it('유예 시간이 끝나면 쓰러진다', () => {
-    expect(tickSurvival(at(0, 1.5), 1, rest)).toEqual({ survival: at(0, 0.5), fainted: false })
-    expect(tickSurvival(at(0, 0.5), 1, rest).fainted).toBe(true)
-  })
-
-  it('약화 중에 벤치에서 쉬면 쓰러지지 않고 정상으로 돌아온다', () => {
-    const result = tickSurvival(at(0, 0.5), 1, { fighting: false, resting: true })
-    expect(result.fainted).toBe(false)
-    expect(isWeak(result.survival)).toBe(false)
-  })
-})
-
 describe('fightMods', () => {
   it('보통 상태면 1배', () => {
     expect(fightMods(FRESH_SURVIVAL)).toEqual({ reelSpeedMul: 1, tensionMul: 1 })
@@ -93,6 +54,7 @@ describe('fightMods', () => {
   it('버프와 약화가 곱해진다', () => {
     const s: Survival = {
       stamina: 0,
+      hunger: 50,
       graceLeft: 10,
       buffs: [
         { kind: 'reel', mul: 1.5, remaining: 10 },
