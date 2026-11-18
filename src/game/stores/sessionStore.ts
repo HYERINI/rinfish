@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { CAMERA_ZOOM } from '../data/balance'
+import { isGun, type GunId } from '../data/guns'
 import type { MeadowDishId } from '../data/meadowItems'
 import type { VendorId } from '../data/meadowPrices'
 import type { ToolId } from '../data/tools'
@@ -8,6 +9,7 @@ import type { BoatDir } from '../logic/boatRoute'
 import { nextZoom, pinchZoom } from '../logic/cameraZoom'
 import { isSameInteractable, type Interactable, type Mode } from '../logic/interaction'
 import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
+import type { ViewMode } from '../logic/view'
 
 type SessionState = {
   mode: Mode
@@ -58,7 +60,12 @@ type SessionState = {
   openVendor: (id: VendorId) => void
   /** 손에 든 도구 (도구 칸). null = 빈손. 저장하지 않는다 (다시 들어오면 낚싯대) */
   tool: ToolId | null
+  /** 마지막에 든 총 (폰 도구 칸의 총 한 칸). 저장하지 않는다 */
+  lastGun: GunId
   equip: (tool: ToolId | null) => void
+  /** 카메라 시점 (V: 1인칭/3인칭). 저장하지 않는다 */
+  view: ViewMode
+  toggleView: () => void
   /** 마지막으로 맞은 때 (performance.now() 초. 화면 가장자리가 빨갛게 번쩍인다, ui/HurtFlash). 저장하지 않는다 */
   hurtAt: number | null
   flashHurt: () => void
@@ -106,7 +113,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   stoveCook: null,
   setStoveCook: (stoveCook) => set({ stoveCook }),
   tool: 'rod',
-  equip: (tool) => set({ tool }),
+  lastGun: 'pistol',
+  equip: (tool) => set(isGun(tool) ? { tool, lastGun: tool } : { tool }),
+  view: 'third',
+  toggleView: () => set((s) => ({ view: s.view === 'first' ? 'third' : 'first' })),
   hurtAt: null,
   flashHurt: () => set({ hurtAt: performance.now() / 1000 }),
   setPlayerAction: (playerAction) => set({ playerAction }),
@@ -123,5 +133,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   // 순간이동(쓰러져 진료소로 등)하면 타던 배에서 내린다
   requestTeleport: (pos) => set((s) => ({ teleport: pos, boat: null, mode: s.mode === 'boat' ? 'explore' : s.mode })),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', stoveCook: null, vendor: null, hurtAt: null }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', lastGun: 'pistol', stoveCook: null, vendor: null, hurtAt: null, view: 'third' }),
 }))

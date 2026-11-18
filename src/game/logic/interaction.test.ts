@@ -137,13 +137,24 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'emote', null)).toEqual({ type: 'closePanel' })
   })
 
-  it('탐험 중 숫자 키는 도구 칸 (1 낚싯대 · 2 주먹 · 3 칼), 빈 칸은 무시. X 는 넣기', () => {
+  it('탐험 중 숫자 키는 도구 칸 (1 낚싯대 · 2 주먹 · 3 칼 · 4~7 총), 빈 칸은 무시. X 는 넣기', () => {
     expect(resolveKeyAction('Digit1', 'explore', null)).toEqual({ type: 'equip', tool: 'rod' })
     expect(resolveKeyAction('Digit2', 'explore', null)).toEqual({ type: 'equip', tool: 'fists' })
     expect(resolveKeyAction('Digit3', 'explore', null)).toEqual({ type: 'equip', tool: 'knife' })
-    expect(resolveKeyAction('Digit4', 'explore', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit4', 'explore', null)).toEqual({ type: 'equip', tool: 'pistol' })
+    expect(resolveKeyAction('Digit7', 'explore', null)).toEqual({ type: 'equip', tool: 'sniper' })
+    expect(resolveKeyAction('Digit8', 'explore', null)).toEqual({ type: 'none' })
     expect(resolveKeyAction('Digit0', 'explore', null)).toEqual({ type: 'none' })
     expect(resolveKeyAction('KeyX', 'explore', null)).toEqual({ type: 'equip', tool: null })
+    expect(resolveKeyAction('KeyR', 'explore', null)).toEqual({ type: 'reload' })
+    expect(resolveKeyAction('KeyR', 'fishing', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('KeyR', 'bag', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('KeyV', 'explore', null)).toEqual({ type: 'toggleView' })
+    expect(resolveKeyAction('KeyV', 'fishing', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('KeyG', 'explore', null)).toEqual({ type: 'rangeGame' })
+    expect(resolveKeyAction('KeyG', 'rack', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'rack' })).toEqual({ type: 'openMode', mode: 'rack' })
+    expect(resolveKeyAction('Escape', 'rack', null)).toEqual({ type: 'closePanel' })
     // 낚시 중 숫자는 그대로 미끼, 패널에선 무시
     expect(resolveKeyAction('Digit2', 'fishing', null)).toEqual({ type: 'selectBait', bait: 'shrimp' })
     expect(resolveKeyAction('KeyX', 'fishing', null)).toEqual({ type: 'none' })

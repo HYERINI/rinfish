@@ -1,12 +1,21 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { stubCanvas2d } from './canvasStub'
 import { NO_ITEMS } from '../game/logic/inventory'
 import { INITIAL_PROGRESS, useProgressStore } from '../game/stores/progressStore'
 import { useSessionStore } from '../game/stores/sessionStore'
 import { startStoveCook, stepStoveCook, stoveCookLeft } from './meadowActions'
 
-beforeAll(() => vi.stubGlobal('fetch', () => Promise.reject(new Error('offline'))))
-afterAll(() => vi.unstubAllGlobals())
+let restoreCanvas = () => {}
+beforeAll(() => {
+  vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
+  // 사격장 글씨·과녁 그림 (jsdom 엔 2D 캔버스가 없다)
+  restoreCanvas = stubCanvas2d()
+})
+afterAll(() => {
+  vi.unstubAllGlobals()
+  restoreCanvas()
+})
 
 beforeEach(() => {
   localStorage.clear()

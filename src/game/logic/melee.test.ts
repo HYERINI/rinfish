@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AnimalView } from './animalSim'
-import { MELEE_IDLE, canSwing, hitDue, meleeTarget, startSwing, swingProgress } from './melee'
+import { MELEE_IDLE, canSwing, hitDue, meleePeer, meleeTarget, startSwing, swingProgress } from './melee'
 import { IDLE_ACTION } from './playerMotion'
 
 const at = (id: number, x: number, z: number, over: Partial<AnimalView> = {}): AnimalView => ({ id, sp: 'cow', x, z, h: 0, pose: 'idle', hp: 3, ...over })
@@ -52,5 +52,18 @@ describe('canSwing', () => {
     expect(canSwing('explore', { ...IDLE_ACTION, emote: 'wave' as never }, true)).toBe(false)
     expect(canSwing('explore', { ...IDLE_ACTION, airborne: true }, true)).toBe(false)
     expect(canSwing('explore', IDLE_ACTION, false)).toBe(false)
+  })
+})
+
+describe('다른 사람 근접 판정 (3-4 PvP)', () => {
+  it('바닥 선분이 몸 원(반지름 0.32)에 처음 닿는 사람. 사거리 밖·뒤쪽은 아니다', () => {
+    const peers = [
+      { id: 'far', x: 0, y: 1, z: -3 },
+      { id: 'near', x: 0.2, y: 1, z: -1.5 },
+      { id: 'behind', x: 0, y: 1, z: 1 },
+    ]
+    expect(meleePeer(0, 0, 0, -1, 1.8, peers)).toEqual({ id: 'near', dist: expect.closeTo(1.5 - Math.sqrt(0.32 ** 2 - 0.04)) })
+    expect(meleePeer(0, 0, 0, -1, 1.0, peers)).toBeNull()
+    expect(meleePeer(0, 0, 0, 1, 1.0, peers)).toEqual({ id: 'behind', dist: expect.closeTo(0.68) })
   })
 })

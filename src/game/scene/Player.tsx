@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { CapsuleCollider, RigidBody, useRapier, type RapierRigidBody } from '@react-three/rapier'
-import { Vector3, type Group, type Object3D } from 'three'
+import { Vector3, type Group, type Object3D, type PerspectiveCamera } from 'three'
 import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
+import { AIM_VIEW, isGun } from '../data/guns'
+import { aimFov, isFirstPerson } from '../logic/view'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
@@ -24,9 +26,10 @@ import { applyMouseLook, pitchedOffset } from '../logic/mouseLook'
 import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
-import { fishingLook, swingArm } from '../logic/characterPose'
+import { fishingLook, gunArm, swingArm } from '../logic/characterPose'
 import { swingProgress } from '../logic/melee'
 import { meleeRig } from '../hunt/meleeRig'
+import { gunRig, takeKick } from '../guns/gunRig'
 import { cameraRig, isGrounded, moveSpeed, nextAction, shouldFaceCamera, shownTool } from '../logic/playerMotion'
 import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
@@ -42,6 +45,7 @@ import { ChewChatter } from './ChewChatter'
 import { FoodInHand } from './FoodInHand'
 import { playerGround } from './playerGround'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
+import { GunModel } from './tools/GunModel'
 import { KnifeModel } from './tools/KnifeModel'
 
 /** 다른 컴포넌트(낚싯줄·같이 하기 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
@@ -56,7 +60,14 @@ export const playerRig = {
   rodShown: true,
   /** 카메라가 플레이어 주위를 도는 각도 (미니맵이 이 방향을 위로 그린다) */
   yaw: 0,
+  /** 발바닥에서 눈까지 (m, 키에 따라. 총 광선이 카메라 ~ 눈 사이를 건너뛴다) */
+  eyeHeight: 1.66,
+  /** 지금 1인칭으로 그린다 (scene/guns/FirstPersonView 가 무기를 카메라에 붙인다) */
+  firstPerson: false,
 }
+
+/** 마우스·드래그 감도 배율: 조준해서 FOV 가 좁을수록 천천히 (은지 sensFov) */
+const fovScale = (camera: unknown) => ((camera as PerspectiveCamera).fov ?? AIM_VIEW.baseFov) / AIM_VIEW.baseFov
 
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
 const FISHING_YAW_SPEED = 4
@@ -108,6 +119,12 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 
 /** 휘두르는 동안 칼날을 앞으로 눕히는 각도 (동작 가운데에서 가장 크게) */
 const KNIFE_SWING_TILT = 1.1
+/** 눈 높이 (키 대비, 은지 1.65 / 1.8) */
+const EYE_RATIO = 0.92
+/** 쏜 뒤 이만큼(초) 총을 겨눈 채 카메라 쪽을 본다 */
+const GUN_HOLD = 0.6
+/** 총을 들어 올리고 내리는 빠르기 */
+const GUN_RAISE_SPEED = 12
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 export const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
@@ -129,14 +146,17 @@ const grip = new Vector3()
 const lookTarget = new Vector3()
 const cutLook = new Vector3()
 const camDir = new Vector3()
+const muzzleAt = new Vector3()
 
 export function Player() {
   const body = useRef<RapierRigidBody>(null)
   const visual = useRef<Group>(null)
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
-  /** 손에 든 칼 (도구 칸 3) */
+  /** 손에 든 칼 (도구 칸 3), 총 (도구 칸 4~7) */
   const knife = useRef<Group>(null)
+  const gun = useRef<Group>(null)
+  const tool = useSessionStore((s) => s.tool)
   const model = useRef<PlayerModelHandle>(null)
   const boatRef = useRef<Group>(null)
   /** 지난번에 서 있던 자리 (탭을 닫았다 와도 이어서). 처음 그릴 때 한 번만 읽는다 */
@@ -167,6 +187,10 @@ export function Player() {
   /** 수리 연출 카메라 비율(0 = 보통 카메라, 1 = 연출 자리)과 마지막 연출 카메라 (끝난 뒤 부드럽게 돌아오도록 기억한다) */
   const cut = useRef<{ blend: number; camera: RepairPlan['camera'] | null }>({ blend: 0, camera: null })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
+  /** 총을 겨눈 정도 (0 내림 ~ 1 겨눔) */
+  const gunRaise = useRef(0)
+  /** 3인칭 조준 때 카메라를 오른쪽 어깨 너머로 비킨 거리 */
+  const shoulder = useRef(0)
   /** 먹고 있는 요리 (손에 든 음식과 "아구작 냠냠") */
   const eating = useSessionStore((s) => s.playerAction.eat)
   const food = useRef<Group>(null)
@@ -178,13 +202,14 @@ export function Player() {
       const mode = useSessionStore.getState().mode
       if ((mode !== 'explore' && mode !== 'rest' && mode !== 'boat') || !isPointerLocked()) return
       const { lookSensitivity, invertY } = useSettingsStore.getState()
-      const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity, invertY)
+      // 조준경으로 당겨 보면 그만큼 천천히 돈다 (은지 sensFov)
+      const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity * fovScale(camera), invertY)
       yaw.current = next.yaw
       pitch.current = next.pitch
     }
     window.addEventListener('pointermove', onMove)
     return () => window.removeEventListener('pointermove', onMove)
-  }, [])
+  }, [camera])
 
   /**
    * 지금 자리 (저장용). 몸의 실제 상태로 정한다: 배 위(키네마틱)·순간이동 직전·바다 위면 없다.
@@ -213,7 +238,7 @@ export function Player() {
     }
   }, [])
 
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock, camera: frameCamera }, delta) => {
     // 서 있던 자리는 1초에 한 번, 움직였을 때만 저장한다
     if (clock.elapsedTime - saved.current.at > PLACE_SAVE_EVERY) {
       saved.current.at = clock.elapsedTime
@@ -291,10 +316,14 @@ export function Player() {
     // 0-1) 캔버스 드래그(잠금 없는 마우스·한 손가락)로 좌우로 돌리고 위아래로 기울인다. 탐험·쉬기·배 타기가 아닐 때 끈 건 버린다
     const drag = takeDrag()
     if ((mode === 'explore' || mode === 'rest' || mode === 'boat') && !isPointerLocked() && (drag.dx !== 0 || drag.dy !== 0)) {
-      const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, drag.dx, drag.dy, MOUSE_LOOK.dragSensitivity, useSettingsStore.getState().invertY)
+      const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, drag.dx, drag.dy, MOUSE_LOOK.dragSensitivity * fovScale(camera), useSettingsStore.getState().invertY)
       yaw.current = next.yaw
       pitch.current = next.pitch
     }
+
+    // 0-2) 총 반동: 총구가 들리듯 위를 본다 (기울기가 작을수록 고개를 든다)
+    const kick = takeKick()
+    if (kick > 0) pitch.current = Math.max(MOUSE_LOOK.minPitch, pitch.current - kick)
 
     // 1) WASD·조이스틱 → 카메라 기준 이동 방향 (조이스틱은 민 만큼 천천히 걷는다)
     const move = mode === 'explore' ? readMoveInput() : NO_MOVE
@@ -361,6 +390,10 @@ export function Player() {
     playerRig.position.set(x, y, z)
 
     // 3) 바라보는 방향: 낚시 중엔 물 쪽, 아니면 이동 방향
+    const gunUp = mode === 'explore' && isGun(session.tool) && gunRig.gun === session.tool && (gunRig.aiming || performance.now() / 1000 - gunRig.firedAt < GUN_HOLD)
+    // 1인칭 (V, 또는 조준경 총으로 조준하는 동안): 내 몸을 숨기고 카메라를 눈높이에, 몸은 보는 쪽을 본다
+    const firstView = isFirstPerson(session.view, mode, gunRig.optic !== null)
+    playerRig.firstPerson = firstView
     if (boatAt) {
       facing.current = boatAt.heading
     } else if (mode === 'fishing' && spot) {
@@ -378,6 +411,9 @@ export function Player() {
     } else if (mode === 'explore' && swingProgress(meleeRig.swing, now) >= 0) {
       // 휘두르는 동안엔 휘두른 쪽(그때 카메라가 보던 쪽)을 본다
       facing.current = meleeRig.yaw + Math.PI
+    } else if (gunUp || (firstView && mode === 'explore')) {
+      // 총을 겨누는 동안(조준·막 쏨)엔 카메라가 보는 쪽 (총알이 나가는 쪽)
+      facing.current = yaw.current + Math.PI
     } else if (moveDir.lengthSq() > 0) {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
@@ -386,10 +422,14 @@ export function Player() {
     if (shouldFaceCamera(mode, session.zoom, now - movedAt.current, action)) {
       facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
     }
-    if (visual.current) visual.current.rotation.y = facing.current
+    if (visual.current) {
+      visual.current.rotation.y = facing.current
+      visual.current.visible = !firstView
+    }
     if (boatRef.current) boatRef.current.visible = boatAt !== null
     playerRig.facing = facing.current
     playerRig.yaw = yaw.current
+    playerRig.eyeHeight = CHARACTER_BASE_HEIGHT * look.height * EYE_RATIO
     playerRig.speed = speed
     playerRig.resting = mode === 'rest' || boatAt !== null
 
@@ -408,6 +448,7 @@ export function Player() {
       const held = shownTool(boatAt ? 'boat' : mode, session.zoom, action, session.tool)
       rod.current.visible = held === 'rod'
       if (knife.current) knife.current.visible = held === 'knife'
+      if (gun.current) gun.current.visible = isGun(held)
       playerRig.rodAngle = rod.current.rotation.x
       playerRig.rodShown = rod.current.visible
       const m = model.current
@@ -418,6 +459,9 @@ export function Player() {
         m.update(delta, now, fishingLook(fishing), action, speed, rod.current.rotation.x, seated, boatAt ? BOAT_SEAT_SHAPE : BENCH_SEAT_SHAPE)
         const swingAt = swingProgress(meleeRig.swing, now)
         if (swingAt >= 0 && meleeRig.swing) m.swing(swingArm(meleeRig.swing.kind, swingAt))
+        // 총을 겨누면 오른팔을 앞으로 든다 (총은 손에 붙어 함께 올라간다)
+        gunRaise.current += (Number(gunUp && isGun(held)) - gunRaise.current) * (1 - Math.exp(-delta * GUN_RAISE_SPEED))
+        if (gunRaise.current > 1e-3) m.swing(gunArm(gunRaise.current))
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
@@ -426,15 +470,41 @@ export function Player() {
           knife.current.position.copy(rod.current.position)
           knife.current.rotation.x = rod.current.rotation.x + (swingAt >= 0 ? KNIFE_SWING_TILT * Math.sin(Math.PI * swingAt) : 0)
         }
+        // 총도 같은 손에 (총열이 앞을 본다). 총구 자리를 쏘기(궤적·불꽃)에 알려 준다
+        gunRig.muzzle = null
+        if (gun.current) {
+          gun.current.position.copy(rod.current.position)
+          const muzzle = gun.current.visible ? (gun.current.children[0]?.userData.muzzle as Object3D | undefined) : undefined
+          if (muzzle) gunRig.muzzle = muzzle.getWorldPosition(muzzleAt)
+        }
         // 먹는 음식도 같은 손에 든다
         if (food.current) food.current.position.copy(grip)
       }
     }
     rodTip.current?.getWorldPosition(playerRig.rodTip)
 
+    // 5-1) 조준하면 FOV 를 좁힌다 (배율 조준경은 그 배율만큼). 놓으면 돌아온다
+    const fovTo = gunRig.aiming && gunRig.gun ? aimFov(gunRig.gun, gunRig.optic) : AIM_VIEW.baseFov
+    const lens = frameCamera as PerspectiveCamera
+    if (Math.abs(lens.fov - fovTo) > 0.01) {
+      lens.fov += (fovTo - lens.fov) * Math.min(1, delta * AIM_VIEW.fovSpeed)
+      lens.updateProjectionMatrix()
+    }
+
+    // 5-2) 1인칭: 눈높이에서 보는 쪽을 본다 (기울기가 클수록 내려다본다. 3인칭과 같은 손맛)
+    if (firstView) {
+      const e = Math.max(-AIM_VIEW.firstPitch, Math.min(AIM_VIEW.firstPitch, -pitch.current))
+      camera.position.set(x, y + FOOT_Y + playerRig.eyeHeight, z)
+      lookTarget.set(x - sin * Math.cos(e), camera.position.y + Math.sin(e), z - cos * Math.cos(e))
+      camera.lookAt(lookTarget)
+      return
+    }
+
     // 6) 3인칭 카메라: 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다.
-    //    수평 위치는 플레이어에 바로 붙이고, 오프셋(방향·거리·높이)·발 높이(점프)만 부드럽게 따라간다
-    const distance = session.zoom
+    //    수평 위치는 플레이어에 바로 붙이고, 오프셋(방향·거리·높이)·발 높이(점프)만 부드럽게 따라간다.
+    //    총으로 조준하면 가까이(1.9m) 당기고 오른쪽 어깨 너머로 비킨다 (은지 AIM_DIST·SHOULDER)
+    const aimCam = mode === 'explore' && gunRig.aiming && isGun(session.tool)
+    const distance = aimCam ? Math.min(session.zoom, AIM_VIEW.aimDistance) : session.zoom
     const rig = cameraRig(distance, CHARACTER_BASE_HEIGHT * look.height)
     const orbit = pitchedOffset(distance, rig.height, rig.lookAtY, pitch.current)
     cameraTarget.set(sin * orbit.horizontal, orbit.height, cos * orbit.horizontal)
@@ -446,6 +516,14 @@ export function Player() {
     c.feetY += (y + FOOT_Y - c.feetY) * k
     camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
     lookTarget.set(x, c.feetY + c.lookY, z)
+    shoulder.current += (Number(aimCam) * AIM_VIEW.shoulder - shoulder.current) * k
+    if (shoulder.current > 1e-3) {
+      const sx = cos * shoulder.current
+      const sz = -sin * shoulder.current
+      camera.position.set(camera.position.x + sx, camera.position.y, camera.position.z + sz)
+      lookTarget.x += sx
+      lookTarget.z += sz
+    }
 
     // 6-1) 초원(은지 집·마을)에선 카메라가 천장·벽을 뚫지 않게: 실내면 천장 아래로 낮추고,
     //      시선점에서 카메라 쪽 광선이 고정 충돌체(벽·건물)에 닿으면 그 앞으로 당긴다 (내 몸·감지 상자는 빼고)
@@ -505,6 +583,11 @@ export function Player() {
         <group ref={knife} visible={false}>
           <KnifeModel />
         </group>
+        {isGun(tool) && (
+          <group ref={gun} visible={false}>
+            <GunModel id={tool} />
+          </group>
+        )}
         {eating && (
           <>
             <group ref={food}>

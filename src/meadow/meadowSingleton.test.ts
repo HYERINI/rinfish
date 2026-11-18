@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { stubCanvas2d } from './canvasStub'
 import { Vector3, type Light, type Object3D } from 'three'
 
 // 모델 파일은 테스트에서 받지 않는다
-beforeAll(() => vi.stubGlobal('fetch', () => Promise.reject(new Error('offline'))))
-afterAll(() => vi.unstubAllGlobals())
+let restoreCanvas = () => {}
+beforeAll(() => {
+  vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
+  // 사격장 글씨·과녁 그림 (jsdom 엔 2D 캔버스가 없다)
+  restoreCanvas = stubCanvas2d()
+})
+afterAll(() => {
+  vi.unstubAllGlobals()
+  restoreCanvas()
+})
 
 const isLight = (o: Object3D): o is Light => (o as Light).isLight === true
 /** 은지 좌표: 침실 가운데, 마당 */

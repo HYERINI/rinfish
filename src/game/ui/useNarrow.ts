@@ -12,3 +12,14 @@ export function useNarrow(): boolean {
   }, [])
   return narrow
 }
+
+/** 지금 화면 폭 (창 크기가 바뀌면 다시 그린다) */
+export function useViewWidth(): number {
+  const [width, setWidth] = useState(() => window.innerWidth)
+  useEffect(() => {
+    const onResize = () => setWidth(window.innerWidth)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return width
+}

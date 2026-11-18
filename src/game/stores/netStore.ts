@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { NET, NET_SAVE_KEY } from '../data/net'
 import type { CharacterLook } from '../data/types'
-import type { MeleeId } from '../data/melee'
-import { unpackAnimals, type ClientMsg, type ErrorCode, type JoinMode, type NetState, type ServerMsg } from '../logic/netProtocol'
+import type { GunId, PvpWeapon } from '../data/guns'
+import { roundShot, unpackAnimals, type ClientMsg, type ErrorCode, type HitWeapon, type JoinMode, type NetState, type ServerMsg, type Vec3 } from '../logic/netProtocol'
+import { receiveShot } from '../guns/gunNet'
 import { forgetRoomAnimals, receiveAnimals, receiveHurt, spawnLoot } from '../hunt/animalRig'
 import { hubRoomName, hubRoomPassword } from '../logic/hubParams'
 import { allowEvery } from '../logic/rateLimit'
@@ -43,8 +44,14 @@ type NetStore = {
   sendProfile: (nick: string, look: CharacterLook) => void
   /** 잠 투표: 침대에 누웠다(true) / 일어났다(false). 같이 하는 중에만 보낸다 */
   sendSleep: (on: boolean) => void
-  /** 들판 동물을 때렸다 (서버가 검사한다). 같이 하는 중에만 보낸다 */
-  sendAnimalHit: (id: number, dmg: number, w: MeleeId) => void
+  /** 들판 동물을 때렸다·쐈다 (서버가 검사한다). n: 맞은 알 수 (산탄총). 같이 하는 중에만 보낸다 */
+  sendAnimalHit: (id: number, dmg: number, w: HitWeapon, n?: number, shot?: number) => void
+  /** 다른 사람을 맞혔다 (PvP, 서버가 무기 표로 피해를 정한다). 같이 하는 중에만 */
+  sendPvpHit: (target: string, weapon: PvpWeapon, n: number, shot?: number) => void
+  /** 쐈다: 남의 화면에 궤적 (o: 총구, d: 방향). 같이 하는 중에만 */
+  sendShot: (o: Vec3, d: Vec3, w: GunId) => void
+  /** 쓰러졌다 (by: 마지막으로 나를 맞힌 사람). 같이 하는 중에만 */
+  sendDied: (by?: string) => void
   /** 테스트에서 가짜 연결로 바꾼다 */
   _setConnector: (c: Connector) => void
 }
@@ -157,8 +164,19 @@ export const useNetStore = create<NetStore>()(
             notify('사냥 성공! 재료를 떨어뜨렸어요 (E 로 줍기)')
             return
           case 'hurt':
-            receiveHurt(m.dmg)
+            receiveHurt(m.dmg, m.by === 'pvp' ? m.from : undefined)
             return
+          case 'shot':
+            if (get().peers[m.id]) receiveShot(m.o, m.d, m.w)
+            return
+          case 'kill': {
+            // 모두에게: "A 님이 B 님을 쓰러뜨렸어요" (채팅 기록에도). 쓰러진 사람은 자기 화면에 따로 알림이 뜬다
+            const name = (id: string) => (id === get().you ? get().nick : (get().peers[id]?.nick ?? '누군가'))
+            const text = m.killer ? `${name(m.killer)} 님이 ${name(m.victim)} 님을 쓰러뜨렸어요` : `${name(m.victim)} 님이 쓰러졌어요`
+            addChat({ from: '💀', text, at: now, mine: false })
+            if (m.victim !== get().you) notify(`💀 ${text}`)
+            return
+          }
         }
       }
 
@@ -280,8 +298,22 @@ export const useNetStore = create<NetStore>()(
           if (get().phase === 'online') conn?.send({ type: 'sleep', on })
         },
 
-        sendAnimalHit(id, dmg, w) {
-          if (get().phase === 'online') conn?.send({ type: 'animalHit', id, dmg, w })
+        sendAnimalHit(id, dmg, w, n = 1, shot) {
+          if (get().phase !== 'online') return
+          const msg: ClientMsg = n > 1 ? { type: 'animalHit', id, dmg, w, n } : { type: 'animalHit', id, dmg, w }
+          conn?.send(shot === undefined ? msg : { ...msg, shot })
+        },
+
+        sendPvpHit(target, weapon, n, shot) {
+          if (get().phase === 'online') conn?.send(shot === undefined ? { type: 'pvpHit', target, weapon, n } : { type: 'pvpHit', target, weapon, n, shot })
+        },
+
+        sendShot(o, d, w) {
+          if (get().phase === 'online') conn?.send({ type: 'shot', ...roundShot(o, d), w })
+        },
+
+        sendDied(by) {
+          if (get().phase === 'online') conn?.send(by ? { type: 'died', by } : { type: 'died' })
         },
 
         _setConnector(c) {

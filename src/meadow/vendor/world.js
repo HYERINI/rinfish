@@ -2,8 +2,7 @@ import * as THREE from 'three';
 import { asset } from './paths.js';
 // rinfish: 거울(Reflector)은 매 프레임 한 번 더 그려서 뺐다
 import { Door } from './door.js';
-// rinfish: range.js 는 무기·소리 코드를 끌고 와서 복사하지 않았다. 방 크기만 옮겨 둔다 (빈 방으로 남는다)
-const RANGE_ROOM = { id: 'range', name: '사격장', minX: 15, maxX: 27, minZ: -5, maxZ: 5, floor: 0x8f8f8c, wall: 0xd6d6cf };
+import { RANGE_ROOM, buildRange } from './range.js';
 import { createKit, KENNEY_SCALE } from './furniture.js';
 import { buildOutdoor, YARD, WILD, GROUND } from './outdoor.js';
 // rinfish: 동물(animals.js)은 3단계에서
@@ -208,7 +207,7 @@ export function createWorld() {
   })();
 
   // 사격장 (표적, 사대, 무기 선반 등)
-  const range = null; // rinfish: 사격장 설비 뺌
+  const range = buildRange({ group, std, box, shootables });
 
   // --- 집 밖: 땅, 울타리, 나무 (22단계) / 동물 (23단계) ---
   const outdoor = buildOutdoor({ group, colliders, shootables, wallMeshes, house: HOUSE });

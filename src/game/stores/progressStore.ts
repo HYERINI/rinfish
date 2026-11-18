@@ -6,6 +6,7 @@ import { BAIT_IDS, type BaitId } from '../data/bait'
 import { SNACK_IDS, type SnackId } from '../data/snacks'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
+import { GUNS, MAX_RESERVE, type GunId } from '../data/guns'
 import { findSpecies } from '../data/fish'
 import { MEADOW_DOORS } from '../data/meadow'
 import { ITEM_IDS, getRecipe, type ItemId, type MeadowDishId } from '../data/meadowItems'
@@ -24,12 +25,13 @@ import {
   type AquariumEvent,
   type AquariumState,
 } from '../logic/aquarium'
+import { FULL_MAGS, START_ROUNDS, buyAmmoPacks, readRounds, reloadRounds, spendRound, type Rounds } from '../logic/ammo'
 import { NO_BAIT, buyBait as buyBaitRule, consumeBait, type BaitCounts } from '../logic/bait'
 import { normalizeLook } from '../logic/characterLook'
 import { NO_SNACKS, buyAndEatSnack as buyAndEatSnackRule, buySnacks as buySnacksRule, eatSnackFromBag, type SnackCounts, type SnackEatResult } from '../logic/snacks'
 import { cook, ingredientsOk } from '../logic/cooking'
 import { NO_ITEMS, addItems, bestFood, consumeRecipe, eatBagFood, type BagFood, type ItemCounts } from '../logic/inventory'
-import { FULL_STOCK, buyFromVendor, readStock, sellToVendor, type VendorStock } from '../logic/meadowShop'
+import { FULL_STOCK, buyFromVendor, readStock, sellToVendor, type ClockSource, type VendorStock } from '../logic/meadowShop'
 import type { VendorId } from '../data/meadowPrices'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
@@ -38,6 +40,7 @@ import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
 import { FIRST_MORNING, readClock, type Clock } from '../logic/dayClock'
 import { FRESH_SURVIVAL, faintPenalty, spendStamina, type Survival } from '../logic/stamina'
 import { afterDeath, afterSleep, takeDamage, tickSurvival, type SurvivalTickContext } from '../logic/survival'
+import { deferrableStorage } from './deferredSave'
 
 export const SAVE_KEY = 'fishing-island-save-v1'
 
@@ -75,6 +78,12 @@ type ProgressData = {
   doors: boolean[]
   /** 농산물 가게에서 오늘 산 수 (하루 수량). 없던 저장본은 가득 */
   stock: VendorStock
+  /** 총마다 탄창에 든 탄 (없던 저장본은 가득) */
+  ammo: Rounds
+  /** 총마다 예비 탄약 (잡화점에서 산다. 없던 저장본은 은지 기본값) */
+  reserve: Rounds
+  /** 사격장 연습 게임 최고 점수 */
+  rangeBest: number
 }
 
 
@@ -136,8 +145,16 @@ type ProgressActions = {
   /** 마을 상인에게 qty 개 판다. 받은 코인 (못 팔면 0) */
   sellItem: (vendor: VendorId, id: ItemId, qty: number) => number
   /** 마을 상인에게서 qty 개 산다. 코인이 모자라거나 안 파는 물건이면 false */
-  /** day: 지금 날짜 (혼자 시계·방 시계). 농산물 가게 하루 수량을 센다 */
-  buyItem: (vendor: VendorId, id: ItemId, qty: number, day: number) => boolean
+  /** src·day: 지금 시계(혼자·방)와 날짜. 농산물 가게 하루 수량을 시계마다 센다 */
+  buyItem: (vendor: VendorId, id: ItemId, qty: number, src: ClockSource, day: number) => boolean
+  /** 한 발 쏜다 (탄창에서 1). 탄창이 비었으면 false */
+  fireRound: (id: GunId) => boolean
+  /** 장전이 끝났다: 예비에서 탄창으로 모자란 만큼. 못 하면 false */
+  reloadGun: (id: GunId) => boolean
+  /** 잡화점에서 탄약 묶음 packs 개. 코인이 모자라면 false */
+  buyAmmo: (id: GunId, packs: number) => boolean
+  /** 사격장 최고 점수. 더 높을 때만 바꾸고 true */
+  recordRangeScore: (score: number) => boolean
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -158,6 +175,9 @@ export const INITIAL_PROGRESS: ProgressData = {
   items: NO_ITEMS,
   doors: MEADOW_DOORS.map(() => false),
   stock: FULL_STOCK,
+  ammo: FULL_MAGS,
+  reserve: START_ROUNDS,
+  rangeBest: 0,
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -291,6 +311,21 @@ function eaten(r: SnackEatResult): Pick<ProgressData, 'coins' | 'snacks' | 'surv
 
 function readSelectedBait(v: unknown): BaitId | null {
   return BAIT_IDS.includes(v as BaitId) ? (v as BaitId) : null
+}
+
+/** 쏠 때 줄어든 탄은 이만큼(ms) 안에 한 번만 저장한다 (다른 저장·탭 숨김·닫기 때는 바로) */
+const AMMO_SAVE_DELAY = 1000
+const saves = deferrableStorage<ProgressData & ProgressActions>(createJSONStorage<ProgressData & ProgressActions>(() => localStorage), AMMO_SAVE_DELAY)
+
+/** 미룬 저장(쏜 탄)을 지금 쓴다 */
+export function flushProgressSave() {
+  saves.flush()
+}
+
+// 탭을 숨기거나 닫을 때 미룬 저장을 바로 쓴다 (폰은 백그라운드 탭을 언제든 없앨 수 있다)
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushProgressSave)
+  document.addEventListener('visibilitychange', () => document.hidden && flushProgressSave())
 }
 
 // persist: 상태를 localStorage에 자동 저장하고, 새로고침하면 다시 불러온다
@@ -513,11 +548,36 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
         return r.coins - s.coins
       },
 
-      buyItem: (vendor, id, qty, day) => {
+      buyItem: (vendor, id, qty, src, day) => {
         const s = get()
-        const r = buyFromVendor(s.coins, s.items, s.stock, day, vendor, id, qty)
+        const r = buyFromVendor(s.coins, s.items, s.stock, src, day, vendor, id, qty)
         if (r.ok) set({ coins: r.coins, items: r.items, stock: r.stock })
         return r.ok
+      },
+
+      fireRound: (id) => {
+        const ammo = spendRound(get().ammo, id)
+        // 쏠 때마다 쓰지 않고 1초 안에 한 번 (탭을 숨기거나 닫으면 바로)
+        if (ammo) saves.defer(() => set({ ammo }))
+        return ammo !== null
+      },
+
+      reloadGun: (id) => {
+        const r = reloadRounds(get().ammo, get().reserve, id)
+        if (r) set({ ammo: r.mag, reserve: r.reserve })
+        return r !== null
+      },
+
+      buyAmmo: (id, packs) => {
+        const r = buyAmmoPacks(get().coins, get().reserve, id, packs)
+        if (r.ok) set({ coins: r.coins, reserve: r.reserve })
+        return r.ok
+      },
+
+      recordRangeScore: (score) => {
+        if (!(Number.isInteger(score) && score > get().rangeBest)) return false
+        set({ rangeBest: score })
+        return true
       },
 
       setDoorOpen: (index, open) => set((s) => (index >= 0 && index < s.doors.length ? { doors: s.doors.map((o, i) => (i === index ? open : o)) } : {})),
@@ -536,10 +596,11 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
     }),
     {
       name: SAVE_KEY,
-      // 2: 장비·어항이 5단계 → 10단계. 3: 배고픔(survival.hunger)·혼자 시계(clock) 추가. 4: 은지 가방(items)·문(doors)·농산물 하루 수량(stock) 추가 (3·4 는 필드만 늘어 옮길 것 없다)
-      version: 4,
+      // 2: 장비·어항이 5단계 → 10단계. 3: 배고픔(survival.hunger)·혼자 시계(clock) 추가. 4: 은지 가방(items)·문(doors)·농산물 하루 수량(stock) 추가.
+      // 5: 탄창(ammo)·예비 탄약(reserve)·사격장 최고 점수(rangeBest) 추가 (3~5 는 필드만 늘어 옮길 것 없다)
+      version: 5,
       migrate: (persisted, version) => migrateSave(persisted, version) as ProgressData & ProgressActions,
-      storage: createJSONStorage(() => localStorage),
+      storage: saves.storage,
       // 저장본의 각 필드를 검증해서, 틀린 값은 기본값을 쓰고 지금은 없는 물고기는 버린다
       merge: (persisted, current) => {
         const saved = isRecord(persisted) ? persisted : {}
@@ -562,6 +623,9 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           items: readItems(saved.items, current.items),
           doors: readDoors(saved.doors, current.doors),
           stock: readStock(saved.stock),
+          ammo: readRounds(saved.ammo, current.ammo, (id) => GUNS[id].mag),
+          reserve: readRounds(saved.reserve, current.reserve, () => MAX_RESERVE),
+          rangeBest: readCount(saved.rangeBest, current.rangeBest),
         }
       },
     },

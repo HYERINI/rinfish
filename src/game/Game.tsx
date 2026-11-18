@@ -28,6 +28,10 @@ import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
 import { Hotbar } from './ui/Hotbar'
 import { HurtFlash } from './ui/HurtFlash'
+import { GunHud } from './ui/GunHud'
+import { ScopeOverlay } from './ui/ScopeOverlay'
+import { RangeHud } from './ui/RangeHud'
+import { resetGunRig } from './guns/gunRig'
 import { LoadingScreen } from './ui/LoadingScreen'
 import { SleepOverlay } from './ui/SleepOverlay'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
@@ -81,6 +85,7 @@ export function Game({ onExit, hub }: GameProps) {
   // 진행 상황(progressStore)은 저장된 것을 이어 쓰고, 이번 판 상태만 초기화한다
   useEffect(() => {
     useSessionStore.getState().resetSession()
+    resetGunRig()
     useFishingStore.getState().end()
     // 시계는 저장된 혼자 시계에서 (같이 하면 welcome 에서 방 시계로 바꾼다)
     useDayStore.getState().reset()
@@ -113,7 +118,10 @@ export function Game({ onExit, hub }: GameProps) {
       </div>
       <WeaknessOverlay />
       <HurtFlash />
+      <ScopeOverlay />
       <Hud />
+      <GunHud />
+      <RangeHud />
       <Hotbar />
       <RoomBadge />
       <MiniMap />

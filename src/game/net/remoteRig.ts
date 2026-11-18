@@ -1,5 +1,6 @@
 import { NET } from '../data/net'
-import { pushSample, type Sample } from '../logic/interpolate'
+import type { PeerBody } from '../logic/hitscan'
+import { pushSample, sampleAt, type Sample } from '../logic/interpolate'
 import { fromNetAct, type NetState } from '../logic/netProtocol'
 import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
 
@@ -33,6 +34,16 @@ export function showBubble(id: string, text: string, now: number) {
 export function forgetRemote(id?: string) {
   if (id === undefined) remoteRig.clear()
   else remoteRig.delete(id)
+}
+
+/** 다른 사람 몸 (총·주먹 판정): 내 화면에 그리는 그 시점(NET.interpDelay 늦게) 자리. now: netNow 초 */
+export function peerBodies(now: number): PeerBody[] {
+  const out: PeerBody[] = []
+  for (const [id, e] of remoteRig) {
+    const c = sampleAt(e.buf, now - NET.interpDelay)
+    if (c) out.push({ id, x: c.x, y: c.y, z: c.z })
+  }
+  return out
 }
 
 /** 내 말풍선 (내 머리 위) */

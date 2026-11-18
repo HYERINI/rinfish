@@ -1,4 +1,4 @@
-// 초원 + 배 + 은지 기능(3-1 시간·생존, 3-2 도구·가방·상인, 3-3 동물·사냥) 점검 (헤드리스 Chrome). 스크린샷을 남긴다
+// 초원 + 배 + 은지 기능(3-1 시간·생존, 3-2 도구·가방·상인, 3-3 동물·사냥, 3-4 총·사격장·PvP) 점검 (헤드리스 Chrome). 스크린샷을 남긴다
 // 준비: npm run server:dev (8787) 와 VITE_ROOM_SERVER=ws://127.0.0.1:8787 npx vite --port 5190 --strictPort
 // 사용: node tools/meadow-check.mjs [게임 주소] [스크린샷 폴더]
 import { spawn } from 'node:child_process'
@@ -614,11 +614,11 @@ await press('Escape')
 check((await sess('s.mode')) === 'explore', '25) ESC 로 닫기')
 
 
-// 26) 폰: 도구 칸은 쓰는 칸만, 오른쪽 아래 점프 위에 가방 버튼. 세로(390·360)·가로 화면에서 겹치지 않는지 스크린샷
+// 26) 폰: 도구 칸은 쓰는 칸만 (총은 한 칸), 오른쪽 아래 점프 위에 가방 버튼. 세로(390·360)·가로 화면에서 겹치지 않는지 스크린샷
 await M.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: true }); return true })()`)
 await M.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true })
 await wait(1200)
-check(await M.evaluate(`document.querySelectorAll('[aria-label="도구 칸"] button').length === 3`), '26) 폰 도구 칸은 3칸')
+check(await M.evaluate(`document.querySelectorAll('[aria-label="도구 칸"] button').length === 4`), '26) 폰 도구 칸은 4칸 (총은 마지막에 든 한 칸)')
 await M.shot('26-phone-portrait')
 await M.evaluate(`[...document.querySelectorAll('[aria-label="도구 칸"] button')][2].click(), true`)
 await wait(300)
@@ -889,6 +889,278 @@ check(Array.isArray(clash36) && clash36.length === 0, `36) 폰 가로 같이 하
 await B5.shot('36-phone-landscape-room')
 A5.close()
 B5.close()
+
+// ── 3-4 총·사격장·PvP ──
+const GSESS = `(await __mod('/src/game/stores/sessionStore.ts')).useSessionStore`
+const GPROG = `(await __mod('/src/game/stores/progressStore.ts')).useProgressStore`
+const GRIG = `(await __mod('/src/game/guns/gunRig.ts')).gunRig`
+const GRANGE = `(await __mod('/src/meadow/meadowSingleton.ts')).meadowRange()`
+const gkey = async (b, code, k = code) => { await b.key('keydown', code, k); await b.key('keyup', code, k); await wait(200) }
+const gequip = (b, tool) => b.evaluate(`(async () => { ${GSESS}.getState().equip('${tool}'); return true })()`)
+/**
+ * 쏘고 그 한 발을 처리할 때까지 기다린다 (헤드리스는 몇 fps 라). 쏘지 못했으면 false.
+ * 총을 바꾼 뒤 0.25초·연사 간격·장전 중엔 누른 것이 버려지므로(은지 그대로) 쏠 수 있을 때까지 먼저 기다린다
+ */
+const gfire = async (b) => {
+  await b.until(`(async () => { const g = ${GRIG}; return g.gun !== null && g.gun === ${GSESS}.getState().tool && !g.reload && performance.now() / 1000 > g.readyAt + 0.05 })()`, 20000)
+  const before = JSON.stringify(await b.evaluate(`(async () => ${GRIG}.lastShot)()`))
+  await b.evaluate(`(async () => { (await __mod('/src/game/input/pointer.ts')).pressAttack('primary'); return true })()`)
+  return b.until(`(async () => JSON.stringify(${GRIG}.lastShot) !== ${JSON.stringify(before)})()`, 20000)
+}
+const gammo = (b, gun) => b.evaluate(`(async () => ${GPROG}.getState().ammo.${gun})()`)
+
+// 37) 잡화점: 탄약 묶음을 코인으로 산다 (예비 탄약에 더한다)
+const G = await open(9745, 0)
+await G.evaluate(`__click('혼자 하기')`)
+await wait(3000)
+await G.evaluate(`(async () => { ${GPROG}.setState({ coins: 300 }); return true })()`)
+await G.evaluate(teleport(148, -12.6))
+check(await G.until(`document.body.innerText.includes('잡화점 — 탄약을 팝니다')`, 5000), '37) 잡화점 앞 "탄약을 팝니다"')
+await gkey(G, 'KeyE', 'e')
+await G.evaluate(`__click('사기')`)
+await wait(300)
+await G.shot('37-ammo-shop')
+const res0 = await G.evaluate(`(async () => ${GPROG}.getState().reserve.pistol)()`)
+await G.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.startsWith('1묶음 사기')).click(), true`)
+await wait(300)
+const bought = await G.evaluate(`(async () => { const p = ${GPROG}.getState(); return [p.coins, p.reserve.pistol] })()`)
+check(bought[0] === 220 && bought[1] === res0 + 12, `37) 권총 탄약 12발을 80 코인에 산다 (${bought})`)
+await gkey(G, 'Escape')
+
+// 38) 총: 쏘면 탄창이 줄고 R 로 장전, 동물을 맞히면 체력이 준다 (혼자), 벽엔 총알 자국. 소총 조준은 1인칭 조준경, 휠로 배율
+await G.evaluate(teleport(186, -20))
+await wait(1500)
+await gkey(G, 'Digit4', '4')
+check((await G.evaluate(`(async () => ${GSESS}.getState().tool)()`)) === 'pistol', '38) 4 → 권총')
+await turnTo(G, 0, -110)
+await wait(600)
+check(await gfire(G), '38) 권총을 쏜다')
+check((await gammo(G, 'pistol')) === 11, '38) 탄창 12 → 11')
+await gkey(G, 'KeyR', 'r')
+check(await G.until(`(async () => ${GPROG}.getState().ammo.pistol === 12)()`, 15000), '38) R 장전 (권총 1.3초) → 탄창 12, 예비에서 1')
+await G.shot('38-pistol')
+// 광선이 높이 0.6m 를 지나는 곳에 소(1번)를 세우고 산탄총으로 쏜다
+await gkey(G, 'Digit6', '6')
+await wait(500)
+const cowAt = await G.evaluate(`(async () => {
+  const r = (await __mod('/src/game/hunt/animalRig.ts')); const s = ${GRIG}.lastShot
+  const t = (s.o.y - 0.6) / -s.d.y
+  const x = s.o.x + s.d.x * t, z = s.o.z + s.d.z * t
+  const h = r.soloHerd()
+  r.setSoloHerd({ ...h, animals: h.animals.map((a) => a.id === 1 ? { ...a, x, z, state: 'idle', target: null } : a) })
+  return [x, z, t]
+})()`)
+await wait(600)
+check(await gfire(G), '38) 산탄총을 쏜다')
+const cow38 = await G.evaluate(`(async () => (await __mod('/src/game/hunt/animalRig.ts')).soloHerd().animals.find((a) => a.id === 1))()`)
+check(cow38.hp < 3, `38) 산탄 여러 알이 소에 맞아 체력이 준다 (${cowAt[2].toFixed(1)}m, 체력 ${cow38.hp}, ${cow38.state})`)
+await G.shot('38-shotgun-cow')
+await G.evaluate(teleport(201, -8))
+await wait(1200)
+await gequip(G, 'pistol')
+await turnTo(G, -Math.PI / 2, 0)
+await wait(600)
+await gfire(G)
+check((await G.evaluate(`(async () => ${GRIG}.lastShot.hit)()`)) === 'wall', '38) 집 벽을 쏘면 벽에 맞는다 (총알 자국)')
+await G.shot('38-wall-hole')
+await gkey(G, 'Digit5', '5')
+await gkey(G, 'KeyV', 'v')
+check(await G.until(`(async () => (await __mod('/src/game/scene/Player.tsx')).playerRig.firstPerson)()`, 3000), '38) V → 1인칭')
+await G.shot('38-first-person')
+await gkey(G, 'KeyV', 'v')
+await G.evaluate(`(async () => { (await __mod('/src/game/input/pointer.ts')).setTouchAim(true); return true })()`)
+check(await G.until(`(async () => (await __mod('/src/game/scene/Player.tsx')).playerRig.firstPerson && ${GRIG}.optic?.label === '홀로')()`, 3000), '38) 3인칭에서 소총으로 조준하면 그동안 1인칭 홀로 조준기')
+await G.evaluate(`(async () => { document.querySelector('canvas').parentElement.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true })); return true })()`)
+check(await G.until(`(async () => ${GRIG}.optic?.label === '2.5x' && !!document.querySelector('[aria-label="조준경 2.5x"]'))()`, 3000), '38) 휠을 올리면 2.5x 조준경 화면')
+await G.shot('38-scope')
+await G.evaluate(`(async () => { (await __mod('/src/game/input/pointer.ts')).setTouchAim(false); return true })()`)
+check(await G.until(`(async () => !(await __mod('/src/game/scene/Player.tsx')).playerRig.firstPerson)()`, 3000), '38) 조준을 놓으면 3인칭으로')
+
+// 39) 사격장: 표적판을 맞히면 점수, G 60초 연습 게임 (사격장 안에서만), 최고 점수 저장, 무기 선반 E → 고르기
+await G.evaluate(teleport(181.5, 0))
+await wait(1500)
+await gequip(G, 'pistol')
+await gkey(G, 'KeyV', 'v')
+// 기울기를 끝(1.2)까지 내린 뒤 1.2 만큼 올려 수평(0)으로 맞춘다 (앞 점검에서 고개를 든 채로 남아 있다)
+await turnTo(G, Math.PI / 2, 400)
+await turnTo(G, Math.PI / 2, -240)
+await wait(600)
+await G.shot('39-range')
+check(await gfire(G), '39) 사격장에서 쏜다')
+/**
+ * 마지막 한 발의 광선이 표적판 면(세계 x 174.4)을 지나는 곳으로 표적(lane 0..2)을 옮긴다.
+ * hold: 게임 중엔 표적이 좌우로 움직이므로, 사격장 update 가 끝날 때마다 그 자리로 되돌린다 (게임 시간·점수는 그대로)
+ */
+const holdTarget = (lane, hold) => G.evaluate(`(async () => {
+  const s = ${GRIG}.lastShot; const r = ${GRANGE}; const tg = r.targets[${lane}]
+  const t = (174.4 - s.o.x) / s.d.x
+  const y = s.o.y + s.d.y * t, z = -(s.o.z + s.d.z * t)
+  const put = () => { tg.homeZ = z; tg.phase = 0; tg.down = false; tg.pivot.position.y = y - 1.3; tg.pivot.position.z = z }
+  put()
+  if (${hold} && !r.__held) {
+    const update = r.update
+    r.update = (dt) => { update(dt); if (r.game.state === 'running') put() }
+    r.__held = true
+  }
+  return true
+})()`)
+await holdTarget(1, false)
+await wait(1500)
+await gfire(G)
+check((await G.evaluate(`(async () => ${GRIG}.lastShot.hit)()`)) === 'target', '39) 표적판에 맞는다')
+await G.shot('39-target')
+await G.evaluate(teleport(188, -12))
+await wait(800)
+await gkey(G, 'KeyG', 'g')
+check((await G.evaluate(`(async () => ${GRANGE}.game.state)()`)) === 'idle' && (await G.evaluate(`document.body.innerText.includes('사격장 안에서')`)), '39) 사격장 밖에선 G 를 눌러도 시작하지 않는다')
+await G.evaluate(teleport(181.5, 0))
+await wait(1500)
+await gkey(G, 'KeyG', 'g')
+check((await G.evaluate(`(async () => ${GRANGE}.game.state)()`)) === 'countdown', '39) G → 3초 카운트다운')
+check(await G.until(`(async () => ${GRANGE}.game.state === 'running')()`, 30000), '39) 연습 게임 시작 (움직이는 표적)')
+await gfire(G)
+await holdTarget(0, true)
+await wait(1500)
+// 표적은 매 프레임 광선 위로 되돌리지만 프레임 사이에 조금 움직인다: 맞을 때까지 몇 발
+for (let i = 0; i < 8; i++) {
+  await gfire(G)
+  if ((await G.evaluate(`(async () => ${GRANGE}.game.score)()`)) > 0) break
+}
+const game39 = await G.evaluate(`(async () => { const g = ${GRANGE}.game; return { score: g.score, hits: g.hits, shots: g.shots } })()`)
+check(game39.score > 0 && game39.hits > 0 && game39.shots >= game39.hits, `39) 게임 중 맞히면 점수 (${JSON.stringify(game39)})`)
+await G.shot('39-running')
+await gkey(G, 'KeyG', 'g')
+check((await G.evaluate(`(async () => ${GRANGE}.game.state)()`)) === 'over', '39) G 로 그만 → 결과')
+check(await G.until(`(async () => ${GPROG}.getState().rangeBest === ${GRANGE}.game.score && ${GRANGE}.game.score > 0)()`, 10000), '39) 최고 점수를 저장한다')
+await G.shot('39-result')
+await gkey(G, 'KeyV', 'v')
+await G.evaluate(teleport(183.3, 4.0))
+check(await G.until(`document.body.innerText.includes('무기 고르기')`, 15000), '39) 무기 선반 앞 "E 무기 고르기"')
+await gkey(G, 'KeyE', 'e')
+check((await G.evaluate(`(async () => ${GSESS}.getState().mode)()`)) === 'rack', '39) E → 무기 선반 창')
+await G.shot('39-rack')
+await G.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('저격총')).click(), true`)
+await wait(300)
+const rack39 = await G.evaluate(`(async () => { const s = ${GSESS}.getState(); return [s.mode, s.tool] })()`)
+check(rack39[0] === 'explore' && rack39[1] === 'sniper', `39) 저격총을 고르면 들고 창을 닫는다 (${rack39})`)
+const saved39 = await G.evaluate(`(() => { const s = JSON.parse(localStorage.getItem('fishing-island-save-v1')); return [s.version, s.state.ammo, s.state.reserve, s.state.rangeBest] })()`)
+check(saved39[0] === 5 && saved39[1]?.pistol >= 0 && saved39[2]?.pistol >= 0 && saved39[3] > 0, `39) 저장본 version 5 에 탄창·예비·사격장 최고 점수 (${JSON.stringify(saved39)})`)
+
+// 40) 폰: 총·칼을 들면 쏘기·조준·장전·무기 바꾸기 / 베기·찌르기 버튼. 세로·가로(360·390·780·844)에서 미니맵·조이스틱·도구 칸·안내·상호작용과 겹치지 않는다
+const weaponClash = `(() => {
+  const q = (s) => document.querySelector(s)
+  const pick = {
+    minimap: q('canvas[aria-label^="미니맵"]'), joy: q('.tc-joy-base'), help: q('.tc-help'), hotbar: q('[aria-label="도구 칸"]'),
+    action: q('.tc-action'), jump: q('button[aria-label="점프"]'), bag: q('button[aria-label="가방"]'), emote: q('button[aria-label="감정 표현"]'),
+    fire: q('button[aria-label="쏘기"]'), aim: q('button[aria-label="조준"]'), reload: q('button[aria-label="장전"]'), cycle: q('button[aria-label="무기 바꾸기"]'),
+    slash: q('button[aria-label="휘두르기"]'), stab: q('button[aria-label="찌르기"]'),
+  }
+  const r = Object.entries(pick).filter(([, e]) => e && e.getClientRects().length).map(([k, e]) => [k, e.getBoundingClientRect()])
+  const out = []
+  for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
+    const [a, A] = r[i], [b, B] = r[j]
+    if (A.left < B.right - 1 && A.right > B.left + 1 && A.top < B.bottom - 1 && A.bottom > B.top + 1) out.push(a + '/' + b)
+  }
+  return [...out, ...r.filter(([, R]) => R.left < -1 || R.right > innerWidth + 1).map(([k]) => k + ':밖')]
+})()`
+await G.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: true }); return true })()`)
+for (const near of [false, true]) {
+  await G.evaluate(teleport(near ? 148 : 160, near ? -12.6 : -25))
+  await wait(1500)
+  for (const tool of ['pistol', 'knife']) {
+    await gequip(G, tool)
+    for (const [w, h] of [[390, 844], [360, 780], [844, 390], [780, 360]]) {
+      await G.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: true })
+      // 화면 크기가 바뀐 뒤 다시 그릴 때까지 (바쁜 기계에선 몇 초) 기다린다
+      await G.until(`innerWidth === ${w} && JSON.stringify(${weaponClash}) === '[]'`, 8000)
+      const clash = await G.evaluate(weaponClash)
+      check(Array.isArray(clash) && clash.length === 0, `40) 폰 ${w}×${h} ${tool}${near ? ' + 상호작용' : ''}: 버튼이 서로·미니맵·도구 칸과 겹치지 않는다 (${JSON.stringify(clash)})`)
+      if (near && (w === 360 || w === 780)) await G.shot(`40-phone-${tool}-${w}x${h}`)
+    }
+  }
+}
+await G.send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 2, mobile: true })
+await G.evaluate(teleport(160, -25))
+await gequip(G, 'pistol')
+await wait(1000)
+await G.evaluate(`(async () => { ${GPROG}.setState({ ammo: { ...${GPROG}.getState().ammo, pistol: 12 } }); return true })()`)
+await G.until(`(async () => { const g = ${GRIG}; return g.gun === 'pistol' && !g.reload && performance.now() / 1000 > g.readyAt + 0.05 })()`, 20000)
+const yaw40 = await G.evaluate(camYaw)
+const ammo40 = await gammo(G, 'pistol')
+await G.evaluate(`(() => {
+  const b = document.querySelector('button[aria-label="쏘기"]'); const r = b.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2
+  b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, pointerId: 31, clientX: x, clientY: y }))
+  b.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 31, clientX: x - 120, clientY: y }))
+  return true
+})()`)
+await wait(800)
+check(await G.until(`(async () => ${GPROG}.getState().ammo.pistol === ${ammo40 - 1})()`, 15000), '40) 폰 쏘기 버튼을 누르면 한 발')
+check(await G.until(`(async () => Math.abs((await __mod('/src/game/scene/Player.tsx')).playerRig.yaw - ${yaw40}) > 0.3)()`, 15000), '40) 쏘기 버튼을 누른 채 끌면 시점이 돈다')
+await G.evaluate(`(document.querySelector('button[aria-label="쏘기"]').dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 31 })), true)`)
+await wait(300)
+await gequip(G, 'sniper')
+await wait(500)
+const optic40 = []
+for (const want of ['4x', '8x', null]) {
+  await G.evaluate(`(document.querySelector('button[aria-label="조준"]').click(), true)`)
+  await G.until(`(async () => (${GRIG}.optic?.label ?? null) === ${JSON.stringify(want)})()`, 10000)
+  optic40.push(await G.evaluate(`(async () => ${GRIG}.optic?.label ?? null)()`))
+  if (want === '4x') await G.shot('40-phone-scope')
+}
+check(JSON.stringify(optic40) === '["4x","8x",null]', `40) 폰 조준 버튼: 4x → 8x → 끄기 (${optic40})`)
+await G.evaluate(`(document.querySelector('button[aria-label="무기 바꾸기"]').click(), true)`)
+await wait(300)
+check((await G.evaluate(`(async () => ${GSESS}.getState().tool)()`)) === 'fists', '40) 무기 바꾸기: 저격총 → 주먹 (한 바퀴)')
+await G.send('Emulation.clearDeviceMetricsOverride')
+await G.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: false }); return true })()`)
+G.close()
+
+// 41) PvP 두 사람: A 의 권총이 B 의 몸에 맞으면 B 체력 −20, A 화면의 B 이름표 체력 막대가 줄고, B 화면엔 A 의 궤적. 쓰러뜨리면 모두에게 알림, B 는 침대에서
+const RUN34 = Date.now().toString(36)
+const A6 = await open(9746, 0, `?room=pvp-${RUN34}`)
+await A6.evaluate(`__click('🔒 방 만들기')`)
+await A6.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '에이')`)
+await A6.evaluate(`__click('방 만들고 들어가기')`)
+check(await A6.until(`document.body.innerText.includes('👥 1명')`, 20000), '41) A 방 만들기')
+const B6 = await open(9747, 1, `?room=pvp-${RUN34}`)
+await B6.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '비이')`)
+await B6.evaluate(`__click('들어가기')`)
+check(await B6.until(`document.body.innerText.includes('👥 2명')`, 20000), '41) B 들어가기')
+await A6.evaluate(teleport(150, -5))
+await B6.evaluate(teleport(150, 5))
+await wait(1500)
+await gkey(A6, 'Digit4', '4')
+await gkey(A6, 'KeyV', 'v')
+await turnTo(A6, 0, 25)
+await wait(800)
+check(await gfire(A6), '41) A 첫 발')
+const ray41 = await A6.evaluate(`(async () => ${GRIG}.lastShot)()`)
+// 광선이 B 의 허리(땅 + 1m)를 지나는 곳에 B 를 세운다
+const t41 = ray41.d.y < -0.02 ? Math.min(14, Math.max(3, (1.0 - ray41.o.y) / ray41.d.y)) : 6
+await B6.evaluate(teleport(ray41.o.x + ray41.d.x * t41, ray41.o.z + ray41.d.z * t41))
+await wait(2500)
+await B6.evaluate(`(async () => { const fx = (await __mod('/src/game/guns/gunFx.ts')).gunFx; const t = fx.tracer; window.__tracers = 0; fx.tracer = (a, b) => { window.__tracers++; t(a, b) }; return true })()`)
+const hp41 = await B6.evaluate(`(async () => ${GPROG}.getState().survival.stamina)()`)
+await gfire(A6)
+check((await A6.evaluate(`(async () => ${GRIG}.lastShot.hit)()`)) === 'peer', '41) A 의 총알이 B 의 몸(보이지 않는 캡슐)에 맞는다')
+// 배가 부르면 초당 0.8 씩 회복하므로(3-1) 바쁜 기계에서 늦게 보면 조금 차 있다: 15 넘게 줄었으면 권총 한 발(20)
+check(await B6.until(`(async () => ${GPROG}.getState().survival.stamina < ${hp41 - 15})()`, 8000), `41) B 체력이 권총 피해 20 만큼 준다 (서버가 무기 표로 정한다)`)
+check(await B6.until(`window.__tracers > 0`, 3000), '41) B 화면에 A 의 총알 궤적 (shot)')
+check(await A6.until(`!!document.querySelector('[aria-label^="체력 "]') && Number(document.querySelector('[aria-label^="체력 "]').getAttribute('aria-label').slice(3)) < 85`, 8000), '41) A 화면에서 B 이름표 아래 체력 막대가 준다')
+await A6.shot('41-pvp-A')
+await B6.shot('41-pvp-B')
+for (let i = 0; i < 6; i++) {
+  if (await B6.evaluate(`(async () => (await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState().seq?.kind === 'death')()`)) break
+  await wait(250)
+  await gfire(A6)
+}
+check(await B6.until(`(async () => (await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState().seq?.kind === 'death')()`, 5000), '41) B 가 쓰러진다')
+check(await A6.until(`document.body.innerText.includes('에이 님이 비이 님을 쓰러뜨렸어요')`, 5000), '41) A 화면에 "에이 님이 비이 님을 쓰러뜨렸어요"')
+check(await B6.until(`(async () => (await __mod('/src/game/stores/netStore.ts')).useNetStore.getState().chat.some((l) => l.text === '에이 님이 비이 님을 쓰러뜨렸어요'))()`, 5000), '41) B 채팅 기록에도')
+await A6.shot('41-kill')
+check(await B6.until(`(async () => { const { playerRig } = await __mod('/src/game/scene/Player.tsx'); return !(await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState().seq && Math.hypot(playerRig.position.x - 197.8, playerRig.position.z + 2.4) < 1.5 })()`, 15000), '41) B 는 침대 옆에서 깨어난다 (체력 100)')
+A6.close()
+B6.close()
 
 check(!consoleErrors.some((e) => /shader|WebGLProgram/i.test(e)), '셰이더 컴파일 오류가 없다')
 if (consoleErrors.length) console.log(`콘솔 오류·경고 ${consoleErrors.length}개:\n${consoleErrors.slice(0, 20).join('\n')}`)

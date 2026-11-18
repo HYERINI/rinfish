@@ -1,9 +1,18 @@
 // @vitest-environment jsdom
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { stubCanvas2d } from './canvasStub'
 
 // 모델 파일은 테스트에서 받지 않는다 (로딩 실패는 allSettled 로 넘긴다)
-beforeAll(() => vi.stubGlobal('fetch', () => Promise.reject(new Error('offline'))))
-afterAll(() => vi.unstubAllGlobals())
+let restoreCanvas = () => {}
+beforeAll(() => {
+  vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')))
+  // 사격장 글씨·과녁 그림 (jsdom 엔 2D 캔버스가 없다)
+  restoreCanvas = stubCanvas2d()
+})
+afterAll(() => {
+  vi.unstubAllGlobals()
+  restoreCanvas()
+})
 
 describe('은지 맵 복사본', () => {
   it('createWorld 가 사격장·동물·상인·거울 파일 없이 만들어지고 충돌 상자가 땅 안에 있다', async () => {
@@ -65,6 +74,27 @@ describe('은지 맵 복사본', () => {
     const { MEADOW_REACH } = await import('../game/logic/meadowInteract')
     expect(MEADOW_VENDORS.map((v) => [v.id, v.name, ...v.at])).toEqual(VENDORS.map((v) => [v.id, v.name, v.x, v.z]))
     expect(MEADOW_REACH.vendor).toBe(VENDOR_DIST)
+  })
+  it('총 수치가 은지 weapons.js WEAPONS 와 같고, 총마다 모델에 총구가 있다', async () => {
+    const { WEAPONS, buildWeaponModel } = await import('./vendor/weapons.js')
+    const { GUNS, GUN_IDS } = await import('../game/data/guns')
+    const pick = (w: Record<string, unknown>) => [w.id, w.name, w.auto, w.rpm, w.mag, w.reload, w.pellets, w.dmg, w.spread, w.aimSpread, w.recoil, w.aimFov, w.zoom]
+    expect(GUN_IDS.map((id) => pick(GUNS[id]))).toEqual(WEAPONS.filter((w) => w.type === 'gun').map((w) => pick(w)))
+    for (const id of GUN_IDS) expect(buildWeaponModel(id, { shadows: false }).userData.muzzle.position.z).toBeLessThan(0)
+  })
+  it('사격장: 표적 3개(은지 x 25.6)와 무기 선반이 사격장 방 안에 있고, 사격장 빛은 더하지 않는다', async () => {
+    const { createWorld } = await import('./vendor/world.js')
+    const { inRangeRoom, toWorld } = await import('../game/data/meadow')
+    const w = createWorld()
+    expect(w.range.targets.map((t) => [t.lane, t.pivot.position.x])).toEqual([
+      [1, 25.6],
+      [2, 25.6],
+      [3, 25.6],
+    ])
+    expect(inRangeRoom(...toWorld(w.range.rack.center.x, w.range.rack.center.z))).toBe(true)
+    expect(inRangeRoom(...toWorld(10, 0))).toBe(false)
+    expect(w.group.children.filter((o) => (o as { isPointLight?: boolean }).isPointLight).length).toBe(4 + w.lights.lamps.length)
+    await Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready])
   })
   it('모델 주소는 meadow/ 아래', async () => {
     const { asset } = await import('./vendor/paths.js')

@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { HUNGER, STAMINA } from '../data/balance'
+import { isGun } from '../data/guns'
 import { BUFF_LABEL, getDish } from '../data/dishes'
 import { MARKET } from '../data/market'
 import { SNACKS } from '../data/snacks'
@@ -14,6 +15,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { canUseMouseLook, usePointerLockStore } from '../input/pointerLock'
 import { useTouchUi } from '../input/touchDevice'
 import { useNarrow } from './useNarrow'
+import { useMeasureTopRow } from './goalPlace'
 import { interactLabel } from './interactLabel'
 import { ItemIcon } from './ItemIcon'
 import { button, hint, overlayLayer, safeLeft, safeRight, safeTop, touchHint } from './styles'
@@ -44,6 +46,8 @@ export function Hud() {
   const mouseLook = canUseMouseLook() && !touchUi
   const cutscene = useSessionStore((s) => s.cutscene)
   const cooking = useSessionStore((s) => s.cooking)
+  // 위쪽 버튼 줄 폭을 재서 목표 띠가 그 왼쪽 빈 틈에 들어가게 한다 (GoalTracker)
+  const topRow = useMeasureTopRow()
 
   const ratio = survival.stamina / STAMINA.max
   const hungerRatio = survival.hunger / HUNGER.max
@@ -108,7 +112,7 @@ export function Hud() {
 
       {mode === 'explore' && (
         <>
-          <div style={{ position: 'absolute', top: safeTop(16), right: safeRight(16), display: 'flex', gap: 8 }}>
+          <div ref={topRow} style={{ position: 'absolute', top: safeTop(16), right: safeRight(16), display: 'flex', gap: 8 }}>
             <MusicButton />
             {/* 폰은 위쪽 줄이 좁아서 가방 버튼을 오른쪽 아래 조작 버튼 옆에 둔다 (TouchControls) */}
             {!touchUi && (
@@ -132,7 +136,7 @@ export function Hud() {
           {mouseLook && !locked && <div style={lookHint}>클릭하면 마우스로 시점 회전 · ESC 해제</div>}
           {!touchUi && (
             <div style={{ position: 'absolute', bottom: 8, left: 16, right: 16, textAlign: 'center', opacity: 0.7, fontSize: 12 }}>
-              WASD 이동 · Shift 달리기 · Space 점프 · 1~3 도구 · X 넣기 · {tool === 'fists' ? '클릭 주먹 · ' : tool === 'knife' ? '클릭 베기 · 오른쪽 클릭 찌르기 · ' : ''}I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
+              WASD 이동 · Shift 달리기 · Space 점프 · 1~7 도구 · X 넣기 · {tool === 'fists' ? '클릭 주먹 · ' : tool === 'knife' ? '클릭 베기 · 오른쪽 클릭 찌르기 · ' : isGun(tool) ? '클릭 쏘기 · 오른쪽 클릭 조준 · R 장전 · ' : ''}V 시점 · I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
             </div>
           )}
         </>

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { DISHES } from '../data/dishes'
 import { SNACK_IDS } from '../data/snacks'
-import { IDLE_ACTION, type PlayerAction } from './playerMotion'
-import { fromNetAct, packAnimals, parseClientMsg, parseServerMsg, roundState, stateKey, stateSendDue, toNetAct, unpackAnimals, type NetState } from './netProtocol'
+import { IDLE_ACTION, shownTool, type PlayerAction } from './playerMotion'
+import { fromNetAct, packAnimals, parseClientMsg, parseServerMsg, netHp, remoteMode, roundShot, roundState, stateKey, stateSendDue, toNetAct, unpackAnimals, type NetState } from './netProtocol'
 
 const state = (over: Partial<NetState> = {}): NetState => ({
   p: [1, 2, 3], f: 0.5, v: 1, rest: false, fish: null, rod: 0.5, rodOn: true, bob: null,
@@ -92,8 +92,8 @@ describe('시계·잠 투표 메시지 (3-1)', () => {
     expect(parseServerMsg(json({ type: 'morning', day: 4 }))).toEqual({ type: 'morning', day: 4 })
     expect(parseServerMsg(json({ type: 'morning', day: 'x' }))).toBeNull()
   })
-  it('아직 모르는 종류(3-4 이후 kill 등)는 버린다', () => {
-    expect(parseServerMsg(json({ type: 'kill', victim: 'a', killer: 'b' }))).toBeNull()
+  it('아직 모르는 종류는 버린다 (옛 빌드는 새 종류를 버린다)', () => {
+    expect(parseServerMsg(json({ type: 'fireworks', at: [0, 0, 0] }))).toBeNull()
   })
 })
 
@@ -226,11 +226,34 @@ describe('손에 든 도구 (3-2)', () => {
   })
 })
 
+describe('침대에 누운 사람 (sleep)', () => {
+  it('sleep 은 true 일 때만 싣고, 틀리면 그 필드만 버린다', () => {
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), sleep: true } }))).toEqual({ type: 'state', s: { ...state(), sleep: true } })
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), sleep: 'yes' } }))).toEqual({ type: 'state', s: state() })
+    expect(parseServerMsg(json({ type: 'state', id: 'a', s: { ...state(), sleep: false } }))).toEqual({ type: 'state', id: 'a', s: state() })
+    expect(roundState(state({ sleep: true })).sleep).toBe(true)
+    expect(roundState(state())).not.toHaveProperty('sleep')
+    expect(stateKey(state({ sleep: true }))).not.toBe(stateKey(state()))
+  })
+  it('남의 모드: 낚시 > 배 > 침대 > 벤치 > 탐험', () => {
+    expect(remoteMode(state())).toBe('explore')
+    expect(remoteMode(state({ rest: true }))).toBe('rest')
+    expect(remoteMode(state({ sleep: true }))).toBe('sleep')
+    expect(remoteMode(state({ rest: true, boat: { dir: 'toMeadow', t: 0.5 } }))).toBe('boat')
+    expect(remoteMode(state({ fish: { pose: 'aim', lean: 0 } }))).toBe('fishing')
+  })
+  it('침대에 누운 남은 칼·총을 손에 들지 않는다 (내 캐릭터와 같이)', () => {
+    expect(shownTool(remoteMode(state({ sleep: true, tool: 'knife' })), Infinity, IDLE_ACTION, 'knife')).toBeNull()
+    expect(shownTool(remoteMode(state({ sleep: true, tool: 'pistol' })), Infinity, IDLE_ACTION, 'pistol')).toBeNull()
+    expect(shownTool(remoteMode(state({ tool: 'pistol' })), Infinity, IDLE_ACTION, 'pistol')).toBe('pistol')
+  })
+})
+
 describe('동물·사냥 메시지 (3-3)', () => {
   it('animalHit {id, dmg, w} 를 읽고, 틀리면 null', () => {
     expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 2, w: 'stab' }))).toEqual({ type: 'animalHit', id: 4, dmg: 2, w: 'stab' })
     expect(parseClientMsg(json({ type: 'animalHit', id: 0, dmg: 1, w: 'knife' }))).toBeNull()
-    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 1, w: 'pistol' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 1, w: 'bow' }))).toBeNull()
     expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 99, w: 'fists' }))).toBeNull()
     expect(parseClientMsg(json({ type: 'animalHit', id: 1.5, dmg: 1, w: 'fists' }))).toBeNull()
   })
@@ -261,6 +284,53 @@ describe('동물·사냥 메시지 (3-3)', () => {
   })
 })
 
+describe('총·PvP 메시지 (3-4)', () => {
+  it('animalHit 에 총과 맞은 알 수 n (1~8, 1 이면 뺀다)', () => {
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 3, w: 'shotgun', n: 3 }))).toEqual({ type: 'animalHit', id: 4, dmg: 3, w: 'shotgun', n: 3 })
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 3, w: 'sniper', n: 1 }))).toEqual({ type: 'animalHit', id: 4, dmg: 3, w: 'sniper' })
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 3, w: 'shotgun', n: 9 }))).toBeNull()
+  })
+  it('pvpHit {target, weapon, n}: 은지 무기 이름 (칼 찌르기 stab · 주먹 fists), 알 수 1~8', () => {
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'shotgun', n: 5 }))).toEqual({ type: 'pvpHit', target: 'ab12', weapon: 'shotgun', n: 5 })
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'stab', n: 1 }))).toEqual({ type: 'pvpHit', target: 'ab12', weapon: 'stab', n: 1 })
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'rod', n: 1 }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'pvpHit', target: '', weapon: 'pistol', n: 1 }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'pistol', n: 0 }))).toBeNull()
+  })
+  it('animalHit·pvpHit 의 선택 필드 shot (한 발 번호, 1~1e9 정수): 없으면 빼고, 틀리면 null', () => {
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'shotgun', n: 5, shot: 42 }))).toEqual({ type: 'pvpHit', target: 'ab12', weapon: 'shotgun', n: 5, shot: 42 })
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 3, w: 'shotgun', n: 3, shot: 42 }))).toEqual({ type: 'animalHit', id: 4, dmg: 3, w: 'shotgun', n: 3, shot: 42 })
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 1, w: 'rifle', shot: 7 }))).toEqual({ type: 'animalHit', id: 4, dmg: 1, w: 'rifle', shot: 7 })
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'shotgun', n: 5, shot: 0 }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'pvpHit', target: 'ab12', weapon: 'shotgun', n: 5, shot: 1.5 }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 1, w: 'rifle', shot: 'x' }))).toBeNull()
+  })
+  it('shot {o, d, w}: 방향은 길이 0.9~1.1 만 받아 1 로 맞춘다. 서버가 쏜 사람 id 를 붙여 돌린다', () => {
+    expect(parseClientMsg(json({ type: 'shot', o: [180, 1.5, -40], d: [0, 0, -1], w: 'rifle' }))).toEqual({ type: 'shot', o: [180, 1.5, -40], d: [0, 0, -1], w: 'rifle' })
+    expect(parseClientMsg(json({ type: 'shot', o: [180, 1.5, -40], d: [0, 0, -0.5], w: 'rifle' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'shot', o: [180, 1.5, -40], d: [0, 0, -1], w: 'knife' }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'shot', id: 'ab12', o: [1, 2, 3], d: [1, 0, 0], w: 'sniper' }))).toEqual({ type: 'shot', id: 'ab12', o: [1, 2, 3], d: [1, 0, 0], w: 'sniper' })
+    expect(roundShot([1.2345, 2, 3], [0.123456, 0, -0.99233])).toEqual({ o: [1.23, 2, 3], d: [0.123, 0, -0.992] })
+  })
+  it('died {by?} → kill {victim, killer?}, hurt 에 pvp', () => {
+    expect(parseClientMsg(json({ type: 'died', by: 'ab12' }))).toEqual({ type: 'died', by: 'ab12' })
+    expect(parseClientMsg(json({ type: 'died' }))).toEqual({ type: 'died' })
+    expect(parseClientMsg(json({ type: 'died', by: 5 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'kill', victim: 'v1', killer: 'k1' }))).toEqual({ type: 'kill', victim: 'v1', killer: 'k1' })
+    expect(parseServerMsg(json({ type: 'kill', victim: 'v1' }))).toEqual({ type: 'kill', victim: 'v1' })
+    expect(parseServerMsg(json({ type: 'hurt', dmg: 70, by: 'pvp', from: 'k1' }))).toEqual({ type: 'hurt', dmg: 70, by: 'pvp', from: 'k1' })
+  })
+  it('모습의 체력 hp (0~100 정수): 틀리면 그 필드만 버리고, 바뀌면 다시 보낸다', () => {
+    expect(parseServerMsg(json({ type: 'state', id: 'a', s: state({ hp: 64 }) }))).toEqual({ type: 'state', id: 'a', s: state({ hp: 64 }) })
+    expect(parseServerMsg(json({ type: 'state', id: 'a', s: { ...state(), hp: 150 } }))).toEqual({ type: 'state', id: 'a', s: state() })
+    expect(roundState(state({ hp: 63.6 })).hp).toBe(64)
+    expect(stateKey(state({ hp: 64 }))).not.toBe(stateKey(state({ hp: 63 })))
+  })
+  it('총을 든 모습 (도구 칸 4~7)', () => {
+    expect(parseServerMsg(json({ type: 'state', id: 'a', s: state({ tool: 'sniper' }) }))).toEqual({ type: 'state', id: 'a', s: state({ tool: 'sniper' }) })
+  })
+})
+
 describe('stateSendDue (3-3 들판 근처는 5Hz 로 계속)', () => {
   const field = state({ p: [186, 1, -39] })
   const town = state({ p: [0, 1, 0] })
@@ -275,5 +345,22 @@ describe('stateSendDue (3-3 들판 근처는 5Hz 로 계속)', () => {
   it('들판 근처면 그대로여도 0.2초마다 (서버가 이 메시지에 맞춰 동물을 움직인다)', () => {
     expect(stateSendDue(field, false, 0.19)).toBe(false)
     expect(stateSendDue(field, false, 0.2)).toBe(true)
+  })
+  it('든 도구가 바뀌면 0.1초(서버 state 창 1/10)만 지나도 바로 (서버가 새 도구로 명중을 본다)', () => {
+    expect(stateSendDue(town, true, 0.12, true)).toBe(true)
+    expect(stateSendDue(town, true, 0.12)).toBe(false)
+    expect(stateSendDue(town, true, 0.05, true)).toBe(false)
+  })
+})
+
+describe('netHp (모습에 싣는 체력)', () => {
+  it('5 단위로 올려 보낸다: 회복 중에도 1 마다 모습을 다시 보내지 않는다. 조금이라도 남으면 0 이 아니다', () => {
+    expect(netHp(100)).toBe(100)
+    expect(netHp(97.2)).toBe(100)
+    expect(netHp(95)).toBe(95)
+    expect(netHp(52)).toBe(55)
+    expect(netHp(0.3)).toBe(5)
+    expect(netHp(0)).toBe(0)
+    expect(netHp(51)).toBe(netHp(54.9))
   })
 })

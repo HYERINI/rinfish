@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED } from '../data/characters'
 import { MELEE } from '../data/melee'
-import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, fishingLook, leanBack, poseClips, swingArm } from './characterPose'
+import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, fishingLook, gunArm, leanBack, poseClips, swingArm } from './characterPose'
 import { createFight } from './fight'
 import type { FishingState } from './fishingSession'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
@@ -205,5 +205,14 @@ describe('swingArm (3-3 휘두르기)', () => {
     expect(swingArm('knife', 0.3).inward).toBeLessThan(0)
     expect(swingArm('knife', 0.6).inward).toBeGreaterThan(0)
     expect(swingArm('stab', 0.3).forward).toBeGreaterThan(0)
+  })
+})
+
+describe('gunArm (3-4 총 겨누기)', () => {
+  it('겨눈 정도만큼 팔을 앞으로 든다 (0 이면 그대로, 1 을 넘지 않는다)', () => {
+    expect(gunArm(0)).toEqual({ forward: 0, inward: 0, elbow: 0 })
+    expect(gunArm(1).forward).toBeCloseTo(-1.45)
+    expect(gunArm(0.5).forward).toBeCloseTo(-0.725)
+    expect(gunArm(3)).toEqual(gunArm(1))
   })
 })

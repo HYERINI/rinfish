@@ -59,11 +59,13 @@ export function wake(now = perfNow()) {
 
 /**
  * 죽음 (굶주림, 3-3·3-4 의 동물·PvP). 화면이 1.6초 어두워진 뒤 침대 옆에서 깨어난다.
- * 낚시 중이면 그만두고, 잠 투표 중이면 깬 것으로 알린다. 배 타는 중이면 깨어날 때 순간이동이 배를 끝낸다
+ * 낚시 중이면 그만두고, 잠 투표 중이면 깬 것으로 알린다. 배 타는 중이면 깨어날 때 순간이동이 배를 끝낸다.
+ * 같이 하는 중이면 방에 쓰러졌다고 알린다 (by: PvP 로 쓰러뜨린 사람 → 모두에게 "A 님이 B 님을 쓰러뜨렸어요")
  */
-export function startDeath() {
+export function startDeath(by?: string) {
   const day = useDayStore.getState()
   if (day.seq?.kind === 'death') return
+  useNetStore.getState().sendDied(by)
   if (day.voting) {
     day.setVoting(false)
     useNetStore.getState().sendSleep(false)
@@ -78,14 +80,16 @@ export function startDeath() {
 }
 
 /**
- * 동물(3-3)·PvP(3-4) 에게 맞았다: 체력을 깎고 화면 가장자리를 번쩍인다. 0 이 되면 죽음 (침대).
- * 잠·죽음으로 화면이 어두워지는 중엔 맞지 않는다 (은지 그대로). 피해가 0 이하·숫자가 아니면 아무것도 하지 않는다
+ * 동물(3-3)·PvP(3-4) 에게 맞았다: 체력을 깎고 화면 가장자리를 번쩍인다. 0 이 되면 죽음 (침대). from: PvP 로 맞힌 사람.
+ * 잠·죽음으로 화면이 어두워지는 중엔 맞지 않는다 (은지 그대로). 침대에 누워 잠 투표 중이면 깬다 (스펙 3-1 "맞으면 깬다").
+ * 피해가 0 이하·숫자가 아니면 아무것도 하지 않는다
  */
-export function takeHit(dmg: number) {
+export function takeHit(dmg: number, from?: string) {
   if (!(dmg > 0) || useDayStore.getState().seq) return
+  if (useDayStore.getState().voting) wake()
   const died = useProgressStore.getState().hurt(dmg)
   useSessionStore.getState().flashHurt()
-  if (died) startDeath()
+  if (died) startDeath(from)
 }
 
 /** 다 어두워진 순간: 자고 일어나기 / 침대에서 깨어나기. 같이 하는 중엔 시계가 방 것이라 건드리지 않는다 */

@@ -1,4 +1,5 @@
 import type { Box3, BoxGeometry, DirectionalLight, Group, HemisphereLight, Light, Mesh, Object3D, Vector3 } from 'three'
+import type { EunjiRange } from './range.js'
 
 /** outdoor: 마당·광장·들판 (실내 방엔 없다) */
 export type EunjiRoom = { id: string; name: string; minX: number; maxX: number; minZ: number; maxZ: number; outdoor?: boolean }
@@ -42,6 +43,8 @@ export type EunjiWorld = {
   /** 은지 좌표 (x, z) 의 방: 실내 방 → 마당 → 광장 → 들판 순 */
   roomAt(x: number, z: number): EunjiRoom
   bedSpot: { center: Vector3; label: string }
+  /** 사격장 표적·무기 선반·연습 게임 (3-4) */
+  range: EunjiRange
 }
 
 export function createWorld(): EunjiWorld

@@ -192,3 +192,30 @@ describe('동물에게 맞기 (3-3)', () => {
     calmSolo()
   })
 })
+
+describe('PvP 로 쓰러지기 (3-4)', () => {
+  const sendDied = vi.fn()
+  const realSendDied = useNetStore.getState().sendDied
+  beforeEach(() => sendDied.mockClear())
+  afterEach(() => useNetStore.setState({ sendDied: realSendDied }))
+
+  it('같이 하는 중 맞아서 쓰러지면 마지막으로 맞힌 사람과 함께 died 를 보낸다. 굶어 쓰러지면 by 없이', () => {
+    useNetStore.setState({ phase: 'online', sendDied })
+    takeHit(70, 'k1')
+    expect(sendDied).toHaveBeenCalledWith('k1')
+    expect(day().seq?.kind).toBe('death')
+    runSeq()
+    startDeath()
+    expect(sendDied).toHaveBeenLastCalledWith(undefined)
+  })
+  it('침대에 누워 잠 투표 중에 맞으면 깬다', () => {
+    useNetStore.setState({ phase: 'online', sendDied })
+    useProgressStore.setState({ survival: { stamina: 90, hunger: 50, graceLeft: null, buffs: [] } })
+    startSleep(100)
+    expect(day().voting).toBe(true)
+    takeHit(20, 'k1')
+    expect(day().voting).toBe(false)
+    expect(sendSleep).toHaveBeenLastCalledWith(false)
+    expect(sendDied).not.toHaveBeenCalled()
+  })
+})

@@ -191,6 +191,16 @@ const SWING_KEYS: Record<MeleeId, [number, number, number, number][]> = {
   ],
 }
 
+/** 총을 겨누는 오른팔 (찌르기를 뻗은 자세와 비슷하게 앞으로 곧게). 은지 3인칭 조준 자세 */
+const GUN_AIM: SwingArm = { forward: -1.45, inward: 0.12, elbow: -0.08 }
+
+/** 총을 겨눈 정도 w (0 = 내린 채, 1 = 겨눔) 만큼 오른팔을 든다 (조준하거나 막 쐈을 때. 오르내릴 때 툭 튀지 않게 w 를 부드럽게 바꾼다) */
+export function gunArm(w: number): SwingArm {
+  const k = Math.min(1, Math.max(0, w))
+  if (!(k > 0)) return REST_ARM
+  return { forward: GUN_AIM.forward * k, inward: GUN_AIM.inward * k, elbow: GUN_AIM.elbow * k }
+}
+
 /** 휘두르는 동안 오른팔 (서 있기 클립 위에 덧돌린다. eatArm 처럼). p: 동작 진행도 0..1, 범위 밖이면 그대로 */
 export function swingArm(kind: MeleeId, p: number): SwingArm {
   if (!(p > 0 && p < 1)) return REST_ARM
