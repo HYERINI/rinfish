@@ -27,6 +27,7 @@ import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
 import { Hotbar } from './ui/Hotbar'
+import { HurtFlash } from './ui/HurtFlash'
 import { LoadingScreen } from './ui/LoadingScreen'
 import { SleepOverlay } from './ui/SleepOverlay'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
@@ -111,6 +112,7 @@ export function Game({ onExit, hub }: GameProps) {
         </Canvas>
       </div>
       <WeaknessOverlay />
+      <HurtFlash />
       <Hud />
       <Hotbar />
       <RoomBadge />

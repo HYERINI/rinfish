@@ -1,4 +1,5 @@
 import { BAITS, NO_BAIT_KEY, type BaitId } from '../data/bait'
+import type { RawItemId } from '../data/meadowItems'
 import type { VendorId } from '../data/meadowPrices'
 import { HOTBAR, hotbarSlot, type ToolId } from '../data/tools'
 import type { ZoneId } from '../data/types'
@@ -54,6 +55,8 @@ export type Interactable =
   | { kind: 'door'; index: number }
   /** 마을 상인 */
   | { kind: 'vendor'; id: VendorId }
+  /** 바닥에 떨어진 사냥 전리품 (key: hunt/animalRig 번호) */
+  | { kind: 'loot'; key: number; item: RawItemId }
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
@@ -63,6 +66,7 @@ export function isSameInteractable(a: Interactable | null, b: Interactable): boo
   if (a.kind === 'pickup' && b.kind === 'pickup') return a.index === b.index
   if (a.kind === 'door' && b.kind === 'door') return a.index === b.index
   if (a.kind === 'vendor' && b.kind === 'vendor') return a.id === b.id
+  if (a.kind === 'loot' && b.kind === 'loot') return a.key === b.key
   return true
 }
 
@@ -90,6 +94,8 @@ export type KeyAction =
   | { type: 'toggleDoor'; index: number }
   /** 상인 사고팔기 창 */
   | { type: 'openVendor'; id: VendorId }
+  /** 전리품 줍기 */
+  | { type: 'pickLoot'; key: number }
 
 /** 요리 연출을 건너뛰는 키 (E·Space·Enter·ESC). 수리 연출은 건너뛰지 않는다 */
 export function isCookingSkipKey(code: string): boolean {
@@ -157,6 +163,8 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
         return { type: 'toggleDoor', index: nearby.index }
       case 'vendor':
         return { type: 'openVendor', id: nearby.id }
+      case 'loot':
+        return { type: 'pickLoot', key: nearby.key }
       case 'stove':
         // 가방의 요리법 탭이 열린다 (BagPanel 이 가스레인지 앞인지 본다)
         return { type: 'openMode', mode: 'bag' }

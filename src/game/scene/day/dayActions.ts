@@ -1,4 +1,5 @@
 import { BED_WAKE } from '../../data/meadow'
+import { calmSolo } from '../../hunt/animalRig'
 import { nextMorning } from '../../logic/dayClock'
 import { seqEnd, seqSwitchAt, type SeqKind } from '../../logic/restSeq'
 import { liveClock, useDayStore } from '../../stores/dayStore'
@@ -68,10 +69,23 @@ export function startDeath() {
     useNetStore.getState().sendSleep(false)
   }
   useFishingStore.getState().end()
+  // 혼자: 나를 쫓던 동물이 진정한다 (같이: 침대가 실내라 서버 동물이 포기한다)
+  calmSolo()
   day.startSeq('death')
   const session = useSessionStore.getState()
   session.setMode('sleep')
   session.notify('쓰러졌어요… 침대에서 깨어납니다')
+}
+
+/**
+ * 동물(3-3)·PvP(3-4) 에게 맞았다: 체력을 깎고 화면 가장자리를 번쩍인다. 0 이 되면 죽음 (침대).
+ * 잠·죽음으로 화면이 어두워지는 중엔 맞지 않는다 (은지 그대로). 피해가 0 이하·숫자가 아니면 아무것도 하지 않는다
+ */
+export function takeHit(dmg: number) {
+  if (!(dmg > 0) || useDayStore.getState().seq) return
+  const died = useProgressStore.getState().hurt(dmg)
+  useSessionStore.getState().flashHurt()
+  if (died) startDeath()
 }
 
 /** 다 어두워진 순간: 자고 일어나기 / 침대에서 깨어나기. 같이 하는 중엔 시계가 방 것이라 건드리지 않는다 */

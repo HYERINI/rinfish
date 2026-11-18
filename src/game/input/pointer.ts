@@ -3,6 +3,7 @@ import { canZoom } from '../logic/cameraZoom'
 import type { FishingInput } from '../logic/fishingSession'
 import { gestureStep, type Point } from '../logic/touchUi'
 import { useSessionStore } from '../stores/sessionStore'
+import { canUseMouseLook, isPointerLocked } from './pointerLock'
 
 /**
  * 지금 누르고 있는 게임 포인터들 (마우스·손가락마다 pointerId 로 따로 센다).
@@ -18,11 +19,40 @@ let pressed = false
 let dragX = 0
 let dragY = 0
 
-type PointerLike = { button: number; pointerId: number; clientX: number; clientY: number }
+/** 휘두르기 입력: primary = 마우스 왼쪽 (베기·주먹), secondary = 오른쪽 (칼 찌르기) */
+export type AttackPress = 'primary' | 'secondary'
+/** 지난 프레임 뒤로 새로 누른 휘두르기. MeleeController 가 매 프레임 가져가며 비운다 */
+let attackPress: AttackPress | null = null
+
+type PointerLike = { button: number; pointerId: number; clientX: number; clientY: number; pointerType?: string }
+
+/**
+ * 마우스로 캔버스를 누른 게 휘두르기인가: 왼쪽·오른쪽 버튼, 마우스 잠금 중(잠금을 못 쓰는 환경이면 늘).
+ * 잠기기 전 클릭은 시점 잠금용이라 휘두르지 않는다. 손가락은 시점 돌리기라 휘두르지 않는다 (폰은 휘두르기 버튼)
+ */
+export function attackFromPointer(e: Pick<PointerLike, 'button' | 'pointerType'>, locked: boolean, mouseLook: boolean): AttackPress | null {
+  if (e.pointerType !== 'mouse' || (mouseLook && !locked)) return null
+  if (e.button === 0) return 'primary'
+  if (e.button === 2) return 'secondary'
+  return null
+}
+
+/** 휘두르기 버튼 (폰) */
+export function pressAttack(kind: AttackPress = 'primary') {
+  attackPress = kind
+}
+
+/** 새로 누른 휘두르기를 가져가고 비운다 */
+export function takeAttackPress(): AttackPress | null {
+  const a = attackPress
+  attackPress = null
+  return a
+}
 
 /** 캔버스 영역에서 눌렀을 때 호출 (UI 버튼 클릭은 여기로 오지 않는다) */
 export function pressPointer(e: PointerLike) {
-  // 우클릭·휠 클릭은 입력으로 보지 않는다 (컨텍스트 메뉴가 pointerup을 삼켜 입력이 고착될 수 있다)
+  attackPress = attackFromPointer(e, isPointerLocked(), canUseMouseLook()) ?? attackPress
+  // 우클릭·휠 클릭은 낚시 입력으로 보지 않는다 (컨텍스트 메뉴가 pointerup을 삼켜 입력이 고착될 수 있다)
   if (e.button !== 0) return
   canvasPointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
   pressed = true
@@ -57,6 +87,7 @@ export function takeDrag(): { dx: number; dy: number } {
 function releaseAll() {
   canvasPointers.clear()
   buttonPointers.clear()
+  attackPress = null
   dragX = 0
   dragY = 0
 }

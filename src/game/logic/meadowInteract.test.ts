@@ -33,6 +33,13 @@ describe('초원 감시자가 nearby 를 바꾸는 규칙', () => {
     expect(meadowNearbyUpdate({ kind: 'stove' }, shroom)).toEqual(shroom)
     expect(meadowNearbyUpdate(shroom, { ...shroom })).toBe('keep')
   })
+  it('전리품도 감시자 몫: 번호가 다르면 바꾸고, 주워서 없어지면 지운다', () => {
+    const beef = { kind: 'loot', key: 3, item: 'beef' } as const
+    expect(meadowNearbyUpdate(shroom, beef)).toEqual(beef)
+    expect(meadowNearbyUpdate(beef, { ...beef, key: 4 })).toEqual({ ...beef, key: 4 })
+    expect(meadowNearbyUpdate(beef, null)).toBe('clear')
+    expect(meadowNearbyUpdate({ kind: 'bed' }, beef)).toBe('keep')
+  })
   it('못 찾으면 내가 잡은 것만 지운다', () => {
     expect(meadowNearbyUpdate(shroom, null)).toBe('clear')
     expect(meadowNearbyUpdate(null, null)).toBe('keep')

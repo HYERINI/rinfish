@@ -1,8 +1,13 @@
+import { Suspense } from 'react'
 import { MeadowLighting } from '../../meadow/MeadowLighting'
 import { MeadowInteractions } from '../../meadow/MeadowInteractions'
 import { MeadowVendors } from '../../meadow/MeadowVendors'
 import { MeadowWorld } from '../../meadow/MeadowWorld'
 import { NetBridge } from '../net/NetBridge'
+import { Animals } from './animals/Animals'
+import { HerdRunner } from './animals/HerdRunner'
+import { LootItems } from './animals/LootItems'
+import { MeleeController } from './melee/MeleeController'
 import { Docks } from './boat/Docks'
 import { DayCycle } from './day/DayCycle'
 import { FishingSpots } from './facilities/FishingSpots'
@@ -57,6 +62,13 @@ export function World() {
       <FishingController />
       <FishingVisuals />
       <PlayTimeTicker />
+      <HerdRunner />
+      {/* 동물 모델을 받는 동안 다른 것은 먼저 그린다 */}
+      <Suspense fallback={null}>
+        <Animals />
+      </Suspense>
+      <LootItems />
+      <MeleeController />
       <DayCycle />
     </>
   )

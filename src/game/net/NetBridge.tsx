@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { NET } from '../data/net'
 import { boatProgress } from '../logic/boatRoute'
 import { fishingLook } from '../logic/characterPose'
-import { roundState, stateKey, toNetAct, type NetState } from '../logic/netProtocol'
+import { roundState, stateKey, stateSendDue, toNetAct, type NetState } from '../logic/netProtocol'
 import { playerRig } from '../scene/Player'
 import { fishingFx } from '../scene/fishing/fishingFx'
 import { useFishingStore } from '../stores/fishingStore'
@@ -12,7 +11,8 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 
 /**
- * 캔버스 안에서 내 모습을 방에 보낸다: 바뀐 게 있으면 초당 최대 NET.sendHz 번, 없으면 NET.idleSendEvery 초마다.
+ * 캔버스 안에서 내 모습을 방에 보낸다: 바뀐 게 있으면 초당 최대 NET.sendHz 번, 없으면 NET.idleSendEvery 초마다
+ * (들판 근처는 그대로여도 NET.sendHz 로. stateSendDue).
  * 옷을 바꾸면 profile 도 보낸다. 같이 하는 중이 아니면 아무것도 하지 않는다
  */
 export function NetBridge() {
@@ -52,7 +52,7 @@ export function NetBridge() {
     const s = roundState(raw)
     const key = stateKey(s)
     const since = now - last.current.at
-    if ((key !== last.current.key && since >= 1 / NET.sendHz) || since >= NET.idleSendEvery) {
+    if (stateSendDue(s, key !== last.current.key, since)) {
       last.current = { at: now, key }
       useNetStore.getState().sendState(s)
     }

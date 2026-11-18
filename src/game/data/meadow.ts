@@ -39,6 +39,20 @@ export const MEADOW_DOCK_TOP = 0.1
 /** 선착장 위 걸을 수 있는 곳. 초원 땅(x 91)과 겹치게 x 91.5 까지 */
 export const MEADOW_DOCK_LAND: Rect = { x0: 84.5, x1: 91.5, z0: -3.2, z1: -0.8 }
 
+/** 은지 집 실내 방 4개 (은지 world.js ROOMS: 침실·거실·주방·사격장, 은지 좌표. 같은지 테스트) */
+export const MEADOW_ROOMS: EunjiArea[] = [
+  { minX: -5, maxX: 5, minZ: -5, maxZ: 5 },
+  { minX: 5, maxX: 15, minZ: -5, maxZ: 5 },
+  { minX: 5, maxX: 13, minZ: -13, maxZ: -5 },
+  { minX: 15, maxX: 27, minZ: -5, maxZ: 5 },
+]
+
+/** 세계 (x, z) 가 은지 집 안인가. 은지 roomAt 처럼 maxX 는 빼고 maxZ 는 넣는다 (동물이 쫓기를 포기한다) */
+export function isIndoor(x: number, z: number): boolean {
+  const [lx, lz] = toMeadowLocal(x, z)
+  return MEADOW_ROOMS.some((r) => lx >= r.minX && lx < r.maxX && lz >= r.minZ && lz <= r.maxZ)
+}
+
 /** 은지 침실 침대 (은지 world.bedSpot 3.5, 3.6) */
 export const BED_SPOT: [number, number] = toWorld(3.5, 3.6)
 /** E "잠자기" 감지 상자: 침대와 그 앞을 덮고 침실 벽(은지 x 5, z 5) 밖으로 나가지 않는다 (은지 2m 와 비슷) */

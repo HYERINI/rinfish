@@ -2,6 +2,7 @@ import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED, type CharacterClip } from '../data/characters'
 import type { FishingState } from './fishingSession'
 import { EMOTES, type EmoteId } from '../data/emotes'
+import type { MeleeId } from '../data/melee'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
 
 /**
@@ -156,6 +157,51 @@ export function eatArm(action: PlayerAction, now: number): { raise: number; chew
   const raise = k * k * (3 - 2 * k)
   const chew = raise >= 1 ? 0.5 - 0.5 * Math.cos(((t - EAT.raiseTime) / EAT.biteEvery) * Math.PI * 2) : 0
   return { raise, chew }
+}
+
+/** 휘두르는 오른팔 (라디안): forward 위팔을 앞으로(음수가 앞·위), inward 몸 안쪽으로(y 축), elbow 팔꿈치 굽힘(음수) */
+export type SwingArm = { forward: number; inward: number; elbow: number }
+const REST_ARM: SwingArm = { forward: 0, inward: 0, elbow: 0 }
+
+/**
+ * 휘두르기 자세표 [진행도, forward, inward, elbow]. 은지 3인칭 팔 동작을 닮게 (캐릭터를 띄워 보며 맞춘 값):
+ * 주먹 = 굽혔다 앞으로 곧게 뻗기, 베기 = 오른쪽 바깥에서 몸 앞을 가로질러 안쪽으로, 찌르기 = 뒤로 당겼다 앞으로 깊게. 처음·끝은 0 (툭 튀지 않게)
+ */
+const SWING_KEYS: Record<MeleeId, [number, number, number, number][]> = {
+  fists: [
+    [0, 0, 0, 0],
+    [0.25, -0.6, 0.1, -1.6],
+    [0.4, -1.5, 0.15, -0.15],
+    [0.7, -1.2, 0.1, -0.6],
+    [1, 0, 0, 0],
+  ],
+  knife: [
+    [0, 0, 0, 0],
+    [0.3, -1.3, -0.9, -0.6],
+    [0.42, -1.3, 0.2, -0.3],
+    [0.6, -1.1, 0.7, -0.5],
+    [1, 0, 0, 0],
+  ],
+  stab: [
+    [0, 0, 0, 0],
+    [0.3, 0.4, 0.1, -1.7],
+    [0.46, -1.5, 0.05, -0.1],
+    [0.62, -1.45, 0.05, -0.15],
+    [1, 0, 0, 0],
+  ],
+}
+
+/** 휘두르는 동안 오른팔 (서 있기 클립 위에 덧돌린다. eatArm 처럼). p: 동작 진행도 0..1, 범위 밖이면 그대로 */
+export function swingArm(kind: MeleeId, p: number): SwingArm {
+  if (!(p > 0 && p < 1)) return REST_ARM
+  const keys = SWING_KEYS[kind]
+  let i = 0
+  while (keys[i + 1][0] < p) i++
+  const [p0, f0, n0, e0] = keys[i]
+  const [p1, f1, n1, e1] = keys[i + 1]
+  const k = (p - p0) / (p1 - p0)
+  const t = k * k * (3 - 2 * k)
+  return { forward: f0 + (f1 - f0) * t, inward: n0 + (n1 - n0) * t, elbow: e0 + (e1 - e0) * t }
 }
 
 /**

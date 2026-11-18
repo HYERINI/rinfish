@@ -37,7 +37,7 @@ import { migrateSave } from '../logic/saveMigration'
 import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
 import { FIRST_MORNING, readClock, type Clock } from '../logic/dayClock'
 import { FRESH_SURVIVAL, faintPenalty, spendStamina, type Survival } from '../logic/stamina'
-import { afterDeath, afterSleep, tickSurvival, type SurvivalTickContext } from '../logic/survival'
+import { afterDeath, afterSleep, takeDamage, tickSurvival, type SurvivalTickContext } from '../logic/survival'
 
 export const SAVE_KEY = 'fishing-island-save-v1'
 
@@ -95,6 +95,8 @@ type ProgressActions = {
   sleepWell: (clock: Clock | null) => void
   /** 죽었다 침대에서 깨어났다: 체력 가득, 배고픔 60. 가방·코인·물고기는 그대로. clock 이 있으면(혼자) 그 시계로 */
   reviveAtBed: (clock: Clock | null) => void
+  /** 동물(3-3)·PvP(3-4) 에게 맞았다. 체력이 0 이 되면 true (죽음 → 침대, dayActions.startDeath) */
+  hurt: (amount: number) => boolean
   /** 물고기(한 마리 또는 여러 마리)로 요리해 먹는다. 재료가 안 맞거나 코인이 모자라면 false */
   cookDish: (dishId: DishId, fishIds: string | string[]) => boolean
   displayFish: (fishId: string) => boolean
@@ -361,6 +363,12 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
       sleepWell: (clock) => set((s) => ({ survival: afterSleep(s.survival), ...(clock ? { clock } : {}) })),
 
       reviveAtBed: (clock) => set({ survival: afterDeath(), ...(clock ? { clock } : {}) }),
+
+      hurt: (amount) => {
+        const r = takeDamage(get().survival, amount)
+        if (r.survival !== get().survival) set({ survival: r.survival })
+        return r.died
+      },
 
       cookDish: (dishId, fishIds) => {
         const s = get()

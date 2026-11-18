@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { EAT } from '../data/balance'
 import { JUMP_POSE, SPRINT_MIN_SPEED } from '../data/characters'
-import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, fishingLook, leanBack, poseClips } from './characterPose'
+import { MELEE } from '../data/melee'
+import { aimWeights, characterPose, chewBite, clipTimeScale, eatArm, fishingLook, leanBack, poseClips, swingArm } from './characterPose'
 import { createFight } from './fight'
 import type { FishingState } from './fishingSession'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
@@ -182,5 +183,27 @@ describe('먹기 자세', () => {
     expect(chewBite(eating, 10 + EAT.duration - EAT.raiseTime / 2)).toBe(-1)
     // 아구작·아구작·냠냠·쩝쩝이 다 뜰 만큼 길게 먹는다
     expect(chewBite(eating, 10 + EAT.duration - EAT.raiseTime - 0.01)).toBeGreaterThanOrEqual(3)
+  })
+})
+
+describe('swingArm (3-3 휘두르기)', () => {
+  it('처음·끝·범위 밖은 팔을 그대로 둔다', () => {
+    for (const kind of ['fists', 'knife', 'stab'] as const) {
+      expect(swingArm(kind, 0)).toEqual({ forward: 0, inward: 0, elbow: 0 })
+      expect(swingArm(kind, 1)).toEqual({ forward: 0, inward: 0, elbow: 0 })
+      expect(swingArm(kind, -1)).toEqual({ forward: 0, inward: 0, elbow: 0 })
+    }
+  })
+  it('맞는 순간(hitAt)엔 팔을 앞으로 뻗고 팔꿈치가 거의 펴져 있다', () => {
+    for (const kind of ['fists', 'knife', 'stab'] as const) {
+      const a = swingArm(kind, MELEE[kind].hitAt)
+      expect(a.forward).toBeLessThan(-1.2)
+      expect(a.elbow).toBeGreaterThan(-0.4)
+    }
+  })
+  it('베기는 바깥에서 안쪽으로 긋고, 찌르기는 먼저 뒤로 당긴다', () => {
+    expect(swingArm('knife', 0.3).inward).toBeLessThan(0)
+    expect(swingArm('knife', 0.6).inward).toBeGreaterThan(0)
+    expect(swingArm('stab', 0.3).forward).toBeGreaterThan(0)
   })
 })

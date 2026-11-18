@@ -3,7 +3,7 @@ import { DEFAULT_LOOK } from '../data/characterParts'
 import { DISHES } from '../data/dishes'
 import { SNACK_IDS } from '../data/snacks'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
-import { fromNetAct, parseClientMsg, parseServerMsg, roundState, stateKey, toNetAct, type NetState } from './netProtocol'
+import { fromNetAct, packAnimals, parseClientMsg, parseServerMsg, roundState, stateKey, stateSendDue, toNetAct, unpackAnimals, type NetState } from './netProtocol'
 
 const state = (over: Partial<NetState> = {}): NetState => ({
   p: [1, 2, 3], f: 0.5, v: 1, rest: false, fish: null, rod: 0.5, rodOn: true, bob: null,
@@ -92,8 +92,8 @@ describe('시계·잠 투표 메시지 (3-1)', () => {
     expect(parseServerMsg(json({ type: 'morning', day: 4 }))).toEqual({ type: 'morning', day: 4 })
     expect(parseServerMsg(json({ type: 'morning', day: 'x' }))).toBeNull()
   })
-  it('아직 모르는 종류(3-3 이후 animals 등)는 버린다', () => {
-    expect(parseServerMsg(json({ type: 'animals', list: [] }))).toBeNull()
+  it('아직 모르는 종류(3-4 이후 kill 등)는 버린다', () => {
+    expect(parseServerMsg(json({ type: 'kill', victim: 'a', killer: 'b' }))).toBeNull()
   })
 })
 
@@ -223,5 +223,57 @@ describe('손에 든 도구 (3-2)', () => {
     expect(roundState({ ...state(), tool: 'knife' }).tool).toBe('knife')
     expect(roundState(state())).not.toHaveProperty('tool')
     expect(stateKey({ ...state(), tool: 'knife' })).not.toBe(stateKey({ ...state(), tool: 'fists' }))
+  })
+})
+
+describe('동물·사냥 메시지 (3-3)', () => {
+  it('animalHit {id, dmg, w} 를 읽고, 틀리면 null', () => {
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 2, w: 'stab' }))).toEqual({ type: 'animalHit', id: 4, dmg: 2, w: 'stab' })
+    expect(parseClientMsg(json({ type: 'animalHit', id: 0, dmg: 1, w: 'knife' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 1, w: 'pistol' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'animalHit', id: 4, dmg: 99, w: 'fists' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'animalHit', id: 1.5, dmg: 1, w: 'fists' }))).toBeNull()
+  })
+  it('animals 는 짧은 배열로 보내고(소수 둘째 자리) 받으면 그리는 값으로 되돌린다', () => {
+    const view = { id: 3, sp: 'deer' as const, x: 180.123, z: -40.456, h: -1.234, pose: 'run' as const, hp: 2 }
+    const list = packAnimals([view])
+    expect(list).toEqual([[3, 2, 180.12, -40.46, -1.23, 3, 2]])
+    const msg = parseServerMsg(json({ type: 'animals', list }))
+    expect(msg).toEqual({ type: 'animals', list })
+    expect(unpackAnimals(list)).toEqual([{ ...view, x: 180.12, z: -40.46, h: -1.23 }])
+  })
+  it('animals 의 틀린 동물만 빼고, 목록이 아니거나 너무 길면 null', () => {
+    const good = [1, 0, 180, -40, 0, 0, 3]
+    expect(parseServerMsg(json({ type: 'animals', list: [good, [1, 9, 0, 0, 0, 0, 3], [2, 0, 999, 0, 0, 0, 1], 'x'] }))).toEqual({ type: 'animals', list: [good] })
+    expect(parseServerMsg(json({ type: 'animals', list: 'nope' }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'animals', list: Array.from({ length: 65 }, () => good) }))).toBeNull()
+  })
+  it('loot {items, x, z}: 은지 재료만, 하나라도 틀리면 null', () => {
+    expect(parseServerMsg(json({ type: 'loot', items: ['beef', 'beef', 'bone'], x: 181, z: -40 }))).toEqual({ type: 'loot', items: ['beef', 'beef', 'bone'], x: 181, z: -40 })
+    expect(parseServerMsg(json({ type: 'loot', items: ['steak'], x: 181, z: -40 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'loot', items: ['beef'] }))).toBeNull()
+  })
+  it('hurt {dmg, by, from?}', () => {
+    expect(parseServerMsg(json({ type: 'hurt', dmg: 15, by: 'animal' }))).toEqual({ type: 'hurt', dmg: 15, by: 'animal' })
+    expect(parseServerMsg(json({ type: 'hurt', dmg: 15, by: 'animal', from: 'ab12' }))).toEqual({ type: 'hurt', dmg: 15, by: 'animal', from: 'ab12' })
+    expect(parseServerMsg(json({ type: 'hurt', dmg: -1, by: 'animal' }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'hurt', dmg: 5, by: 'ghost' }))).toBeNull()
+  })
+})
+
+describe('stateSendDue (3-3 들판 근처는 5Hz 로 계속)', () => {
+  const field = state({ p: [186, 1, -39] })
+  const town = state({ p: [0, 1, 0] })
+  it('바뀌었으면 0.2초(1/sendHz)마다', () => {
+    expect(stateSendDue(town, true, 0.19)).toBe(false)
+    expect(stateSendDue(town, true, 0.2)).toBe(true)
+  })
+  it('들판에서 멀면 그대로일 땐 2초마다', () => {
+    expect(stateSendDue(town, false, 0.5)).toBe(false)
+    expect(stateSendDue(town, false, 2)).toBe(true)
+  })
+  it('들판 근처면 그대로여도 0.2초마다 (서버가 이 메시지에 맞춰 동물을 움직인다)', () => {
+    expect(stateSendDue(field, false, 0.19)).toBe(false)
+    expect(stateSendDue(field, false, 0.2)).toBe(true)
   })
 })

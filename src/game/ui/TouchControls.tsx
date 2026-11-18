@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { EMOTES } from '../data/emotes'
 import { TOUCH } from '../data/touch'
 import { resetStick, setStick } from '../input/move'
-import { pressFishingButton } from '../input/pointer'
+import { pressAttack, pressFishingButton } from '../input/pointer'
 import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { runKeyAction } from '../input/useInteractionKeys'
 import { pressEmote, pressJump } from '../input/usePlayerActionKeys'
@@ -41,6 +41,7 @@ export function TouchControls() {
 
 function ExploreControls() {
   const nearby = useSessionStore((s) => s.nearby)
+  const tool = useSessionStore((s) => s.tool)
   const [emotesOpen, setEmotesOpen] = useState(false)
   const portrait = useMediaQuery('(orientation: portrait)')
   const bag = (
@@ -48,6 +49,20 @@ function ExploreControls() {
       <span style={{ fontSize: 22, lineHeight: 1 }}>🎒</span>
       <span style={{ fontSize: 11 }}>가방</span>
     </TapButton>
+  )
+  // 주먹·칼을 들면 휘두르기 (누르는 순간 바로. 칼 찌르기 버튼은 3-4 의 총 버튼과 같이). 세로 화면은 가방 줄에
+  const attack = (tool === 'fists' || tool === 'knife') && (
+    <button
+      className="tc-btn tc-small"
+      aria-label="휘두르기"
+      onPointerDown={(e) => {
+        e.preventDefault()
+        pressAttack('primary')
+      }}
+    >
+      <span style={{ fontSize: 22, lineHeight: 1 }}>{tool === 'fists' ? '✊' : '🔪'}</span>
+      <span style={{ fontSize: 11 }}>{tool === 'fists' ? '치기' : '베기'}</span>
+    </button>
   )
   return (
     <>
@@ -77,14 +92,20 @@ function ExploreControls() {
             {interactLabel(nearby)}
           </TapButton>
         )}
-        {/* 세로 화면은 좁아서 가방을 점프 위 오른쪽 끝에 둔다 (한 줄에 셋이면 조이스틱 자리와 겹친다). 가로 화면은 한 줄 그대로 */}
-        {portrait && <div className="tc-row">{bag}</div>}
+        {/* 세로 화면은 좁아서 가방(과 휘두르기)을 점프 위 오른쪽 끝에 둔다 (한 줄에 셋이면 조이스틱 자리와 겹친다). 가로 화면은 한 줄 그대로 */}
+        {portrait && (
+          <div className="tc-row">
+            {attack}
+            {bag}
+          </div>
+        )}
         <div className="tc-row">
           {!portrait && bag}
           <TapButton className={`tc-btn tc-small${emotesOpen ? ' on' : ''}`} ariaLabel="감정 표현" onTap={() => setEmotesOpen((o) => !o)}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>😀</span>
             <span style={{ fontSize: 11 }}>표현</span>
           </TapButton>
+          {!portrait && attack}
           {/* 점프는 누르는 순간 바로 */}
           <button
             className="tc-btn tc-jump"
@@ -258,6 +279,10 @@ const px = (n: number) => `${n}px`
 const safe = (side: 'top' | 'bottom' | 'left' | 'right', n: number) => `calc(${n}px + env(safe-area-inset-${side}, 0px))`
 /** 조이스틱을 누를 수 있는 영역은 받침보다 조금 넓게 */
 const JOY_PAD = 18
+/** 가로 화면 오른쪽 아래 버튼 줄의 가장 넓은 폭: 가방·표현·휘두르기 + 점프 (안내 글씨가 이 왼쪽에서 끝나게) */
+const ROW_WIDTH = BTN.margin + BTN.big + 3 * (BTN.small + BTN.gap)
+/** 조이스틱 오른쪽 끝 */
+const JOY_RIGHT = JOY.margin + JOY.radius * 2
 
 const CSS = `
 .tc button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
@@ -288,12 +313,12 @@ const CSS = `
   margin: ${px(-JOY.knob)} 0 0 ${px(-JOY.knob)}; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
 .tc-joy-knob.run { background: rgba(255, 209, 102, 0.95); }
 .tc-joy-run { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px #000; }
-.tc-help { position: absolute; left: 50%; transform: translateX(-50%); bottom: ${safe('bottom', TOUCH.hotbarBottom.landscape + 56)}; width: max-content;
-  max-width: calc(100% - 2 * ${px(JOY.margin + JOY.radius * 2 + 24)}); font-size: 12px; opacity: 0.75; text-align: center;
+.tc-help { position: absolute; left: ${safe('left', JOY_RIGHT + 16)}; right: ${safe('right', ROW_WIDTH + 8)};
+  bottom: ${safe('bottom', TOUCH.hotbarBottom.landscape + 56)}; font-size: 12px; opacity: 0.75; text-align: center;
   text-shadow: 0 1px 2px #000; }
 .tc-x { pointer-events: auto; border: none; background: rgba(255,255,255,0.2); color: #fff; border-radius: 50%; width: 30px; height: 30px; font-size: 14px; }
 @media (orientation: portrait) {
-  .tc-help { left: ${safe('left', 16)}; transform: none; text-align: left; max-width: 60%;
+  .tc-help { left: ${safe('left', 16)}; right: auto; text-align: left; max-width: 60%;
     bottom: ${safe('bottom', TOUCH.hotbarBottom.portrait + 54)}; }
 }
 `

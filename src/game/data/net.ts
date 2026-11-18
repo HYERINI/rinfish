@@ -35,7 +35,27 @@ export const NET = {
   serverProfileEvery: 5,
   /** 서버 속도 제한: 잠 투표(sleep) 초당 횟수 */
   serverSleepPerSecond: 4,
-  /** 방에 사람이 있는 동안 서버가 시계 확인(time)을 보내는 간격(초) */
+  /**
+   * 아침이 온 뒤 이만큼(초) 안에 닿은 "눕기"는 표시만 남기고 이 시간이 지나서 센다
+   * (둘이 거의 같이 누우면 늦게 닿은 눕기가 아침을 또 부른다. 그 사람 화면은 morning 을 받고 sleep false 를 보내 지운다)
+   */
+  morningGuard: 3,
+  /** 세지 않고 미룬 잠 표시(너무 잦음·아침 직후)를 세는 짧은 alarm 까지 최소 시간(초) */
+  sleepRetry: 0.3,
+  /**
+   * 들판 동물 간격(초, 5Hz). 서버는 alarm 없이 사람 메시지가 올 때 움직여 보낸다 (0.75 × 이 값보다 잦지 않게).
+   * 그래서 들판 근처(nearAnimalField) 사람은 가만히 있어도 NET.sendHz 로 모습을 보낸다
+   */
+  animalEvery: 0.2,
+  /** 동물 목록 최대 수 (받는 쪽 검사) */
+  maxAnimals: 64,
+  /** 서버 명중 검사: 사거리 + 판정 원에 더해 주는 여유(m). 내 모습(5Hz)과 남이 보는 동물(0.25초 늦음)이 어긋나는 만큼 */
+  hitSlack: 2.5,
+  /** 서버 명중 검사: 공격 종류를 바꿀 때 최소 간격에서 빼 주는 여유(초, 메시지가 몰려 닿는 만큼) */
+  hitTimingSlack: 0.1,
+  /** 서버 속도 제한: animalHit 초당 횟수 (버린 것도 센다) */
+  serverHitPerSecond: 4,
+  /** 방에 사람이 있는 동안 서버가 시계 확인(time)을 보내고 잠 표시를 다시 세는 간격(초). 서버 alarm 은 이것만 건다 */
   clockEvery: 30,
   /** 서버가 받는 메시지 최대 길이(글자) */
   maxMessageLength: 4096,

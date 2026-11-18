@@ -1,0 +1,22 @@
+import { describe, expect, it } from 'vitest'
+import { attackFromPointer, pressAttack, takeAttackPress } from './pointer'
+
+describe('휘두르기 입력', () => {
+  it('마우스 잠금 중 왼쪽 = 베기·주먹, 오른쪽 = 찌르기, 가운데는 없다', () => {
+    expect(attackFromPointer({ button: 0, pointerType: 'mouse' }, true, true)).toBe('primary')
+    expect(attackFromPointer({ button: 2, pointerType: 'mouse' }, true, true)).toBe('secondary')
+    expect(attackFromPointer({ button: 1, pointerType: 'mouse' }, true, true)).toBeNull()
+  })
+  it('잠기기 전 클릭은 시점 잠금용이라 휘두르지 않는다 (잠금을 못 쓰는 환경이면 늘 휘두른다)', () => {
+    expect(attackFromPointer({ button: 0, pointerType: 'mouse' }, false, true)).toBeNull()
+    expect(attackFromPointer({ button: 0, pointerType: 'mouse' }, false, false)).toBe('primary')
+  })
+  it('손가락은 시점 돌리기라 휘두르지 않는다 (폰은 휘두르기 버튼)', () => {
+    expect(attackFromPointer({ button: 0, pointerType: 'touch' }, true, false)).toBeNull()
+  })
+  it('누른 휘두르기는 한 번만 가져간다', () => {
+    pressAttack('secondary')
+    expect(takeAttackPress()).toBe('secondary')
+    expect(takeAttackPress()).toBeNull()
+  })
+})

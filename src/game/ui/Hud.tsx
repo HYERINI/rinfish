@@ -34,6 +34,7 @@ export function Hud() {
   const clock = useDayStore((s) => s.clockText)
   const mode = useSessionStore((s) => s.mode)
   const nearby = useSessionStore((s) => s.nearby)
+  const tool = useSessionStore((s) => s.tool)
   const setMode = useSessionStore((s) => s.setMode)
   const locked = usePointerLockStore((s) => s.locked)
   const touchUi = useTouchUi()
@@ -131,7 +132,7 @@ export function Hud() {
           {mouseLook && !locked && <div style={lookHint}>클릭하면 마우스로 시점 회전 · ESC 해제</div>}
           {!touchUi && (
             <div style={{ position: 'absolute', bottom: 8, left: 16, right: 16, textAlign: 'center', opacity: 0.7, fontSize: 12 }}>
-              WASD 이동 · Shift 달리기 · Space 점프 · 1~3 도구 · X 넣기 · I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
+              WASD 이동 · Shift 달리기 · Space 점프 · 1~3 도구 · X 넣기 · {tool === 'fists' ? '클릭 주먹 · ' : tool === 'knife' ? '클릭 베기 · 오른쪽 클릭 찌르기 · ' : ''}I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
             </div>
           )}
         </>

@@ -4,6 +4,7 @@ import { AnimationMixer, LoopOnce, Quaternion, SRGBColorSpace, Vector3, type Ani
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import { CHARACTER_CLIPS, CHARACTER_FILES, ONE_SHOT_CLIPS, OUTFIT_ALT_TEXTURES, type CharacterClip } from '../data/characters'
 import { EMOTES, type EmoteId } from '../data/emotes'
+import type { SwingArm } from '../logic/characterPose'
 import type { CharacterLook, OutfitId } from '../data/types'
 import { CHARACTER_POSES, characterPose, clipTimeScale, eatArm, poseClips, type CharacterPose, type FishingLook } from '../logic/characterPose'
 import type { PlayerAction } from '../logic/playerMotion'
@@ -28,6 +29,8 @@ export type PlayerModelHandle = {
   emoteLength(id: EmoteId): number
   /** 낚싯대를 쥔 손(주먹 가운데)의 월드 위치 */
   gripPosition(target: Vector3): void
+  /** 휘두르는 오른팔 (update 뒤에 부른다. 클립 위에 덧돌린다, logic/characterPose swingArm) */
+  swing(arm: SwingArm): void
 }
 
 const modelUrl = (file: string) => `${import.meta.env.BASE_URL}models/${file}`
@@ -295,6 +298,12 @@ const Model = forwardRef<PlayerModelHandle, { look: CharacterLook }>(function Mo
         const clip = EMOTES.find((e) => e.id === id)!.clip
         const action = actionsRef.current?.[clip]
         return action ? action.getClip().duration / clipTimeScale(clip, 0) : 1
+      },
+      swing(arm) {
+        if (!bones.upperarm || !bones.lowerarm) return
+        bendBone(bones.upperarm, object, arm.forward)
+        bendBone(bones.upperarm, object, arm.inward, 'y')
+        bendBone(bones.lowerarm, object, arm.elbow)
       },
       gripPosition(target) {
         if (!bones.hand || !bones.knuckle) return

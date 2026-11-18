@@ -59,6 +59,9 @@ type SessionState = {
   /** 손에 든 도구 (도구 칸). null = 빈손. 저장하지 않는다 (다시 들어오면 낚싯대) */
   tool: ToolId | null
   equip: (tool: ToolId | null) => void
+  /** 마지막으로 맞은 때 (performance.now() 초. 화면 가장자리가 빨갛게 번쩍인다, ui/HurtFlash). 저장하지 않는다 */
+  hurtAt: number | null
+  flashHurt: () => void
   setPlayerAction: (action: PlayerAction) => void
   setMode: (mode: Mode) => void
   zoomBy: (deltaY: number) => void
@@ -104,6 +107,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   setStoveCook: (stoveCook) => set({ stoveCook }),
   tool: 'rod',
   equip: (tool) => set({ tool }),
+  hurtAt: null,
+  flashHurt: () => set({ hurtAt: performance.now() / 1000 }),
   setPlayerAction: (playerAction) => set({ playerAction }),
   // 배 타는 중엔 탐험으로 돌려도(로비 닫기 등) 도착할 때까지 배 모드를 지킨다
   // 상인 창이 아닌 모드로 가면 연 상인을 지운다
@@ -118,5 +123,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   // 순간이동(쓰러져 진료소로 등)하면 타던 배에서 내린다
   requestTeleport: (pos) => set((s) => ({ teleport: pos, boat: null, mode: s.mode === 'boat' ? 'explore' : s.mode })),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', stoveCook: null, vendor: null }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', stoveCook: null, vendor: null, hurtAt: null }),
 }))

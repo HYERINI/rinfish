@@ -1,4 +1,4 @@
-// 초원 + 배 점검 (헤드리스 Chrome). 스크린샷을 남긴다
+// 초원 + 배 + 은지 기능(3-1 시간·생존, 3-2 도구·가방·상인, 3-3 동물·사냥) 점검 (헤드리스 Chrome). 스크린샷을 남긴다
 // 준비: npm run server:dev (8787) 와 VITE_ROOM_SERVER=ws://127.0.0.1:8787 npx vite --port 5190 --strictPort
 // 사용: node tools/meadow-check.mjs [게임 주소] [스크린샷 폴더]
 import { spawn } from 'node:child_process'
@@ -670,6 +670,225 @@ const remoteTool = `(async () => { const { remoteRig } = await __mod('/src/game/
 check(await B4.until(`${remoteTool}.then((t) => t === 'knife')`, 8000), '27) A 가 칼을 들면 B 가 tool knife 를 받는다')
 A4.close()
 B4.close()
+
+// ── 3-3 동물과 사냥 (28~) ──
+const H = await open(9742, 0)
+await H.evaluate(`__click('혼자 하기')`)
+await wait(3000)
+const HS = `(await __mod('/src/game/stores/sessionStore.ts')).useSessionStore.getState()`
+const HP = `(await __mod('/src/game/stores/progressStore.ts')).useProgressStore.getState()`
+const RIG = `(await __mod('/src/game/hunt/animalRig.ts'))`
+const hev = (expr) => H.evaluate(`(async () => { const r = ${RIG}; const s = ${HS}; const p = ${HP}; return ${expr} })()`)
+const hpress = async (code, k = code) => { await H.key('keydown', code, k); await H.key('keyup', code, k); await wait(300) }
+const herd = () => hev(`r.animalViews(false, 0)`)
+
+// 28) 혼자: 들판(세계 x 166..206, z -52..-26)에 동물 12마리, 은지 Cube Pets 모델을 받는다
+await H.evaluate(teleport(186, -23))
+await wait(1500)
+await turnTo(H, 0, -40)
+check(await H.until(`(async () => ${RIG}.herdDrawn.count === 12)()`, 30000), '28) 동물 모델을 받아 12마리를 그린다')
+const herd28 = await herd()
+check(herd28.length === 12 && herd28.every((a) => a.x >= 155 && a.x <= 217 && a.z >= -59 && a.z <= -23), `28) 혼자 하면 들판에 동물 12마리 (${herd28.length})`)
+await wait(1500)
+await H.shot('28-animals')
+
+// 29) 혼자 시뮬레이션이 돈다: 2초 뒤 누군가는 움직였다
+const moved = await H.until(`(async () => { const r = ${RIG}; const now = r.animalViews(false, 0); return now.some((a) => { const b = ${JSON.stringify(herd28)}.find((x) => x.id === a.id); return b && Math.hypot(a.x - b.x, a.z - b.z) > 0.3 }) })()`, 8000)
+check(moved, '29) 동물이 돌아다닌다')
+
+// 30) 발밑 전리품: E "소고기 줍기" → 가방
+const me = await H.evaluate(pos)
+await hev(`(r.spawnLoot(['beef', 'bone'], ${me[0] + 0.4}, ${me[2]}, performance.now() / 1000 - 2), true)`)
+check(await H.until(`document.body.innerText.includes('줍기')`, 4000), '30) 전리품 앞 "줍기" 안내')
+await H.shot('30-loot')
+const before30 = await hev(`[p.items.beef, p.items.bone]`)
+await hpress('KeyE', 'e')
+await hpress('KeyE', 'e')
+const after30 = await hev(`[p.items.beef, p.items.bone, r.lootList().length]`)
+check(after30[0] === before30[0] + 1 && after30[1] === before30[1] + 1 && after30[2] === 0, `30) E 두 번에 소고기·뼈가 가방으로 (${before30} → ${after30})`)
+// 31) 칼(3)을 들고 소 바로 남쪽에서 북쪽을 보고 클릭(베기) → 소 체력 3 → 2, 때린 나를 쫓는다
+const attack = (kind) => H.evaluate(`(async () => { (await __mod('/src/game/input/pointer.ts')).pressAttack('${kind}'); return true })()`)
+const cowNow = `(async () => { const r = ${RIG}; return r.animalViews(false, 0).find((a) => a.sp === 'cow' && a.pose !== 'dead') ?? null })()`
+await hpress('Digit3', '3')
+check((await hev(`s.tool`)) === 'knife', '31) 3 → 칼')
+await turnTo(H, 0, -30)
+const cow0 = await H.evaluate(cowNow)
+const stamina31 = await hev(`p.survival.stamina`)
+const cowById = `(async () => { const r = ${RIG}; return r.soloHerd().animals.find((a) => a.id === ${cow0.id}) })()`
+// 다가가면 달아나므로(7m) 바로 뒤에 서서 곧장 휘두른다. 헤드리스는 프레임이 느려 빗나가면 몇 번 더
+let cow1 = cow0
+for (let i = 0; i < 4 && cow1.hp === 3; i++) {
+  await H.evaluate(teleport(cow1.x, cow1.z + 0.8))
+  await wait(100)
+  await attack('primary')
+  await wait(120)
+  if (i === 0) await H.shot('31-slash')
+  await wait(400)
+  cow1 = await H.evaluate(cowById)
+}
+check(cow1?.hp === 2 && cow1.state === 'attack' && cow1.target === 'me', `31) 베기 한 번에 소 체력 2, 나를 쫓는다 (${cow1?.hp}, ${cow1?.state})`)
+
+// 32) 맞은 소가 들이받으면 체력 15 가 줄고 화면 가장자리가 번쩍인다
+check(await H.until(`(async () => ${HP}.survival.stamina <= ${stamina31 - 15 + 0.5})()`, 5000), '32) 소가 들이받으면 체력 −15')
+check((await hev(`s.hurtAt`)) !== null, '32) 맞으면 화면 가장자리가 번쩍인다')
+await H.shot('32-hurt')
+
+// 33) 오른쪽 클릭(찌르기, 피해 2)으로 쓰러뜨리면 1.4초 뒤 전리품이 보이고 E 로 줍는다
+let dead = false
+for (let i = 0; i < 6 && !dead; i++) {
+  const c = await H.evaluate(`(async () => { const r = ${RIG}; return r.soloHerd().animals.find((a) => a.id === ${cow0.id}) ?? null })()`)
+  if (!c || c.state === 'dead') {
+    dead = true
+    break
+  }
+  await H.evaluate(teleport(c.x, c.z + 1))
+  await wait(150)
+  await attack('secondary')
+  await wait(900)
+  dead = await H.evaluate(`(async () => { const r = ${RIG}; const a = r.soloHerd().animals.find((x) => x.id === ${cow0.id}); return !a || a.state === 'dead' })()`)
+}
+check(dead, '33) 찌르기로 소를 쓰러뜨린다')
+await H.shot('33-down')
+check(await H.until(`document.body.innerText.includes('사냥 성공')`, 2000), '33) "소 사냥 성공!" 알림')
+const lootPos = await hev(`r.lootList().map((l) => [l.x, l.z, l.item])`)
+check(lootPos.length >= 3 && lootPos.filter((l) => l[2] === 'beef').length === 2, `33) 소고기 2·뼈 1 을 떨어뜨린다 (${lootPos.map((l) => l[2])})`)
+await wait(1600)
+await H.evaluate(teleport(lootPos[0][0], lootPos[0][1]))
+check(await H.until(`document.body.innerText.includes('줍기')`, 4000), '33) 1.4초 뒤 전리품 줍기 안내')
+await H.shot('33-loot')
+const beef33 = await hev(`p.items.beef`)
+for (let i = 0; i < 3; i++) await hpress('KeyE', 'e')
+check((await hev(`p.items.beef`)) >= beef33 + 1, `33) E 로 주우면 가방에 소고기 (${beef33} → ${await hev('p.items.beef')})`)
+
+// 34) 집 안(침실)으로 들어가면 쫓던 동물이 포기한다 (실내 판정: 은지 집 방 4개). 멧돼지(체력 3)를 찌르면(2) 살아남아 쫓아온다
+const hog = await H.evaluate(`(async () => { const r = ${RIG}; return r.soloHerd().animals.find((a) => a.sp === 'hog' && a.state !== 'dead') ?? null })()`)
+const hogById = `(async () => { const r = ${RIG}; return r.soloHerd().animals.find((a) => a.id === ${hog.id}) })()`
+let chasing = hog.state
+for (let i = 0; i < 4 && chasing !== 'attack'; i++) {
+  const now34 = await H.evaluate(hogById)
+  await H.evaluate(teleport(now34.x, now34.z + 0.9))
+  await wait(150)
+  await attack('secondary')
+  await wait(900)
+  chasing = (await H.evaluate(hogById))?.state
+}
+await H.evaluate(teleport(197, -2))
+check(chasing === 'attack' && (await H.until(`(async () => { const r = ${RIG}; return r.soloHerd().animals.find((a) => a.id === ${hog.id})?.state !== 'attack' })()`, 3000)), `34) 실내로 들어가면 쫓던 멧돼지가 포기한다 (${chasing})`)
+/**
+ * 화면 위 UI 가 서로 겹치는 쌍 (이름 목록). 미니맵·휘두르기·점프·가방·표현·조이스틱·안내 글씨·방 표시(🔒)·채팅 줄(text 를 준 경우).
+ * 보이는 것만 본다
+ */
+const layoutClash = (chatText = '') => `(() => {
+  const pick = {
+    minimap: document.querySelector('canvas[aria-label^="미니맵"]'),
+    attack: document.querySelector('button[aria-label="휘두르기"]'),
+    jump: document.querySelector('button[aria-label="점프"]'),
+    bag: document.querySelector('button[aria-label="가방"]'),
+    emote: document.querySelector('button[aria-label="감정 표현"]'),
+    joy: document.querySelector('.tc-joy-base'),
+    help: document.querySelector('.tc-help'),
+    badge: [...document.querySelectorAll('div')].find((d) => getComputedStyle(d).position === 'absolute' && d.innerText.startsWith('🔒')),
+    chat: ${JSON.stringify(chatText)} ? [...document.querySelectorAll('div,span')].filter((d) => d.children.length === 0 && d.textContent.includes(${JSON.stringify(chatText)})).at(-1) : null,
+  }
+  const r = Object.entries(pick).filter(([, e]) => e && e.getClientRects().length).map(([k, e]) => [k, e.getBoundingClientRect()])
+  const out = []
+  for (let i = 0; i < r.length; i++) for (let j = i + 1; j < r.length; j++) {
+    const [a, A] = r[i], [b, B] = r[j]
+    if (A.left < B.right - 1 && A.right > B.left + 1 && A.top < B.bottom - 1 && A.bottom > B.top + 1) out.push(a + '/' + b)
+  }
+  return out
+})()`
+const LAYOUT_CLASH = layoutClash()
+
+// 35) 폰: 주먹·칼을 들면 휘두르기 버튼. 세로 화면은 가방 줄(점프 위)에 있어 조이스틱과 겹치지 않는다. 누르면 휘두른다
+await H.evaluate(teleport(188, -12))
+await wait(1000)
+await H.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: true }); return true })()`)
+const overlapJoy = `(() => { const a = document.querySelector('button[aria-label="휘두르기"]')?.getBoundingClientRect(); const j = document.querySelector('.tc-joy')?.getBoundingClientRect(); if (!a || !j) return null; return a.left < j.right && a.right > j.left && a.top < j.bottom && a.bottom > j.top })()`
+for (const [w, h, name] of [[390, 844, 'portrait'], [844, 390, 'landscape']]) {
+  await H.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: true })
+  await wait(1200)
+  check((await H.evaluate(overlapJoy)) === false, `35) 폰 ${name}: 휘두르기 버튼이 있고 조이스틱과 겹치지 않는다`)
+  const clash = await H.evaluate(LAYOUT_CLASH)
+  check(Array.isArray(clash) && clash.length === 0, `35) 폰 ${name}: 미니맵·버튼·안내 글씨가 서로 겹치지 않는다 (${JSON.stringify(clash)})`)
+  await H.shot(`35-phone-${name}`)
+}
+const ready35 = await H.evaluate(`(async () => (await __mod('/src/game/hunt/meleeRig.ts')).meleeRig.readyAt)()`)
+await H.evaluate(`(document.querySelector('button[aria-label="휘두르기"]').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true })), true)`)
+check(await H.until(`(async () => (await __mod('/src/game/hunt/meleeRig.ts')).meleeRig.readyAt !== ${ready35})()`, 3000), '35) 폰 휘두르기 버튼을 누르면 휘두른다')
+await H.send('Emulation.clearDeviceMetricsOverride')
+await H.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: false }); return true })()`)
+H.close()
+
+// 36) 같이 하기: 두 사람이 같은 동물을 본다 (서버가 돌린다). A 가 소를 때리면 B 화면에서도 체력이 줄고, 쓰러뜨리면 전리품은 A 에게만
+const RUN33 = Date.now().toString(36)
+const A5 = await open(9743, 0, `?room=hunt-${RUN33}`)
+await A5.evaluate(`__click('🔒 방 만들기')`)
+await A5.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '에이')`)
+await A5.evaluate(`__click('방 만들고 들어가기')`)
+check(await A5.until(`document.body.innerText.includes('👥 1명')`, 20000), '36) A 방 만들기')
+const B5 = await open(9744, 1, `?room=hunt-${RUN33}`)
+await B5.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '비이')`)
+await B5.evaluate(`__click('들어가기')`)
+check(await B5.until(`document.body.innerText.includes('👥 2명')`, 20000), '36) B 들어가기')
+const roomHerd = (b) => b.evaluate(`(async () => { const r = ${RIG}; return r.animalViews(true, performance.now() / 1000) })()`)
+await A5.evaluate(teleport(186, -23))
+await B5.evaluate(teleport(180, -23))
+await wait(2500)
+// 두 화면을 거의 같은 때 읽는다 (달리는 동물은 초당 5m 까지 움직인다). 번호·종은 모두 같고, 자리는 대부분 1.5m 안
+const [ha, hb] = await Promise.all([roomHerd(A5), roomHerd(B5)])
+const gaps = ha.map((a) => { const b = hb.find((x) => x.id === a.id && x.sp === a.sp); return b ? Math.hypot(b.x - a.x, b.z - a.z) : Infinity }).sort((x, y) => x - y)
+check(ha.length === 12 && hb.length === 12 && gaps.every(Number.isFinite) && gaps[6] < 1.5, `36) 두 사람이 같은 동물 12마리를 본다 (${ha.length}, ${hb.length}, 가운데 거리 ${gaps[6]?.toFixed(2)}m)`)
+await turnTo(A5, 0, -30)
+await A5.shot('36-room-A')
+await B5.shot('36-room-B')
+await A5.key('keydown', 'Digit3', '3')
+await A5.key('keyup', 'Digit3', '3')
+await wait(300)
+const attackA = (kind) => A5.evaluate(`(async () => { (await __mod('/src/game/input/pointer.ts')).pressAttack('${kind}'); return true })()`)
+const roomCow = (b, id) => b.evaluate(`(async () => { const r = ${RIG}; return r.animalViews(true, performance.now() / 1000).find((a) => ${id === undefined ? "a.sp === 'cow' && a.pose !== 'dead'" : `a.id === ${id}`}) ?? null })()`)
+const rc0 = await roomCow(A5)
+let rcB = rc0
+for (let i = 0; i < 6 && rcB && rcB.hp === 3; i++) {
+  const c = await roomCow(A5, rc0.id)
+  await A5.evaluate(teleport(c.x, c.z + 0.8))
+  await wait(400)
+  await attackA('primary')
+  await wait(900)
+  rcB = await roomCow(B5, rc0.id)
+}
+check(rcB?.hp === 2, `36) A 가 베면 B 화면의 소도 체력 2 (${rcB?.hp})`)
+const staminaA = await A5.evaluate(`(async () => ${HP}.survival.stamina)()`)
+check(await A5.until(`(async () => ${HP}.survival.stamina < ${staminaA})()`, 6000), '36) 서버의 소가 A 를 들이받으면 A 체력이 준다 (hurt)')
+let downB = false
+for (let i = 0; i < 6 && !downB; i++) {
+  const c = await roomCow(A5, rc0.id)
+  if (!c || c.pose === 'dead') break
+  await A5.evaluate(teleport(c.x, c.z + 0.8))
+  await wait(400)
+  await attackA('secondary')
+  await wait(1000)
+  const b = await roomCow(B5, rc0.id)
+  downB = !b || b.pose === 'dead'
+}
+check(downB, '36) A 가 찔러 쓰러뜨리면 B 화면에서도 쓰러진다')
+const lootA = await A5.evaluate(`(async () => ${RIG}.lootList().map((l) => l.item))()`)
+const lootB = await B5.evaluate(`(async () => ${RIG}.lootList().length)()`)
+check(lootA.filter((x) => x === 'beef').length === 2 && lootB === 0, `36) 전리품은 잡은 A 에게만 (${lootA} / B ${lootB})`)
+await A5.shot('36-room-loot')
+// 폰 가로(844×390)로 같이 하기: 방 표시·채팅 줄·미니맵·버튼이 겹치지 않는다
+await B5.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: true }); return true })()`)
+await B5.key('keydown', 'Digit3', '3')
+await B5.key('keyup', 'Digit3', '3')
+await B5.send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 2, mobile: true })
+await A5.evaluate(`(async () => (await __mod('/src/game/stores/netStore.ts')).useNetStore.getState().sendChat('사냥 가자'))()`)
+await B5.until(`document.body.innerText.includes('사냥 가자')`, 5000)
+await wait(1200)
+const clash36 = await B5.evaluate(layoutClash('사냥 가자'))
+check(Array.isArray(clash36) && clash36.length === 0, `36) 폰 가로 같이 하기: 방 표시·채팅·미니맵·휘두르기 버튼이 겹치지 않는다 (${JSON.stringify(clash36)})`)
+await B5.shot('36-phone-landscape-room')
+A5.close()
+B5.close()
 
 check(!consoleErrors.some((e) => /shader|WebGLProgram/i.test(e)), '셰이더 컴파일 오류가 없다')
 if (consoleErrors.length) console.log(`콘솔 오류·경고 ${consoleErrors.length}개:\n${consoleErrors.slice(0, 20).join('\n')}`)

@@ -141,6 +141,9 @@ await B.shot('b-sees-a')
 
 // 그리지 않는 사람(받은 모습이 없음)은 이름표도 숨긴다
 check(await B.evaluate(`[...document.querySelectorAll('div')].some((d) => d.textContent === '에이')`), 'B: A 의 이름표가 보인다')
+// 들판 근처(nearAnimalField, 3-3)에선 가만히 있어도 5Hz 로 보내 곧바로 다시 생긴다: A 를 섬으로 옮겨 2초마다 보내게 한다
+await A.evaluate(`(async () => { (await __mod('/src/game/stores/sessionStore.ts')).useSessionStore.getState().requestTeleport([0, 15]); return true })()`)
+await wait(3000)
 // 헤드리스는 프레임이 아주 느려서, 비우고 몇 프레임 기다리기를 3초까지 되풀이한다 (A 의 다음 모습이 오면 다시 생기므로)
 const hidden = await B.evaluate(`(async () => {
   const { remoteRig } = await __mod('/src/game/net/remoteRig.ts')
