@@ -1,16 +1,18 @@
-import { FAINT_COIN_PENALTY, STAMINA } from '../data/balance'
+import { FAINT_COIN_PENALTY, HUNGER, STAMINA } from '../data/balance'
 import type { Buff } from '../data/types'
 import type { FightMods } from './fight'
 
-/** 체력, 약화 유예 시간, 요리 버프. 저장되는 상태다 */
+/** 체력, 배고픔, 약화 유예 시간, 요리 버프. 저장되는 상태다 */
 export type Survival = {
   stamina: number
+  /** 배고픔 0~100 (100 = 배부름). 0 이면 체력이 준다 (logic/survival) */
+  hunger: number
   /** 체력 0 이후 쓰러지기까지 남은 시간(초). 약화 상태가 아니면 null */
   graceLeft: number | null
   buffs: Buff[]
 }
 
-export const FRESH_SURVIVAL: Survival = { stamina: STAMINA.max, graceLeft: null, buffs: [] }
+export const FRESH_SURVIVAL: Survival = { stamina: STAMINA.max, hunger: HUNGER.max, graceLeft: null, buffs: [] }
 
 export function isWeak(s: Survival): boolean {
   return s.graceLeft !== null
@@ -32,24 +34,6 @@ export function healStamina(s: Survival, amount: number): Survival {
 /** 같은 종류 버프는 겹치지 않고 새 것으로 바꾼다(지속시간 갱신) */
 export function addBuff(buffs: Buff[], buff: Buff): Buff[] {
   return [...buffs.filter((b) => b.kind !== buff.kind), buff]
-}
-
-/** exploring: 낚시·패널 없이 돌아다니는 중 (조금씩 저절로 회복한다) */
-export type SurvivalTickContext = { fighting: boolean; resting: boolean; exploring?: boolean }
-
-/** dt초만큼 시간을 진행한다. 유예 시간이 다 되면 fainted */
-export function tickSurvival(s: Survival, dt: number, ctx: SurvivalTickContext): { survival: Survival; fainted: boolean } {
-  const buffs = s.buffs.map((b) => ({ ...b, remaining: b.remaining - dt })).filter((b) => b.remaining > 0)
-  let next: Survival = { ...s, buffs }
-  if (ctx.fighting) next = spendStamina(next, STAMINA.fightCostPerSecond * dt)
-  if (ctx.resting) next = healStamina(next, STAMINA.benchRegenPerSecond * dt)
-  // 저절로 회복은 약화를 풀지 않는다 (체력 0 이 되면 음식이나 벤치로 회복해야 한다)
-  if (ctx.exploring && next.graceLeft === null) next = healStamina(next, STAMINA.passiveRegenPerSecond * dt)
-  if (next.graceLeft === null) return { survival: next, fainted: false }
-
-  const graceLeft = next.graceLeft - dt
-  if (graceLeft <= 0) return { survival: { ...next, graceLeft: 0 }, fainted: true }
-  return { survival: { ...next, graceLeft }, fainted: false }
 }
 
 /** 버프와 약화를 줄다리기 보정값으로 바꾼다 */

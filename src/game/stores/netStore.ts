@@ -9,6 +9,7 @@ import { cleanText, normalizeNick, normalizeRoomName, passHashFor, roomIdFor, te
 import { connectSocket, type Connection, type Connector } from '../net/connection'
 import { forgetRemote, netNow, receiveState, selfBubble, showBubble } from '../net/remoteRig'
 import { roomUrl } from '../net/serverUrl'
+import { useDayStore } from './dayStore'
 import { useFishingStore } from './fishingStore'
 import { useSessionStore } from './sessionStore'
 
@@ -38,6 +39,8 @@ type NetStore = {
   sendChat: (text: string) => boolean
   sendState: (s: NetState) => void
   sendProfile: (nick: string, look: CharacterLook) => void
+  /** 잠 투표: 침대에 누웠다(true) / 일어났다(false). 같이 하는 중에만 보낸다 */
+  sendSleep: (on: boolean) => void
   /** 테스트에서 가짜 연결로 바꾼다 */
   _setConnector: (c: Connector) => void
 }
@@ -77,6 +80,8 @@ export const useNetStore = create<NetStore>()(
             hello.mode = 'join'
             hubRetry = null
             set({ phase: 'online', you: m.you, peers, error: null })
+            // 시계는 방 것을 따른다 (다시 붙어도 새로 맞춘다)
+            useDayStore.getState().toRoomClock(m.time)
             return
           }
           case 'error': {
@@ -89,6 +94,7 @@ export const useNetStore = create<NetStore>()(
             conn = null
             forgetRemote()
             set({ phase: 'off', room: null, you: null, peers: {}, error: m.code })
+            useDayStore.getState().toSoloClock()
             // 같이 하던 중 거절당했으면(다시 붙다가 꽉 참 등) 이유를 볼 수 있게 로비로 돌아간다
             const session = useSessionStore.getState()
             if (session.mode !== 'lobby') {
@@ -124,6 +130,19 @@ export const useNetStore = create<NetStore>()(
             showBubble(m.id, m.text, now)
             return
           }
+          case 'time':
+            useDayStore.getState().syncRoomClock({ tm: m.tm, day: m.day })
+            return
+          case 'sleepers':
+            useDayStore.getState().roomSleepers(m.n, m.need)
+            return
+          case 'morning': {
+            // 자던 중이면 깬다고 알린다: 내 sleep true 가 서버 아침 뒤에 닿았으면 서버에 자는 표시가 남아 또 아침이 올 수 있다
+            const wasVoting = useDayStore.getState().voting
+            useDayStore.getState().roomMorning(m.day)
+            if (wasVoting) get().sendSleep(false)
+            return
+          }
         }
       }
 
@@ -152,6 +171,8 @@ export const useNetStore = create<NetStore>()(
         c?.close()
         forgetRemote()
         set({ phase: 'off', room: null, you: null, peers: {} })
+        // 방을 나오면 저장된 혼자 시계로 돌아간다
+        useDayStore.getState().toSoloClock()
       }
 
       const connect = async ({ mode, room, password, nick, look }: JoinInput) => {
@@ -235,6 +256,10 @@ export const useNetStore = create<NetStore>()(
           hello.look = look
           set({ nick: hello.nick })
           flushProfile()
+        },
+
+        sendSleep(on) {
+          if (get().phase === 'online') conn?.send({ type: 'sleep', on })
         },
 
         _setConnector(c) {

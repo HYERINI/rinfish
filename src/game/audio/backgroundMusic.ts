@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { MUSIC } from '../data/settings'
 import { musicGain, musicTrackFor, type MusicTrack } from '../logic/music'
 import { isTypingTarget } from '../input/typing'
+import { useDayStore } from '../stores/dayStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 
@@ -130,7 +131,7 @@ export let activeMusic: BackgroundMusic | null = null
 
 /**
  * Game 이 떠 있는 동안 배경 음악을 튼다. 첫 클릭·키 입력 때 시작해서 서서히 커지고,
- * 볼륨·음소거 설정과 화면(어항 크게 보기)에 따라 바뀌고, 탭을 숨기면 멈추고, Game 이 사라지면 끈다.
+ * 볼륨·음소거 설정과 화면(어항 크게 보기)·밤에 따라 바뀌고, 탭을 숨기면 멈추고, Game 이 사라지면 끈다.
  * M 키로 음소거를 켜고 끈다
  */
 export function useBackgroundMusic() {
@@ -142,9 +143,12 @@ export function useBackgroundMusic() {
       return musicGain(s.musicVolume, s.musicMuted)
     }
 
+    // 화면(어항 크게 보기)과 밤을 보고 곡을 고른다
+    const track = () => musicTrackFor(useSessionStore.getState().mode, useDayStore.getState().night)
+
     const onGesture = () => {
       if (music.started) return
-      music.start(musicTrackFor(useSessionStore.getState().mode), volume())
+      music.start(track(), volume())
       music.setHidden(document.hidden)
     }
     const onKeyDown = (e: KeyboardEvent) => {
@@ -157,7 +161,8 @@ export function useBackgroundMusic() {
     window.addEventListener('keydown', onKeyDown)
     document.addEventListener('visibilitychange', onVisibility)
     const unsubSettings = useSettingsStore.subscribe(() => music.setVolume(volume()))
-    const unsubMode = useSessionStore.subscribe((s) => music.setTrack(musicTrackFor(s.mode)))
+    const unsubMode = useSessionStore.subscribe(() => music.setTrack(track()))
+    const unsubNight = useDayStore.subscribe(() => music.setTrack(track()))
 
     return () => {
       window.removeEventListener('pointerdown', onGesture, true)
@@ -166,6 +171,7 @@ export function useBackgroundMusic() {
       document.removeEventListener('visibilitychange', onVisibility)
       unsubSettings()
       unsubMode()
+      unsubNight()
       music.dispose()
       if (activeMusic === music) activeMusic = null
     }

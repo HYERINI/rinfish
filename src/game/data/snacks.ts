@@ -8,13 +8,15 @@ export type SnackDef = {
   price: number
   /** 먹으면 바로 오르는 체력 */
   heal: number
+  /** 먹으면 차는 배고픔 */
+  hunger: number
 }
 
 /** 미스터찜 간식. 물고기 없이 코인만으로 사서 바로 먹거나 가방에 넣어 두고 HUD 에서 꺼내 먹는다 */
 export const SNACKS: SnackDef[] = [
-  { id: 'gimbap', name: '김밥', description: '든든한 한 줄', price: 10, heal: 25 },
-  { id: 'ramen', name: '컵라면', description: '뜨끈한 국물이 최고', price: 20, heal: 45 },
-  { id: 'energy', name: '에너지 음료', description: '한 캔이면 기운이 번쩍', price: 35, heal: 70 },
+  { id: 'gimbap', name: '김밥', description: '든든한 한 줄', price: 10, heal: 25, hunger: 30 },
+  { id: 'ramen', name: '컵라면', description: '뜨끈한 국물이 최고', price: 20, heal: 45, hunger: 50 },
+  { id: 'energy', name: '에너지 음료', description: '한 캔이면 기운이 번쩍', price: 35, heal: 70, hunger: 10 },
 ]
 
 export const SNACK_IDS: SnackId[] = SNACKS.map((s) => s.id)

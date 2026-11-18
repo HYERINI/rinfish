@@ -33,6 +33,10 @@ export const NET = {
   serverStatePerSecond: 10,
   serverChatEvery: 1,
   serverProfileEvery: 5,
+  /** 서버 속도 제한: 잠 투표(sleep) 초당 횟수 */
+  serverSleepPerSecond: 4,
+  /** 방에 사람이 있는 동안 서버가 시계 확인(time)을 보내는 간격(초) */
+  clockEvery: 30,
   /** 서버가 받는 메시지 최대 길이(글자) */
   maxMessageLength: 4096,
   /** 아무도 안 쓴 지 이만큼(일) 지난 방 이름은 새로 만들 수 있다 */

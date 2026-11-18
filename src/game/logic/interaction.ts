@@ -6,9 +6,26 @@ import type { FishingPlace } from './fishingEdge'
 /**
  * 지금 플레이어가 무엇을 하고 있는지 (어떤 화면이 열려 있는지). rest = 벤치에 앉아 쉬는 중,
  * unlock = 잠긴 구역 문 앞에서 여는 창, cutscene = 수리기사님 연출 (조작 없음), boat = 배 타고 건너는 중 (조작 없음),
- * map = 큰 지도 (이동·E 막힘, ESC 로 닫는다)
+ * map = 큰 지도 (이동·E 막힘, ESC 로 닫는다), sleep = 잠·죽음으로 화면이 어두워지는 중이거나 같이 하기에서 침대에 누워 아침을 기다리는 중 (이동 막힘)
  */
-export type Mode = 'explore' | 'fishing' | 'sell' | 'shop' | 'dex' | 'menu' | 'market' | 'aquarium' | 'rest' | 'wardrobe' | 'aquariumView' | 'unlock' | 'cutscene' | 'lobby' | 'boat' | 'map'
+export type Mode =
+  | 'explore'
+  | 'fishing'
+  | 'sell'
+  | 'shop'
+  | 'dex'
+  | 'menu'
+  | 'market'
+  | 'aquarium'
+  | 'rest'
+  | 'wardrobe'
+  | 'aquariumView'
+  | 'unlock'
+  | 'cutscene'
+  | 'lobby'
+  | 'boat'
+  | 'map'
+  | 'sleep'
 
 /** E 키로 상호작용할 수 있는 대상. fishingSpot 은 물가에 선 자리에서 그때그때 만든 낚시 자리 (logic/fishingEdge) */
 export type Interactable =
@@ -21,6 +38,7 @@ export type Interactable =
   | { kind: 'wardrobe' }
   | { kind: 'zoneGate'; zoneId: ZoneId }
   | { kind: 'dock'; dir: BoatDir }
+  | { kind: 'bed' }
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
@@ -38,6 +56,10 @@ export type KeyAction =
   | { type: 'closePanel' }
   | { type: 'selectBait'; bait: BaitId | null }
   | { type: 'boardBoat'; dir: BoatDir }
+  /** 침대에서 잠자기 (혼자: 다음 날 아침 / 같이: 잠 투표) */
+  | { type: 'sleep' }
+  /** 같이 하기 잠 투표 그만두고 일어나기 */
+  | { type: 'wake' }
 
 /** 요리 연출을 건너뛰는 키 (E·Space·Enter·ESC). 수리 연출은 건너뛰지 않는다 */
 export function isCookingSkipKey(code: string): boolean {
@@ -48,6 +70,8 @@ export function isCookingSkipKey(code: string): boolean {
 export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable | null, panelLocked = false): KeyAction {
   // 연출 중에도, 배 타는 중에도 아무 키도 받지 않는다 (끝나면 저절로 탐험으로 돌아온다). 로비는 혼자/같이를 골라야 닫힌다
   if (mode === 'cutscene' || mode === 'lobby' || mode === 'boat') return { type: 'none' }
+  // 침대에 누워 있는 동안 E·ESC 는 일어나기 (화면이 어두워지는 중이면 dayActions.wake 가 무시한다)
+  if (mode === 'sleep') return code === 'KeyE' || code === 'Escape' ? { type: 'wake' } : { type: 'none' }
   if (code === 'Escape') {
     if (panelLocked) return { type: 'none' }
     if (mode === 'aquariumView') return { type: 'openMode', mode: 'aquarium' }
@@ -83,6 +107,8 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
         return { type: 'openMode', mode: 'unlock' }
       case 'dock':
         return { type: 'boardBoat', dir: nearby.dir }
+      case 'bed':
+        return { type: 'sleep' }
     }
   }
   return { type: 'none' }

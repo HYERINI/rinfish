@@ -38,6 +38,13 @@ export const MEADOW_DOCK_TOP = 0.1
 /** 선착장 위 걸을 수 있는 곳. 초원 땅(x 91)과 겹치게 x 91.5 까지 */
 export const MEADOW_DOCK_LAND: Rect = { x0: 84.5, x1: 91.5, z0: -3.2, z1: -0.8 }
 
+/** 은지 침실 침대 (은지 world.bedSpot 3.5, 3.6) */
+export const BED_SPOT: [number, number] = toWorld(3.5, 3.6)
+/** E "잠자기" 감지 상자: 침대와 그 앞을 덮고 침실 벽(은지 x 5, z 5) 밖으로 나가지 않는다 (은지 2m 와 비슷) */
+export const BED_ZONE = { center: toWorld(3, 3), half: [1.9, 1.2, 1.9] as [number, number, number] }
+/** 죽은 뒤 깨어나는 침대 옆 (은지 2.2, 2.4) */
+export const BED_WAKE: [number, number] = toWorld(2.2, 2.4)
+
 /** 처음 시작하는 자리: 은지 집 마당 (은지 좌표 12, 12) */
 export const START_SPOT: [number, number] = toWorld(12, 12)
 

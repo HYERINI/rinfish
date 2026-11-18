@@ -1,7 +1,8 @@
 import { DISH_POTENCY } from '../data/balance'
-import type { DishDef } from '../data/dishes'
+import { DISH_HUNGER, type DishDef } from '../data/dishes'
 import type { Buff, Rarity } from '../data/types'
-import { addBuff, healStamina, type Survival } from './stamina'
+import { addBuff, type Survival } from './stamina'
+import { eatFood } from './survival'
 
 export type DishEffect = { heal: number; buff: Buff | null }
 
@@ -46,7 +47,7 @@ export type CookResult = { ok: true; coins: number; survival: Survival } | { ok:
 export function cook(coins: number, survival: Survival, dish: DishDef, rarity: Rarity | Rarity[]): CookResult {
   if (coins < dish.cookFee) return { ok: false, reason: 'coins' }
   const effect = dishEffect(dish, rarity)
-  let next = healStamina(survival, effect.heal)
+  let next = eatFood(survival, effect.heal, DISH_HUNGER[dish.category])
   if (effect.buff) next = { ...next, buffs: addBuff(next.buffs, effect.buff) }
   return { ok: true, coins: coins - dish.cookFee, survival: next }
 }

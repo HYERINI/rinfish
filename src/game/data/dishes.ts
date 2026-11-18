@@ -68,6 +68,9 @@ export const DISH_CATEGORY_LABEL: Record<DishCategory, string> = {
   secret: '비밀 메뉴',
 }
 
+/** 요리를 먹으면 차는 배고픔: 찜·회·탕 60, 비밀 메뉴 100 */
+export const DISH_HUNGER: Record<DishCategory, number> = { steam: 60, raw: 60, secret: 100 }
+
 export const BUFF_LABEL: Record<BuffKind, string> = {
   reel: '릴 속도 증가',
   tension: '텐션 완화',

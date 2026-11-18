@@ -30,6 +30,17 @@ describe('은지 맵 복사본', () => {
     await Promise.allSettled([w.furnitureReady])
   })
 
+  it('침대 자리·깨어나는 자리는 은지 침대와 침실이다 (감지 상자도 침실 안)', async () => {
+    const { createWorld } = await import('./vendor/world.js')
+    const { BED_SPOT, BED_WAKE, BED_ZONE, toMeadowLocal } = await import('../game/data/meadow')
+    const w = createWorld()
+    expect(toMeadowLocal(...BED_SPOT)).toEqual([w.bedSpot.center.x, w.bedSpot.center.z])
+    expect(w.roomAt(...toMeadowLocal(...BED_WAKE)).id).toBe('bedroom')
+    const [cx, cz] = BED_ZONE.center
+    const [hx, , hz] = BED_ZONE.half
+    for (const [x, z] of [[cx - hx, cz - hz], [cx + hx, cz + hz]]) expect(w.roomAt(...toMeadowLocal(x, z)).id).toBe('bedroom')
+    await Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready])
+  })
   it('모델 주소는 meadow/ 아래', async () => {
     const { asset } = await import('./vendor/paths.js')
     expect(asset('models/kenney/desk.glb')).toBe('/meadow/models/kenney/desk.glb')

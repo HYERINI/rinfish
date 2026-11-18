@@ -2,6 +2,7 @@ import { MeadowLighting } from '../../meadow/MeadowLighting'
 import { MeadowWorld } from '../../meadow/MeadowWorld'
 import { NetBridge } from '../net/NetBridge'
 import { Docks } from './boat/Docks'
+import { DayCycle } from './day/DayCycle'
 import { FishingSpots } from './facilities/FishingSpots'
 import { preloadFacilityAssets } from './assets'
 import { Aquarium } from './facilities/Aquarium'
@@ -16,6 +17,7 @@ import { FishingEdgeWatcher } from './fishing/FishingEdgeWatcher'
 import { FishingVisuals } from './fishing/FishingVisuals'
 import { Island } from './Island'
 import { IslandDecor } from './decor/IslandDecor'
+import { IslandLanterns } from './decor/IslandLanterns'
 import { Player } from './Player'
 import { RemotePlayers } from './RemotePlayers'
 import { PlayTimeTicker } from './PlayTimeTicker'
@@ -33,6 +35,7 @@ export function World() {
       <Docks />
       <Island />
       <IslandDecor />
+      <IslandLanterns />
       <ZoneGates />
       <RepairCutscene />
       <Player />
@@ -50,6 +53,7 @@ export function World() {
       <FishingController />
       <FishingVisuals />
       <PlayTimeTicker />
+      <DayCycle />
     </>
   )
 }

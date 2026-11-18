@@ -102,10 +102,31 @@ export const STAMINA = {
   weakTensionMul: 1.3,
   /** 벤치에 앉아 있을 때 초당 회복량 */
   benchRegenPerSecond: 6,
-  /** 낚시하지 않고 돌아다니는 동안(탐험 모드) 초당 저절로 회복하는 양. 약화(체력 0) 중엔 회복하지 않는다 — 음식이나 벤치가 필요하다 */
-  passiveRegenPerSecond: 0.3,
+  /**
+   * 낚시하지 않고 돌아다니는 동안(탐험 모드) 배가 부르면(배고픔 HUNGER.regenAbove 초과) 초당 저절로 회복하는 양 (은지 REGEN).
+   * 약화(체력 0) 중엔 회복하지 않는다 — 음식이나 벤치가 필요하다
+   */
+  fedRegenPerSecond: 0.8,
+  /** 같이 하기에서 침대에 누워 아침을 기다리는 동안 초당 회복량 (은지 그대로) */
+  sleepRegenPerSecond: 3,
   /** 체력이 이보다 낮으면 HUD 에 "음식을 사 먹거나 벤치에서 쉬세요" 안내를 띄운다 */
   lowHint: 30,
+}
+
+/** 배고픔 (은지 vitals.js). 100 에서 12분에 0 */
+export const HUNGER = {
+  max: 100,
+  /** 초당 줄어드는 양 */
+  perSecond: 100 / 720,
+  /** 배고픔 0 일 때 초당 잃는 체력 */
+  starvePerSecond: 1.5,
+  /** 배고픔이 이보다 높아야 저절로 회복한다 */
+  regenAbove: 60,
+  /** 자고 일어나면 이만큼 줄고, 이보다 낮아지지는 않는다 */
+  sleepCost: 15,
+  sleepFloor: 10,
+  /** 죽었다 침대에서 깨어나면 이 값 */
+  afterDeath: 60,
 }
 
 /** 쓰러졌을 때 보유 코인에서 진료비로 빠지는 비율 */
@@ -193,3 +214,17 @@ export const EAT = { duration: 2.4, raiseTime: 0.3, biteEvery: 0.45 }
 
 /** 한 입 베어 물 때마다 머리 위에 차례로 뜨는 소리 (넘치면 처음부터 다시) */
 export const CHEW_WORDS = ['아구작', '아구작', '냠냠', '쩝쩝']
+
+/** 게임 하루 길이(초). 은지 daynight.js DAY_LENGTH 와 같다. 하루 진행도 t 0 = 06:00, 0.5 = 18:00 */
+export const DAY_LENGTH = 480
+
+/**
+ * 잠·죽음·방 아침 때 화면이 어두워졌다 밝아지는 시간(초, 은지 updateSeq 그대로).
+ * fade 동안 어두워지고 다 어두워진 순간 상태를 바꾼 뒤, hold 만큼 머물고 out 동안 밝아진다
+ */
+export const REST_FADE = {
+  sleep: { fade: 1, hold: 0.4 },
+  death: { fade: 1.6, hold: 1.4 },
+  morning: { fade: 0.5, hold: 0.4 },
+  out: 1,
+}

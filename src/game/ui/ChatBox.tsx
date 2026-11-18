@@ -9,7 +9,7 @@ import { useSessionStore } from '../stores/sessionStore'
 import { button, safeBottom, safeLeft } from './styles'
 
 /** 채팅을 열 수 있는 모드 (패널이 열려 있을 땐 그 패널 입력과 겹치지 않게 막는다) */
-const CHAT_MODES: Mode[] = ['explore', 'fishing', 'rest']
+const CHAT_MODES: Mode[] = ['explore', 'fishing', 'rest', 'sleep']
 /** 흐려지기 시작해서 사라질 때까지(초) */
 const FADE_OUT = 3
 

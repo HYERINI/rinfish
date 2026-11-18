@@ -337,6 +337,102 @@ await wait(3000)
 const savedAfter = await A.evaluate(`JSON.parse(localStorage.getItem('fishing-island-place-v1') || 'null')?.state?.place ?? null`)
 check(!!savedAfter && Math.hypot(savedAfter.x - clinic[0], savedAfter.z - clinic[1]) < 2, `10) 그 뒤 진료소 자리가 저장된다 (${JSON.stringify(savedAfter && [savedAfter.x, savedAfter.z])})`)
 
+// --- 3-1 시간과 생존 ---
+const dayStore = `(await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState()`
+const progress = `(await __mod('/src/game/stores/progressStore.ts')).useProgressStore`
+const live = `(await __mod('/src/game/stores/dayStore.ts')).liveClock`
+const BED = [197.8, -2.4]
+const nearBed = (p) => Math.hypot(p[0] - BED[0], p[2] - BED[1]) < 1.5
+
+// 14) 밤이 온다: 혼자 시계를 22:00 으로 옮기면 HUD 가 🌙, 하늘이 어둡고 광장 가로등·섬 등불이 켜진다
+// 광장 분수 앞 (카메라가 분수·가로등 쪽을 본다)
+await A.evaluate(teleport(150, 0))
+await wait(1500)
+await A.evaluate(`(async () => { ${dayStore}.setSoloClock({ t: 16 / 24, day: 1 }); return true })()`)
+await wait(800)
+check(await A.until(`document.body.innerText.includes('🌙 1일차 22:')`, 3000), '14) HUD 시계가 🌙 1일차 22:xx')
+const night = await A.evaluate(`(async () => {
+  const { skyNow } = await __mod('/src/game/scene/skyNow.ts')
+  const m = await __mod('/src/meadow/meadowSingleton.ts')
+  return { sky: skyNow.background.r, lamp: m.meadowWorld().lights.lamps[0].intensity, lantern: m.islandLanterns()[0].intensity }
+})()`)
+check(night.sky < 0.05 && night.lamp > 5 && night.lantern > 5, `14) 밤 하늘이 어둡고 가로등·섬 등불이 켜진다 (${JSON.stringify(night)})`)
+await A.shot('14-night-town')
+await A.evaluate(teleport(0, 18))
+await wait(2000)
+await A.shot('14-night-island')
+await A.evaluate(`(async () => { ${dayStore}.setSoloClock({ t: 0.25, day: 1 }); return true })()`)
+await wait(800)
+check(await A.until(`document.body.innerText.includes('☀️ 1일차 12:')`, 3000), '14) 낮으로 돌리면 ☀️')
+
+// 15) 혼자 잠: 침대 옆에서 E → 화면이 어두워졌다가 다음 날 06:00, 체력 100, 배고픔 −15
+await A.evaluate(teleport(BED[0], BED[1]))
+check(await A.until(`document.body.innerText.includes('잠자기')`, 5000), '15) 침대 옆에서 "잠자기" 안내')
+await A.evaluate(`(async () => { ${progress}.setState({ survival: { stamina: 40, hunger: 50, graceLeft: null, buffs: [] } }); return true })()`)
+await A.key('keydown', 'KeyE', 'e')
+await A.key('keyup', 'KeyE', 'e')
+await wait(500)
+await A.shot('15-sleep-fade')
+await wait(2500)
+const slept = await A.evaluate(`(async () => { const p = ${progress}.getState(); return [p.survival.stamina, p.survival.hunger, p.clock.day, (${dayStore}).clockText] })()`)
+check(slept[0] > 99 && slept[1] > 33 && slept[1] < 36 && slept[2] === 2 && slept[3].includes('2일차 06:'), `15) 다음 날 아침, 체력 100·배고픔 35 (${JSON.stringify(slept)})`)
+check((await A.evaluate(mode)) === 'explore', '15) 깨면 탐험 모드')
+
+// 16) 굶어 죽음: 배고픔 0 이면 경고, 체력이 다 떨어지면 침대 옆에서 깨어난다 (다음 날, 체력 100·배고픔 60). 그 자리를 저장한다
+await A.evaluate(teleport(150, 0))
+await wait(1500)
+await A.evaluate(`(async () => { ${progress}.setState({ survival: { stamina: 3, hunger: 0, graceLeft: null, buffs: [] } }); return true })()`)
+check(await A.until(`document.body.innerText.includes('배고파요! 뭐라도 먹어야 해요')`, 1500), '16) 배고픔 0 이면 "배고파요" 경고')
+await A.shot('16-starving')
+await wait(7000)
+const woke = await A.evaluate(`(async () => { const p = ${progress}.getState(); const { playerRig } = await __mod('/src/game/scene/Player.tsx'); return { pos: [playerRig.position.x, playerRig.position.y, playerRig.position.z], s: p.survival, day: p.clock.day } })()`)
+check(nearBed(woke.pos) && woke.s.stamina > 99 && woke.s.hunger > 58 && woke.day === 3, `16) 침대 옆에서 깨어남 (${JSON.stringify(woke)})`)
+await wait(1500)
+const savedBed = await A.evaluate(`JSON.parse(localStorage.getItem('fishing-island-place-v1') || 'null')?.state?.place ?? null`)
+check(!!savedBed && Math.hypot(savedBed.x - BED[0], savedBed.z - BED[1]) < 2, `16) 깨어난 침대 옆을 저장한다 (${JSON.stringify(savedBed && [savedBed.x, savedBed.z])})`)
+await A.shot('16-woke-bed')
+// 배 타는 중 굶어 죽어도 배에서 내려 침대로
+await A.evaluate(teleport(88.5, -2))
+check(await A.until(`document.body.innerText.includes('배 타기 (섬으로)')`, 5000), '16) 선착장 안내')
+await A.key('keydown', 'KeyE', 'e')
+await A.key('keyup', 'KeyE', 'e')
+await wait(1500)
+await A.evaluate(`(async () => { ${progress}.setState({ survival: { stamina: 1, hunger: 0, graceLeft: null, buffs: [] } }); return true })()`)
+await wait(7000)
+const wokeBoat = await A.evaluate(`(async () => { const s = ${session}; const { playerRig } = await __mod('/src/game/scene/Player.tsx'); return { pos: [playerRig.position.x, playerRig.position.y, playerRig.position.z], boat: s.boat, mode: s.mode } })()`)
+check(nearBed(wokeBoat.pos) && wokeBoat.boat === null && wokeBoat.mode === 'explore', `16) 배 타다 죽어도 침대 옆, 배에서 내림 (${JSON.stringify(wokeBoat)})`)
+
+// 17) 같이 하기: 두 사람 시계가 같고, 한 사람이 자면(2명 중 1명 = 절반) 둘 다 아침. 같이 할 땐 죽어도 시간 그대로
+const A3 = await open(9735, 0, `?room=night-${RUN}`)
+await A3.evaluate(`__click('🔒 방 만들기')`)
+await A3.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '에이')`)
+await A3.evaluate(`__click('방 만들고 들어가기')`)
+check(await A3.until(`document.body.innerText.includes('👥 1명')`, 20000), '17) A 방 만들기')
+const B3 = await open(9736, 1, `?room=night-${RUN}`)
+await B3.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '비이')`)
+await B3.evaluate(`__click('들어가기')`)
+check(await B3.until(`document.body.innerText.includes('👥 2명')`, 20000), '17) B 들어가기')
+await wait(1500)
+const clocks = [await A3.evaluate(`(async () => ({ ...${live} }))()`), await B3.evaluate(`(async () => ({ ...${live} }))()`)]
+check(clocks[0].day === clocks[1].day && Math.abs(clocks[0].t - clocks[1].t) < 0.01, `17) 두 사람 시계가 같다 (${JSON.stringify(clocks)})`)
+await A3.evaluate(teleport(BED[0], BED[1]))
+check(await A3.until(`document.body.innerText.includes('잠자기')`, 5000), '17) A 침대 안내')
+await A3.key('keydown', 'KeyE', 'e')
+await A3.key('keyup', 'KeyE', 'e')
+check(await B3.until(`document.body.innerText.includes('일차 아침이 됐어요')`, 5000), '17) A 가 자면 B 에게도 아침')
+const mornings = [await A3.evaluate(`(async () => ({ ...${live} }))()`), await B3.evaluate(`(async () => ({ ...${live} }))()`)]
+check(mornings.every((c) => c.day === clocks[0].day + 1 && c.t < 0.02), `17) 둘 다 다음 날 06:00 (${JSON.stringify(mornings)})`)
+await wait(1500)
+check((await A3.evaluate(mode)) === 'explore', '17) 잔 사람도 탐험으로 돌아온다')
+const roomDay = mornings[0].day
+const soloDay = await A3.evaluate(`(async () => ${progress}.getState().clock.day)()`)
+await A3.evaluate(`(async () => { ${progress}.setState({ survival: { stamina: 1, hunger: 0, graceLeft: null, buffs: [] } }); return true })()`)
+await wait(7000)
+const roomDeath = await A3.evaluate(`(async () => ({ day: ${live}.day, solo: ${progress}.getState().clock.day }))()`)
+check(roomDeath.day === roomDay && roomDeath.solo === soloDay, `17) 같이 할 땐 죽어도 날짜 그대로, 혼자 시계도 그대로 (${JSON.stringify(roomDeath)})`)
+await A3.shot('17-room-woke')
+A3.close()
+B3.close()
 check(!consoleErrors.some((e) => /shader|WebGLProgram/i.test(e)), '셰이더 컴파일 오류가 없다')
 if (consoleErrors.length) console.log(`콘솔 오류·경고 ${consoleErrors.length}개:\n${consoleErrors.slice(0, 20).join('\n')}`)
 

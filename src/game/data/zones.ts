@@ -126,6 +126,12 @@ export const FACILITY = {
   wardrobe: [7, 22] as [number, number],
 }
 
+/** 섬 등불 [x, 등 높이, z]: 선착장 끝·상점가(장비 상점과 판매함 사이). 밤에만 빛 세기를 올린다 (은지 가로등과 같은 식) */
+export const ISLAND_LANTERNS: [number, number, number][] = [
+  [1.25, 2.3, 29.5],
+  [0.5, 2.3, 15],
+]
+
 /** 쓰러지면 깨어나는 곳 (진료소 앞) */
 export const CLINIC_SPAWN: [number, number] = [FACILITY.clinic[0], FACILITY.clinic[1] + 2.5]
 

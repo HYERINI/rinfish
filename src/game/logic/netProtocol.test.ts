@@ -66,6 +66,35 @@ describe('parseServerMsg', () => {
   })
 })
 
+describe('시계·잠 투표 메시지 (3-1)', () => {
+  it('sleep {on} 을 읽고, on 이 참/거짓이 아니면 null', () => {
+    expect(parseClientMsg(json({ type: 'sleep', on: true }))).toEqual({ type: 'sleep', on: true })
+    expect(parseClientMsg(json({ type: 'sleep', on: false }))).toEqual({ type: 'sleep', on: false })
+    expect(parseClientMsg(json({ type: 'sleep', on: 'yes' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'sleep' }))).toBeNull()
+  })
+  it('welcome 의 방 시계: 맞으면 읽고, 틀리거나 없으면(옛 서버) 그 필드만 없다', () => {
+    const base = { type: 'welcome', you: 'me', players: [] }
+    expect(parseServerMsg(json({ ...base, time: { tm: 12.5, day: 3 } }))).toEqual({ ...base, time: { tm: 12.5, day: 3 } })
+    expect(parseServerMsg(json(base))).toEqual(base)
+    expect(parseServerMsg(json({ ...base, time: { tm: 480, day: 3 } }))).toEqual(base)
+    expect(parseServerMsg(json({ ...base, time: { tm: 5, day: 0 } }))).toEqual(base)
+  })
+  it('time·sleepers·morning', () => {
+    expect(parseServerMsg(json({ type: 'time', tm: 0, day: 1 }))).toEqual({ type: 'time', tm: 0, day: 1 })
+    expect(parseServerMsg(json({ type: 'time', tm: -1, day: 1 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'time', tm: 3, day: 2.5 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'sleepers', n: 1, need: 2 }))).toEqual({ type: 'sleepers', n: 1, need: 2 })
+    expect(parseServerMsg(json({ type: 'sleepers', n: 0, need: 0 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'sleepers', n: 21, need: 2 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'morning', day: 4 }))).toEqual({ type: 'morning', day: 4 })
+    expect(parseServerMsg(json({ type: 'morning', day: 'x' }))).toBeNull()
+  })
+  it('아직 모르는 종류(3-3 이후 animals 등)는 버린다', () => {
+    expect(parseServerMsg(json({ type: 'animals', list: [] }))).toBeNull()
+  })
+})
+
 describe('roundState·stateKey', () => {
   it('배 진행도도 둘째 자리로, 배를 타고 내리면 다른 상태', () => {
     const s = state({ boat: { dir: 'toMeadow', t: 0.123456 } })

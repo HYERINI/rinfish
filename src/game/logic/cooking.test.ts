@@ -4,7 +4,7 @@ import { getDish } from '../data/dishes'
 import { cook, dishEffect, eligibleFish, ingredientsOk, menuVisible, type Ingredient } from './cooking'
 import { FRESH_SURVIVAL, type Survival } from './stamina'
 
-const hungry: Survival = { stamina: 10, graceLeft: null, buffs: [] }
+const hungry: Survival = { stamina: 10, hunger: 30, graceLeft: null, buffs: [] }
 
 describe('dishEffect', () => {
   it('희귀할수록 회복량과 버프 지속시간이 커진다', () => {
@@ -27,7 +27,7 @@ describe('cook', () => {
     expect(result).toEqual({
       ok: true,
       coins: 5,
-      survival: { stamina: 50, graceLeft: null, buffs: [{ kind: 'tension', mul: 0.75, remaining: 90 }] },
+      survival: { stamina: 50, hunger: 90, graceLeft: null, buffs: [{ kind: 'tension', mul: 0.75, remaining: 90 }] },
     })
   })
 
@@ -47,8 +47,17 @@ describe('cook', () => {
   })
 
   it('약화 상태에서 먹으면 정상으로 돌아온다', () => {
-    const result = cook(10, { stamina: 0, graceLeft: 20, buffs: [] }, getDish('sashimi'), 'junk')
+    const result = cook(10, { stamina: 0, hunger: 50, graceLeft: 20, buffs: [] }, getDish('sashimi'), 'junk')
     expect(result.ok && result.survival.graceLeft).toBeNull()
+  })
+})
+
+describe('요리와 배고픔', () => {
+  it('찜·회·탕은 배고픔 +60, 비밀 메뉴는 +100 (최대 100)', () => {
+    const steam = cook(100, { ...hungry, hunger: 10 }, getDish('fishSteam'), 'common')
+    expect(steam.ok && steam.survival.hunger).toBe(70)
+    const secret = cook(100, { ...hungry, hunger: 0 }, getDish('xxlSteam'), 'rare')
+    expect(secret.ok && secret.survival.hunger).toBe(100)
   })
 })
 

@@ -9,6 +9,7 @@ const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock'>, string> 
   bench: '앉아서 쉬기',
   aquarium: '어항 (관리 · 크게 보기)',
   wardrobe: '옷장 (꾸미기)',
+  bed: '🛏️ 잠자기',
 }
 
 const GATE_LABEL: Record<string, string> = {
