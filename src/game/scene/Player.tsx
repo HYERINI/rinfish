@@ -25,7 +25,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
 import { fishingLook } from '../logic/characterPose'
-import { cameraRig, isGrounded, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
+import { cameraRig, isGrounded, moveSpeed, nextAction, shouldFaceCamera, shownTool } from '../logic/playerMotion'
 import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
@@ -38,7 +38,9 @@ import { fishingFx } from './fishing/fishingFx'
 import { BoatModel } from './boat/BoatModel'
 import { ChewChatter } from './ChewChatter'
 import { FoodInHand } from './FoodInHand'
+import { playerGround } from './playerGround'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
+import { KnifeModel } from './tools/KnifeModel'
 
 /** 다른 컴포넌트(낚싯줄·같이 하기 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
 export const playerRig = {
@@ -128,6 +130,8 @@ export function Player() {
   const visual = useRef<Group>(null)
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
+  /** 손에 든 칼 (도구 칸 3) */
+  const knife = useRef<Group>(null)
   const model = useRef<PlayerModelHandle>(null)
   const boatRef = useRef<Group>(null)
   /** 지난번에 서 있던 자리 (탭을 닫았다 와도 이어서). 처음 그릴 때 한 번만 읽는다 */
@@ -306,6 +310,7 @@ export function Player() {
     const ball = (groundBall.current ??= new rapier.Ball(GROUND_BALL))
     const hit = world.castShape(t, { x: 0, y: 0, z: 0, w: 1 }, { x: 0, y: -1, z: 0 }, ball, 0, -FOOT_Y - GROUND_BALL + GROUND_PROBE, true, rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)
     const grounded = isGrounded(hit !== null, velocity.y, boatAt !== null)
+    playerGround.grounded = grounded
     const session = useSessionStore.getState()
     const prevAction = session.playerAction
     const action = nextAction(
@@ -391,8 +396,10 @@ export function Player() {
 
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
       // 낚시 중이 아니면 서 있거나 걸을 때만 보인다 (앉기·감정 표현·점프 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다)
-      // 배 위에서 큰 지도를 봐도 앉은 채로 낚싯대를 숨긴다
-      rod.current.visible = rodVisible(boatAt ? 'boat' : mode, session.zoom, action)
+      // 배 위에서 큰 지도를 봐도 앉은 채로 낚싯대를 숨긴다. 도구 칸에서 다른 도구를 들면 그 도구만 보인다
+      const held = shownTool(boatAt ? 'boat' : mode, session.zoom, action, session.tool)
+      rod.current.visible = held === 'rod'
+      if (knife.current) knife.current.visible = held === 'knife'
       playerRig.rodAngle = rod.current.rotation.x
       playerRig.rodShown = rod.current.visible
       const m = model.current
@@ -404,6 +411,11 @@ export function Player() {
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
+        // 칼도 같은 손에, 낚싯대처럼 앞으로 살짝 숙여 든다
+        if (knife.current) {
+          knife.current.position.copy(rod.current.position)
+          knife.current.rotation.x = rod.current.rotation.x
+        }
         // 먹는 음식도 같은 손에 든다
         if (food.current) food.current.position.copy(grip)
       }
@@ -479,6 +491,9 @@ export function Player() {
             <meshStandardMaterial color="#6d4c41" />
           </mesh>
           <object3D ref={rodTip} position={[0, 2, 0]} />
+        </group>
+        <group ref={knife} visible={false}>
+          <KnifeModel />
         </group>
         {eating && (
           <>

@@ -42,9 +42,12 @@ export function pitchedOffset(distance: number, height: number, lookAtY: number,
   }
 }
 
-/** 마우스를 잠가 둘 수 있는 화면 (돌아다닐 때·벤치에서 쉴 때). 낚시·패널·꾸미기 등 그 밖의 화면은 커서가 필요해서 풀어 준다 */
+/**
+ * 마우스를 잠가 둘 수 있는 화면 (돌아다닐 때·벤치에서 쉴 때·배·감정 표현 바퀴). 낚시·패널·꾸미기 등 그 밖의 화면은 커서가 필요해서 풀어 준다.
+ * 바퀴는 잠긴 채 마우스 움직임으로 고른다 (풀면 바퀴를 닫을 때마다 다시 눌러 잠가야 한다)
+ */
 export function canLockPointer(mode: Mode): boolean {
-  return mode === 'explore' || mode === 'rest' || mode === 'boat'
+  return mode === 'explore' || mode === 'rest' || mode === 'boat' || mode === 'emote'
 }
 
 /**

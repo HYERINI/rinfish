@@ -1,3 +1,4 @@
+import type { VendorId } from './meadowPrices'
 import { ISLAND_RADIUS } from './zones'
 
 /** 바닥의 축 정렬 사각형 (세계 좌표, x0 < x1, z0 < z1) */
@@ -53,3 +54,16 @@ export const SHORE_SAND = 4
 
 /** 낮 하늘색 (은지 daynight.js DAY). 바다가 먼 곳에서 이 색으로 흐려진다 */
 export const SKY_DAY = '#a9d4f5'
+
+/** 은지 집 문 4개 (은지 world.js 가 만드는 순서). 문 상태는 저장한다 (progressStore.doors) */
+export const MEADOW_DOORS = ['거실 문', '사격장 문', '주방 문', '현관문']
+
+/**
+ * 마을 상인 3곳 (은지 town.js VENDORS). at: 노점 가운데 (은지 좌표, E 거리는 여기서 2.8m), npc: 노점 뒤 상인이 서는 자리 (은지 좌표).
+ * 상인 모습은 은지 모델(21MB) 대신 낚시섬 캐릭터 프리셋 (LOOK_PRESETS id). 분수(은지 z 2) 쪽을 본다
+ */
+export const MEADOW_VENDORS: { id: VendorId; name: string; greet: string; at: [number, number]; npc: [number, number]; look: string }[] = [
+  { id: 'butcher', name: '정육점', greet: '고기와 요리를 삽니다', at: [46, 11.5], npc: [46, 12.4], look: 'grandpa' },
+  { id: 'general', name: '잡화점', greet: '뼈·비계를 삽니다 · 탄약은 곧 들어와요', at: [52, 11.5], npc: [52, 12.4], look: 'lady' },
+  { id: 'grocer', name: '농산물 가게', greet: '달걀·호박·버섯을 사고팝니다', at: [58, 11.5], npc: [58, 12.4], look: 'rangerMale' },
+]

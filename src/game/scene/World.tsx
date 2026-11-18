@@ -1,4 +1,6 @@
 import { MeadowLighting } from '../../meadow/MeadowLighting'
+import { MeadowInteractions } from '../../meadow/MeadowInteractions'
+import { MeadowVendors } from '../../meadow/MeadowVendors'
 import { MeadowWorld } from '../../meadow/MeadowWorld'
 import { NetBridge } from '../net/NetBridge'
 import { Docks } from './boat/Docks'
@@ -32,6 +34,8 @@ export function World() {
       {/* 빛·하늘색은 은지 것 한 벌 (meadow/MeadowLighting) */}
       <MeadowLighting />
       <MeadowWorld />
+      <MeadowInteractions />
+      <MeadowVendors />
       <Docks />
       <Island />
       <IslandDecor />

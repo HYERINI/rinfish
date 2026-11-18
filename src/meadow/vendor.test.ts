@@ -41,6 +41,31 @@ describe('은지 맵 복사본', () => {
     for (const [x, z] of [[cx - hx, cz - hz], [cx + hx, cz + hz]]) expect(w.roomAt(...toMeadowLocal(x, z)).id).toBe('bedroom')
     await Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready])
   })
+  it('문 4개는 MEADOW_DOORS 순서이고, doorBox 로 잰 상자가 은지 door.collider 와 같다 (group 이 변환 아래에 없을 때)', async () => {
+    const { createWorld } = await import('./vendor/world.js')
+    const { MEADOW_DOORS } = await import('../game/data/meadow')
+    const { doorBox } = await import('../game/logic/meadowColliders')
+    const w = createWorld()
+    expect(w.doors.map((d) => d.label)).toEqual(MEADOW_DOORS)
+    for (const d of w.doors) {
+      for (const open of [false, true]) {
+        d.setOpen(open, true)
+        const b = doorBox({ x: d.group.position.x, z: d.group.position.z, yaw: d.base + (open ? Math.PI / 2 : 0), width: d.width, height: d.panel.geometry.parameters.height })
+        for (const k of ['x', 'y', 'z'] as const) {
+          expect(b.min[k]).toBeCloseTo(d.collider.min[k], 5)
+          expect(b.max[k]).toBeCloseTo(d.collider.max[k], 5)
+        }
+      }
+    }
+    await Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready])
+  })
+  it('상인 3곳 자리·이름·E 거리가 은지 town.js 와 같다', async () => {
+    const { VENDORS, VENDOR_DIST } = await import('./vendor/town.js')
+    const { MEADOW_VENDORS } = await import('../game/data/meadow')
+    const { MEADOW_REACH } = await import('../game/logic/meadowInteract')
+    expect(MEADOW_VENDORS.map((v) => [v.id, v.name, ...v.at])).toEqual(VENDORS.map((v) => [v.id, v.name, v.x, v.z]))
+    expect(MEADOW_REACH.vendor).toBe(VENDOR_DIST)
+  })
   it('모델 주소는 meadow/ 아래', async () => {
     const { asset } = await import('./vendor/paths.js')
     expect(asset('models/kenney/desk.glb')).toBe('/meadow/models/kenney/desk.glb')

@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 import { CAMERA_ZOOM } from '../data/balance'
+import type { MeadowDishId } from '../data/meadowItems'
+import type { VendorId } from '../data/meadowPrices'
+import type { ToolId } from '../data/tools'
 import type { DishId, ZoneId } from '../data/types'
 import type { BoatDir } from '../logic/boatRoute'
 import { nextZoom, pinchZoom } from '../logic/cameraZoom'
@@ -44,6 +47,18 @@ type SessionState = {
   openMap: () => void
   /** 큰 지도 닫기. 배 타는 중이면 배 모드로 돌아간다 */
   closeMap: () => void
+  /**
+   * 초원 가스레인지 요리 중 (재료는 시작할 때 이미 뺐다). startedAt: performance.now() 초. 은지처럼 요리하는 동안 돌아다녀도 된다.
+   * 저장하지 않는다 (새로고침하면 재료와 함께 사라진다, 은지 그대로)
+   */
+  stoveCook: { recipe: MeadowDishId; startedAt: number } | null
+  setStoveCook: (cook: { recipe: MeadowDishId; startedAt: number } | null) => void
+  /** 사고팔기 창을 연 마을 상인 (mode 'vendor') */
+  vendor: VendorId | null
+  openVendor: (id: VendorId) => void
+  /** 손에 든 도구 (도구 칸). null = 빈손. 저장하지 않는다 (다시 들어오면 낚싯대) */
+  tool: ToolId | null
+  equip: (tool: ToolId | null) => void
   setPlayerAction: (action: PlayerAction) => void
   setMode: (mode: Mode) => void
   zoomBy: (deltaY: number) => void
@@ -83,9 +98,16 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   closeMap: () => {
     if (get().mode === 'map') get().setMode('explore')
   },
+  vendor: null,
+  openVendor: (vendor) => set({ vendor, mode: 'vendor' }),
+  stoveCook: null,
+  setStoveCook: (stoveCook) => set({ stoveCook }),
+  tool: 'rod',
+  equip: (tool) => set({ tool }),
   setPlayerAction: (playerAction) => set({ playerAction }),
   // 배 타는 중엔 탐험으로 돌려도(로비 닫기 등) 도착할 때까지 배 모드를 지킨다
-  setMode: (mode) => set((s) => ({ mode: s.boat && mode === 'explore' ? 'boat' : mode })),
+  // 상인 창이 아닌 모드로 가면 연 상인을 지운다
+  setMode: (mode) => set((s) => ({ mode: s.boat && mode === 'explore' ? 'boat' : mode, ...(mode !== 'vendor' && s.vendor ? { vendor: null } : {}) })),
   zoomBy: (deltaY) => set((s) => ({ zoom: nextZoom(s.zoom, deltaY) })),
   pinchZoom: (prevSpan, span) => set((s) => ({ zoom: pinchZoom(s.zoom, prevSpan, span) })),
   setNearby: (target) => set({ nearby: target }),
@@ -96,5 +118,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   // 순간이동(쓰러져 진료소로 등)하면 타던 배에서 내린다
   requestTeleport: (pos) => set((s) => ({ teleport: pos, boat: null, mode: s.mode === 'boat' ? 'explore' : s.mode })),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', stoveCook: null, vendor: null }),
 }))

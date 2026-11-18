@@ -5,6 +5,7 @@ import { MARKET } from '../data/market'
 import { SNACKS } from '../data/snacks'
 import { pressEat } from '../input/usePlayerActionKeys'
 import { finishCooking } from '../scene/cooking/finishCooking'
+import { ITEMS, getRecipe } from '../data/meadowItems'
 import { isStarving } from '../logic/survival'
 import { useDayStore } from '../stores/dayStore'
 import { useProgressStore } from '../stores/progressStore'
@@ -72,6 +73,7 @@ export function Hud() {
         {survival.stamina < STAMINA.lowHint && !isStarving(survival) && (
           <div style={{ fontSize: 12, marginTop: 4, color: '#ffab91', textShadow: '0 1px 2px #000' }}>지쳤어요! {MARKET.name}에서 음식을 사 먹거나 벤치에서 쉬세요</div>
         )}
+        <StoveCookStatus />
         {mode === 'explore' && <SnackBag />}
         {survival.buffs.map((b) => (
           <div key={b.kind} style={{ fontSize: 12, marginTop: 4, color: '#ffd166' }}>
@@ -107,6 +109,12 @@ export function Hud() {
         <>
           <div style={{ position: 'absolute', top: safeTop(16), right: safeRight(16), display: 'flex', gap: 8 }}>
             <MusicButton />
+            {/* 폰은 위쪽 줄이 좁아서 가방 버튼을 오른쪽 아래 조작 버튼 옆에 둔다 (TouchControls) */}
+            {!touchUi && (
+              <button style={button} aria-label="가방" onClick={(e) => { e.currentTarget.blur(); setMode('bag') }}>
+                🎒 가방 (I)
+              </button>
+            )}
             {/* 어디서든 바로 어항을 크게 본다 (어항 앞까지 안 가도 된다) */}
             <button style={button} onClick={(e) => { e.currentTarget.blur(); setMode('aquariumView') }}>
               🐠 어항 구경
@@ -122,8 +130,8 @@ export function Hud() {
           {nearby && !touchUi && <div style={hint}>E  {interactLabel(nearby)}</div>}
           {mouseLook && !locked && <div style={lookHint}>클릭하면 마우스로 시점 회전 · ESC 해제</div>}
           {!touchUi && (
-            <div style={{ position: 'absolute', bottom: 16, left: 16, opacity: 0.7, fontSize: 13 }}>
-              WASD 이동 · Shift 달리기 · Space 점프 · 1~5 감정 표현 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
+            <div style={{ position: 'absolute', bottom: 8, left: 16, right: 16, textAlign: 'center', opacity: 0.7, fontSize: 12 }}>
+              WASD 이동 · Shift 달리기 · Space 점프 · 1~3 도구 · X 넣기 · I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
             </div>
           )}
         </>
@@ -135,7 +143,7 @@ export function Hud() {
 /** 화면 아래 가운데, E 안내 바로 위: 마우스 잠금 안내 (위쪽은 구역 이름표·알림과 겹친다) */
 const lookHint: CSSProperties = {
   position: 'absolute',
-  bottom: 80,
+  bottom: 144,
   left: '50%',
   transform: 'translateX(-50%)',
   background: 'rgba(0, 0, 0, 0.45)',
@@ -189,6 +197,25 @@ function SnackBag() {
           <ItemIcon id={s.id} size={24} />×{snacks[s.id]}
         </button>
       ))}
+    </div>
+  )
+}
+
+/** 가스레인지 요리 중: "🍳 스테이크 요리 중… 3초" (0.2초마다 다시 센다) */
+function StoveCookStatus() {
+  const cook = useSessionStore((s) => s.stoveCook)
+  const [now, setNow] = useState(() => performance.now() / 1000)
+  useEffect(() => {
+    if (!cook) return
+    const id = setInterval(() => setNow(performance.now() / 1000), 200)
+    return () => clearInterval(id)
+  }, [cook])
+  if (!cook) return null
+  const recipe = getRecipe(cook.recipe)
+  const left = Math.min(recipe.time, Math.max(0, recipe.time - (now - cook.startedAt)))
+  return (
+    <div style={{ fontSize: 13, marginTop: 6, color: '#ffe082', textShadow: '0 1px 2px #000' }}>
+      {ITEMS[recipe.result].icon} {recipe.name} 요리 중… {Math.ceil(left)}초
     </div>
   )
 }

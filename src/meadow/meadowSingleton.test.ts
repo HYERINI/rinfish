@@ -88,3 +88,46 @@ describe('낮과 밤', () => {
     expect(lamps.every((l) => l.intensity === 5)).toBe(true)
   })
 })
+
+describe('버섯·호박 따기', () => {
+  it('따면 숨기고 respawn 초 뒤 다시 보인다. 숨긴 걸 또 딸 수 없다', async () => {
+    const { harvestPickup, meadowPickups, meadowSpots, regrowPickups } = await import('./meadowSingleton')
+    const { Object3D } = await import('three')
+    const list = meadowPickups()
+    const index = list.length
+    list.push({ obj: new Object3D(), id: 'pumpkin', label: '호박', center: new Vector3(6.5, 1, -15.2), respawn: 90, timer: 0 })
+    expect(meadowSpots().some((s) => s.target.kind === 'pickup' && s.target.index === index && s.x === 6.5)).toBe(true)
+    expect(harvestPickup(index)).toBe('pumpkin')
+    expect(list[index].obj.visible).toBe(false)
+    expect(harvestPickup(index)).toBeNull()
+    regrowPickups(89)
+    expect(list[index].obj.visible).toBe(false)
+    regrowPickups(1)
+    expect(list[index].obj.visible).toBe(true)
+    expect(harvestPickup(999)).toBeNull()
+    list.pop()
+  })
+})
+
+describe('문', () => {
+  it('저장된 상태로 처음엔 바로(돌아가는 중 없이), 그 뒤엔 은지처럼 돌아가며 맞춘다. 충돌 상자는 목표 자리', async () => {
+    const { applyDoors, doorCuboid, meadowWorld } = await import('./meadowSingleton')
+    const doors = meadowWorld().doors
+    applyDoors([true, false, false, false], true)
+    expect(doors[0].open).toBe(true)
+    expect(doors[0].angle).toBeCloseTo(Math.PI / 2)
+    applyDoors([false, false, false, false], false)
+    expect(doors[0].open).toBe(false)
+    // 문짝은 아직 열린 자리 (update 로 돌아간다)
+    expect(doors[0].angle).toBeCloseTo(Math.PI / 2)
+    for (let i = 0; i < 60; i++) doors[0].update(1 / 30)
+    expect(doors[0].angle).toBeCloseTo(0)
+    // 거실 문(은지 x 5, z -0.5~0.5 → 세계 x 195): 닫히면 얇은 판이 세계 z 축을 따라, 열리면 x 축을 따라
+    const closed = doorCuboid(0, false)!
+    const open = doorCuboid(0, true)!
+    expect(closed.center[0]).toBeCloseTo(195)
+    expect(closed.half[2]).toBeCloseTo(0.5)
+    expect(open.half[0]).toBeCloseTo(0.5)
+    expect(doorCuboid(9, true)).toBeNull()
+  })
+})

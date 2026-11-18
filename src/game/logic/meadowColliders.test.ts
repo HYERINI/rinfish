@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MEADOW_LAND, MEADOW_RECT, START_SPOT, areaToWorld, toMeadowLocal, toWorld } from '../data/meadow'
-import { boxesToCuboids } from './meadowColliders'
+import { DOOR_THICK, boxesToCuboids, doorBox } from './meadowColliders'
 
 const box = (min: [number, number, number], max: [number, number, number]) => ({ min: { x: min[0], y: min[1], z: min[2] }, max: { x: max[0], y: max[1], z: max[2] } })
 
@@ -33,5 +33,20 @@ describe('boxesToCuboids', () => {
     const flat = box([0, 0, 0], [2, 0.005, 2])
     const nan = box([Number.NaN, 0, 0], [1, 1, 1])
     expect(boxesToCuboids([empty, flat, nan])).toEqual([])
+  })
+})
+
+describe('doorBox', () => {
+  it('닫힌 문(z 로 뻗음)은 경첩에서 +z 로 폭만큼, 두께는 x 로', () => {
+    const b = doorBox({ x: 5, z: -0.5, yaw: 0, width: 1, height: 2.1 })
+    expect(b.min).toEqual({ x: 5 - DOOR_THICK / 2, y: 0, z: -0.5 })
+    expect(b.max).toEqual({ x: 5 + DOOR_THICK / 2, y: 2.1, z: 0.5 })
+  })
+  it('90° 열면 +x 로 뻗는다', () => {
+    const b = doorBox({ x: 5, z: -0.5, yaw: Math.PI / 2, width: 1, height: 2.1 })
+    expect(b.min.x).toBeCloseTo(5)
+    expect(b.max.x).toBeCloseTo(6)
+    expect(b.min.z).toBeCloseTo(-0.5 - DOOR_THICK / 2)
+    expect(b.max.z).toBeCloseTo(-0.5 + DOOR_THICK / 2)
   })
 })

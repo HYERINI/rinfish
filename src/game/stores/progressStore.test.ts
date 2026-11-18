@@ -4,6 +4,8 @@ import { AQUARIUM, HUNGER, STAMINA } from '../data/balance'
 import { DEFAULT_LOOK, LOOK_PRESETS } from '../data/characterParts'
 import { EMPTY_AQUARIUM } from '../logic/aquarium'
 import { FIRST_MORNING } from '../logic/dayClock'
+import { NO_ITEMS } from '../logic/inventory'
+import { NO_SNACKS } from '../logic/snacks'
 import { INITIAL_PROGRESS, SAVE_KEY, useProgressStore } from './progressStore'
 
 const store = () => useProgressStore.getState()
@@ -400,5 +402,81 @@ describe('progressStore', () => {
     await useProgressStore.persist.rehydrate()
     expect(store().survival.hunger).toBe(12.5)
     expect(store().clock).toEqual({ t: 0.6, day: 9 })
+  })
+
+  it('가방(items)이 없는 예전 저장본(version 3)은 빈 가방, 모르는 물건·깨진 개수는 버린다', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 4 }, version: 3 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().items).toEqual(NO_ITEMS)
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { items: { egg: 3, steak: 1.5, pizza: 9, beef: -1 } }, version: 4 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().items).toEqual({ ...NO_ITEMS, egg: 3 })
+  })
+
+  it('가스레인지 요리: 재료를 빼고 시작, 모자라면 아무것도 빼지 않는다', () => {
+    store().addItem('egg', 1)
+    expect(store().startRecipe('omelet')).toBe(false)
+    expect(store().items.egg).toBe(1)
+    expect(store().startRecipe('friedegg')).toBe(true)
+    expect(store().items.egg).toBe(0)
+  })
+
+  it('F: 배고픔을 가장 많이 채우는 요리·간식을 먹는다. 없으면 null', () => {
+    useProgressStore.setState({ survival: { stamina: 50, hunger: 10, graceLeft: null, buffs: [] }, items: { ...NO_ITEMS, roast: 1, steak: 1 }, snacks: { ...NO_SNACKS, energy: 1 } })
+    expect(store().eatBest()).toBe('steak')
+    expect(store().survival).toMatchObject({ stamina: 60, hunger: 50 })
+    expect(store().items.steak).toBe(0)
+    expect(store().eatBest()).toBe('roast')
+    expect(store().eatBest()).toBe('energy')
+    expect(store().snacks.energy).toBe(0)
+    expect(store().eatBest()).toBeNull()
+  })
+
+  it('가방에서 골라 먹기: 은지 요리·간식, 없으면 false', () => {
+    useProgressStore.setState({ survival: { stamina: 50, hunger: 10, graceLeft: 30, buffs: [] }, items: { ...NO_ITEMS, bonebroth: 1 } })
+    expect(store().eatFromBag('bonebroth')).toBe(true)
+    // 먹으면 약화도 풀린다
+    expect(store().survival).toMatchObject({ stamina: 56, hunger: 34, graceLeft: null })
+    expect(store().eatFromBag('bonebroth')).toBe(false)
+    expect(store().eatFromBag('gimbap')).toBe(false)
+  })
+
+  it('문: 처음엔 모두 닫힘, 열고 닫은 상태를 저장한다. 깨진 값은 그 문만 닫힘', async () => {
+    expect(store().doors).toEqual([false, false, false, false])
+    store().setDoorOpen(3, true)
+    store().setDoorOpen(9, true)
+    expect(store().doors).toEqual([false, false, false, true])
+    useProgressStore.setState({ ...INITIAL_PROGRESS })
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { doors: [true, 'yes', true] }, version: 4 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().doors).toEqual([true, false, true, false])
+  })
+
+  it('마을 상인: 팔면 코인이 오르고 가방에서 빠진다. 사면 반대. 안 되면 그대로', () => {
+    useProgressStore.setState({ coins: 10, items: { ...NO_ITEMS, beef: 2 } })
+    expect(store().sellItem('butcher', 'beef', 2)).toBe(24)
+    expect(store().coins).toBe(34)
+    expect(store().items.beef).toBe(0)
+    expect(store().sellItem('butcher', 'beef', 1)).toBe(0)
+    expect(store().buyItem('grocer', 'mushroom', 2, 1)).toBe(true)
+    expect([store().coins, store().items.mushroom]).toEqual([18, 2])
+    expect(store().buyItem('grocer', 'pumpkin', 2, 1)).toBe(false)
+    expect(store().coins).toBe(18)
+  })
+
+  it('농산물 가게 하루 수량을 저장한다 (없던 저장본은 가득)', async () => {
+    useProgressStore.setState({ coins: 100 })
+    expect(store().buyItem('grocer', 'egg', 3, 2)).toBe(true)
+    expect(store().buyItem('grocer', 'egg', 1, 2)).toBe(false)
+    expect(store().coins).toBe(76)
+    expect(store().stock).toEqual({ day: 2, bought: { egg: 3 } })
+    expect(store().buyItem('grocer', 'egg', 1, 3)).toBe(true)
+    useProgressStore.setState({ ...INITIAL_PROGRESS })
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { stock: { day: 4, bought: { pumpkin: 3 } } }, version: 4 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().stock).toEqual({ day: 4, bought: { pumpkin: 3 } })
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: {}, version: 3 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().stock).toEqual(INITIAL_PROGRESS.stock)
   })
 })

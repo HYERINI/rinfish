@@ -1,3 +1,4 @@
+import type { MeadowDishId } from './meadowItems'
 import type { SnackId } from './snacks'
 
 export type ZoneId = 'beach' | 'pond' | 'reef' | 'cave'
@@ -46,8 +47,8 @@ export type FishInstance = {
 }
 
 export type DishId = 'fishSteam' | 'spicySteam' | 'bossSteam' | 'xxlSteam' | 'sashimi' | 'bowl' | 'stew'
-/** 먹을 수 있는 것: 물고기 요리 또는 간식. 먹는 동작에서 손에 든 음식을 고른다 */
-export type FoodId = DishId | SnackId
+/** 먹을 수 있는 것: 물고기 요리, 간식, 은지 요리. 먹는 동작에서 손에 든 음식을 고른다 */
+export type FoodId = DishId | SnackId | MeadowDishId
 /** 요리 버프 종류. 같은 종류끼리는 겹치지 않고 남은 시간만 갱신된다 */
 export type BuffKind = 'reel' | 'tension'
 /** remaining: 남은 플레이 시간(초) */

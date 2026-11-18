@@ -1,6 +1,8 @@
+import { ITEMS } from '../data/meadowItems'
 import type { FoodId } from '../data/types'
+import { emojiTexture } from './emojiTexture'
 
-/** 먹을 때 손에 드는 음식 (손 크기에 맞춘 작은 모형). 원점이 주먹 가운데 */
+/** 먹을 때 손에 드는 음식 (손 크기에 맞춘 작은 모형, 은지 요리는 이모지 판). 원점이 주먹 가운데 */
 export function FoodInHand({ dish }: { dish: FoodId }) {
   switch (dish) {
     case 'sashimi':
@@ -118,6 +120,13 @@ export function FoodInHand({ dish }: { dish: FoodId }) {
             <meshStandardMaterial color={dish === 'bowl' ? '#ff7043' : '#fff59d'} />
           </mesh>
         </group>
+      )
+    default:
+      // 은지 요리: 이모지를 그린 판 (늘 카메라를 본다)
+      return (
+        <sprite position={[0, 0.09, 0.03]} scale={0.16}>
+          <spriteMaterial map={emojiTexture(ITEMS[dish].icon)} transparent depthWrite={false} />
+        </sprite>
       )
   }
 }

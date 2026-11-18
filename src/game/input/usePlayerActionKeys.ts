@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ACTION_KEYS, EMOTES, type EmoteId } from '../data/emotes'
+import { ACTION_KEYS, type EmoteId } from '../data/emotes'
 import type { FoodId } from '../data/types'
 import { useSessionStore } from '../stores/sessionStore'
 import { isKeyDown } from './keys'
@@ -29,7 +29,7 @@ export function pressJump() {
   jumpPressed = true
 }
 
-/** 감정 표현 (터치 감정 표현 메뉴). 숫자 키와 같다 */
+/** 감정 표현 (터치 감정 표현 메뉴·T 바퀴) */
 export function pressEmote(id: EmoteId) {
   emotePressed = id
 }
@@ -39,7 +39,7 @@ export function isSprintHeld(): boolean {
   return ACTION_KEYS.sprint.some(isKeyDown)
 }
 
-/** Space·숫자 키 → 점프·감정 표현. 꾹 누르고 있을 때 반복 입력과 글자 입력 칸에서 누른 키는 무시한다 */
+/** Space → 점프. 꾹 누르고 있을 때 반복 입력과 글자 입력 칸에서 누른 키는 무시한다 (감정 표현은 T 바퀴, 숫자 키는 도구 칸) */
 export function usePlayerActionKeys() {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -48,10 +48,7 @@ export function usePlayerActionKeys() {
         // 탐험 중엔 포커스가 남은 버튼이 Space 로 눌리거나 페이지가 스크롤되지 않게 막는다 (패널에선 그대로 둔다)
         if (useSessionStore.getState().mode === 'explore') e.preventDefault()
         jumpPressed = true
-        return
       }
-      const emote = EMOTES.find((em) => em.key === e.code)
-      if (emote) emotePressed = emote.id
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)

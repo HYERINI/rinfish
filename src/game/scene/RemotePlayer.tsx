@@ -8,12 +8,14 @@ import { NET } from '../data/net'
 import type { CharacterLook } from '../data/types'
 import { saggingLinePoint } from '../logic/castArc'
 import { sampleAt } from '../logic/interpolate'
+import { shownTool } from '../logic/playerMotion'
 import { netNow, remoteRig } from '../net/remoteRig'
 import { BoatModel } from './boat/BoatModel'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { bubbleStyle, nameTagStyle } from './nameTag'
 import { FOOT_Y } from './Player'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
+import { KnifeModel } from './tools/KnifeModel'
 
 const LINE_POINTS = 16
 // 매 프레임 new 하지 않도록 재사용
@@ -31,6 +33,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
   const visual = useRef<Group>(null)
   const model = useRef<PlayerModelHandle>(null)
   const rod = useRef<Group>(null)
+  const knife = useRef<Group>(null)
   const boatRef = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const bobber = useRef<Mesh>(null)
@@ -73,6 +76,12 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     visual.current.updateWorldMatrix(true, false)
     m.gripPosition(grip)
     rod.current.position.copy(visual.current.worldToLocal(grip))
+    // 남이 든 칼 (낚싯대는 rodOn 이 정한다). 앉았거나 감정 표현·점프·먹는 중엔 숨긴다
+    if (knife.current) {
+      knife.current.visible = shownTool(s.fish ? 'fishing' : s.boat ? 'boat' : s.rest ? 'rest' : 'explore', Infinity, e.action, s.tool ?? null) === 'knife'
+      knife.current.position.copy(rod.current.position)
+      knife.current.rotation.x = s.rod
+    }
     // 찌와 낚싯줄 (낚싯대 끝 → 찌)
     if (s.bob && bobber.current && rodTip.current) {
       bobber.current.position.set(s.bob[0], s.bob[1], s.bob[2])
@@ -107,6 +116,9 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
               <meshStandardMaterial color="#6d4c41" />
             </mesh>
             <object3D ref={rodTip} position={[0, 2, 0]} />
+          </group>
+          <group ref={knife} visible={false}>
+            <KnifeModel />
           </group>
         </group>
         {drawn && (

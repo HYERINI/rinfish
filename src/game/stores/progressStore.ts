@@ -7,6 +7,8 @@ import { SNACK_IDS, type SnackId } from '../data/snacks'
 import { getDish } from '../data/dishes'
 import { GEAR } from '../data/gear'
 import { findSpecies } from '../data/fish'
+import { MEADOW_DOORS } from '../data/meadow'
+import { ITEM_IDS, getRecipe, type ItemId, type MeadowDishId } from '../data/meadowItems'
 import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId, ZoneId } from '../data/types'
 import { ZONES } from '../data/zones'
 import {
@@ -26,6 +28,9 @@ import { NO_BAIT, buyBait as buyBaitRule, consumeBait, type BaitCounts } from '.
 import { normalizeLook } from '../logic/characterLook'
 import { NO_SNACKS, buyAndEatSnack as buyAndEatSnackRule, buySnacks as buySnacksRule, eatSnackFromBag, type SnackCounts, type SnackEatResult } from '../logic/snacks'
 import { cook, ingredientsOk } from '../logic/cooking'
+import { NO_ITEMS, addItems, bestFood, consumeRecipe, eatBagFood, type BagFood, type ItemCounts } from '../logic/inventory'
+import { FULL_STOCK, buyFromVendor, readStock, sellToVendor, type VendorStock } from '../logic/meadowShop'
+import type { VendorId } from '../data/meadowPrices'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
 import { migrateSave } from '../logic/saveMigration'
@@ -64,6 +69,12 @@ type ProgressData = {
   snacks: SnackCounts
   /** 혼자 할 때 시계 (다시 들어오면 이어서). 같이 하는 동안엔 방 시계를 따르고 이 값은 건드리지 않는다 */
   clock: Clock
+  /** 가방 속 은지 물건(재료·요리) 개수 */
+  items: ItemCounts
+  /** 은지 집 문이 열려 있나 (MEADOW_DOORS 순서). 처음엔 모두 닫힘 (은지 그대로) */
+  doors: boolean[]
+  /** 농산물 가게에서 오늘 산 수 (하루 수량). 없던 저장본은 가득 */
+  stock: VendorStock
 }
 
 
@@ -111,6 +122,20 @@ type ProgressActions = {
   buyAndEatSnack: (id: SnackId) => boolean
   /** 가방의 간식을 하나 꺼내 먹는다 */
   eatSnack: (id: SnackId) => boolean
+  /** 은지 물건을 가방에 넣는다 (줍기·요리 완성·사기) */
+  addItem: (id: ItemId, n?: number) => void
+  /** 가방의 은지 요리나 간식을 하나 꺼내 먹는다. 없으면 false */
+  eatFromBag: (id: BagFood) => boolean
+  /** F: 배고픔을 가장 많이 채우는 것을 먹는다. 먹은 것, 먹을 게 없으면 null */
+  eatBest: () => BagFood | null
+  /** 가스레인지 요리 시작: 재료를 뺀다 (완성되면 addItem). 재료가 모자라면 false */
+  startRecipe: (id: MeadowDishId) => boolean
+  setDoorOpen: (index: number, open: boolean) => void
+  /** 마을 상인에게 qty 개 판다. 받은 코인 (못 팔면 0) */
+  sellItem: (vendor: VendorId, id: ItemId, qty: number) => number
+  /** 마을 상인에게서 qty 개 산다. 코인이 모자라거나 안 파는 물건이면 false */
+  /** day: 지금 날짜 (혼자 시계·방 시계). 농산물 가게 하루 수량을 센다 */
+  buyItem: (vendor: VendorId, id: ItemId, qty: number, day: number) => boolean
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -128,6 +153,9 @@ export const INITIAL_PROGRESS: ProgressData = {
   unlockedZones: [],
   snacks: NO_SNACKS,
   clock: FIRST_MORNING,
+  items: NO_ITEMS,
+  doors: MEADOW_DOORS.map(() => false),
+  stock: FULL_STOCK,
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -241,6 +269,17 @@ function readSnacks(v: unknown, fallback: SnackCounts): SnackCounts {
   const counts = { ...fallback }
   for (const id of SNACK_IDS) counts[id] = readCount(v[id], fallback[id])
   return counts
+}
+
+function readItems(v: unknown, fallback: ItemCounts): ItemCounts {
+  if (!isRecord(v)) return fallback
+  const counts = { ...fallback }
+  for (const id of ITEM_IDS) counts[id] = readCount(v[id], fallback[id])
+  return counts
+}
+
+function readDoors(v: unknown, fallback: boolean[]): boolean[] {
+  return fallback.map((open, i) => (Array.isArray(v) && typeof v[i] === 'boolean' ? (v[i] as boolean) : open))
 }
 
 /** 간식 먹기 결과. 실패면 null */
@@ -437,6 +476,44 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
         return next !== null
       },
 
+      addItem: (id, n = 1) => set((s) => ({ items: addItems(s.items, id, n) })),
+
+      eatFromBag: (id) => {
+        const s = get()
+        const meal = eatBagFood({ items: s.items, snacks: s.snacks, survival: s.survival }, id)
+        if (meal) set(meal)
+        return meal !== null
+      },
+
+      eatBest: () => {
+        const s = get()
+        const id = bestFood(s.items, s.snacks)
+        return id && get().eatFromBag(id) ? id : null
+      },
+
+      startRecipe: (id) => {
+        const items = consumeRecipe(get().items, getRecipe(id))
+        if (items) set({ items })
+        return items !== null
+      },
+
+      sellItem: (vendor, id, qty) => {
+        const s = get()
+        const r = sellToVendor(s.coins, s.items, vendor, id, qty)
+        if (!r.ok) return 0
+        set({ coins: r.coins, items: r.items })
+        return r.coins - s.coins
+      },
+
+      buyItem: (vendor, id, qty, day) => {
+        const s = get()
+        const r = buyFromVendor(s.coins, s.items, s.stock, day, vendor, id, qty)
+        if (r.ok) set({ coins: r.coins, items: r.items, stock: r.stock })
+        return r.ok
+      },
+
+      setDoorOpen: (index, open) => set((s) => (index >= 0 && index < s.doors.length ? { doors: s.doors.map((o, i) => (i === index ? open : o)) } : {})),
+
       unlockZone: (id) => {
         const s = get()
         const zone = ZONES.find((z) => z.id === id)
@@ -451,8 +528,8 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
     }),
     {
       name: SAVE_KEY,
-      // 2: 장비·어항이 5단계 → 10단계. 3: 배고픔(survival.hunger)·혼자 시계(clock) 추가 (필드만 늘어 옮길 것 없다)
-      version: 3,
+      // 2: 장비·어항이 5단계 → 10단계. 3: 배고픔(survival.hunger)·혼자 시계(clock) 추가. 4: 은지 가방(items)·문(doors)·농산물 하루 수량(stock) 추가 (3·4 는 필드만 늘어 옮길 것 없다)
+      version: 4,
       migrate: (persisted, version) => migrateSave(persisted, version) as ProgressData & ProgressActions,
       storage: createJSONStorage(() => localStorage),
       // 저장본의 각 필드를 검증해서, 틀린 값은 기본값을 쓰고 지금은 없는 물고기는 버린다
@@ -474,6 +551,9 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           unlockedZones: readUnlockedZones(saved.unlockedZones),
           snacks: readSnacks(saved.snacks, current.snacks),
           clock: readClock(saved.clock) ?? current.clock,
+          items: readItems(saved.items, current.items),
+          doors: readDoors(saved.doors, current.doors),
+          stock: readStock(saved.stock),
         }
       },
     },

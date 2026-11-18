@@ -85,3 +85,33 @@ describe('큰 지도', () => {
     expect(useSessionStore.getState().mode).toBe('fishing')
   })
 })
+
+describe('도구 칸', () => {
+  beforeEach(() => useSessionStore.getState().resetSession())
+
+  it('처음엔 낚싯대, 바꾸고 넣을 수 있고, 판을 새로 시작하면 다시 낚싯대', () => {
+    expect(useSessionStore.getState().tool).toBe('rod')
+    useSessionStore.getState().equip('knife')
+    expect(useSessionStore.getState().tool).toBe('knife')
+    useSessionStore.getState().equip(null)
+    expect(useSessionStore.getState().tool).toBeNull()
+    useSessionStore.getState().resetSession()
+    expect(useSessionStore.getState().tool).toBe('rod')
+  })
+})
+
+describe('마을 상인 창', () => {
+  beforeEach(() => useSessionStore.getState().resetSession())
+
+  it('창을 닫거나 다른 모드로 가면 연 상인을 지운다', () => {
+    useSessionStore.getState().openVendor('grocer')
+    expect(useSessionStore.getState().vendor).toBe('grocer')
+    useSessionStore.getState().setMode('vendor')
+    expect(useSessionStore.getState().vendor).toBe('grocer')
+    useSessionStore.getState().setMode('explore')
+    expect(useSessionStore.getState().vendor).toBeNull()
+    useSessionStore.getState().openVendor('butcher')
+    useSessionStore.getState().setMode('menu')
+    expect(useSessionStore.getState().vendor).toBeNull()
+  })
+})

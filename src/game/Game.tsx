@@ -20,11 +20,13 @@ import { normalizePlace } from './logic/place'
 import { ROOM_SERVER } from './net/serverUrl'
 import { useNetStore } from './stores/netStore'
 import { ChatBox } from './ui/ChatBox'
+import { EmoteWheel } from './ui/EmoteWheel'
 import { RoomBadge } from './ui/RoomBadge'
 import { MiniMap } from './ui/MiniMap'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
+import { Hotbar } from './ui/Hotbar'
 import { LoadingScreen } from './ui/LoadingScreen'
 import { SleepOverlay } from './ui/SleepOverlay'
 import { WeaknessOverlay } from './ui/WeaknessOverlay'
@@ -110,12 +112,14 @@ export function Game({ onExit, hub }: GameProps) {
       </div>
       <WeaknessOverlay />
       <Hud />
+      <Hotbar />
       <RoomBadge />
       <MiniMap />
       <GoalTracker />
       <FishingOverlay />
       <ChatBox />
       <TouchControls />
+      <EmoteWheel />
       <Panels
         hub={hub}
         onExit={
