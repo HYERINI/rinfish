@@ -1,7 +1,9 @@
+import { SPECIES_IDS } from '../data/animals'
 import { DAY_LENGTH } from '../data/balance'
 import { DISHES } from '../data/dishes'
 import { EMOTES, type EmoteId } from '../data/emotes'
-import { MEADOW_DISH_IDS, isMeadowDish, type MeadowDishId } from '../data/meadowItems'
+import { MEADOW_DISH_IDS, RAW_ITEM_IDS, isMeadowDish, type MeadowDishId, type RawItemId } from '../data/meadowItems'
+import { MELEE_IDS, type MeleeId } from '../data/melee'
 import { NET } from '../data/net'
 import { SNACK_IDS } from '../data/snacks'
 import { TOOL_IDS, type ToolId } from '../data/tools'
@@ -9,6 +11,7 @@ import type { CharacterLook, FoodId } from '../data/types'
 import type { BoatDir } from './boatRoute'
 import { FISHING_POSES, type FishingLook, type FishingPose } from './characterPose'
 import { normalizeLook } from './characterLook'
+import { ANIMAL_POSES, nearAnimalField, type AnimalView } from './animalSim'
 import type { ClockTime } from './dayClock'
 import type { PlayerAction } from './playerMotion'
 import { cleanText, textLength } from './roomKey'
@@ -47,9 +50,18 @@ export type ClientMsg =
   | { type: 'profile'; nick: string; look: CharacterLook }
   /** 같이 하기 잠 투표: 침대에 누웠다(on) / 일어났다 */
   | { type: 'sleep'; on: boolean }
+  /** 들판 동물을 때렸다 (3-3). 피해는 서버가 공격 종류(w)로 정한다 (dmg 는 내 화면에서 본 값) */
+  | { type: 'animalHit'; id: number; dmg: number; w: MeleeId }
+
+/** 동물 한 마리 보내는 모양: [번호, 종(SPECIES_IDS 순서), x, z, 방향, 동작(ANIMAL_POSES 순서), 체력]. 소수 둘째 자리 */
+export type AnimalTuple = [number, number, number, number, number, number, number]
+/** 누구에게 맞았나: 동물 (3-4 에서 pvp) */
+export type HurtBy = 'animal'
+const HURT_BY: HurtBy[] = ['animal']
 
 /**
  * 서버 → 클라이언트. 3-1 에서 더한 것: welcome.time (방 시계), time (30초마다 시계 확인), sleepers (자는 사람 수 / 필요한 수), morning (모두 아침).
+ * 3-3 에서 더한 것: animals (들판 동물), loot (잡은 사람에게 전리품), hurt (맞은 사람에게 피해)
  * 옛 클라이언트는 모르는 종류를 버리고(parseServerMsg 가 null) welcome 의 time 은 읽지 않는다
  */
 export type ServerMsg =
@@ -63,6 +75,10 @@ export type ServerMsg =
   | { type: 'time'; tm: number; day: number }
   | { type: 'sleepers'; n: number; need: number }
   | { type: 'morning'; day: number }
+  /** 3-3: 들판 동물 전부 (사람 메시지에 맞춰 0.15초에 한 번까지), 잡은 사람에게만 전리품과 떨어진 자리, 맞은 사람에게만 피해 */
+  | { type: 'animals'; list: AnimalTuple[] }
+  | { type: 'loot'; items: RawItemId[]; x: number; z: number }
+  | { type: 'hurt'; dmg: number; by: HurtBy; from?: string }
 
 const EMOTE_IDS = EMOTES.map((e) => e.id)
 const FOOD_IDS: FoodId[] = [...DISHES.map((d) => d.id), ...SNACK_IDS, ...MEADOW_DISH_IDS]
@@ -194,9 +210,29 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'sleep':
       return typeof m.on === 'boolean' ? { type: 'sleep', on: m.on } : null
+    case 'animalHit': {
+      const i = int(m.id, 1, 1e9)
+      const dmg = num(m.dmg, 0, 10)
+      const w = oneOf(m.w, MELEE_IDS)
+      return i !== null && dmg !== null && w ? { type: 'animalHit', id: i, dmg, w } : null
+    }
     default:
       return null
   }
+}
+
+/** 동물 한 마리. 틀리면 null */
+function animalTuple(v: unknown): AnimalTuple | null {
+  if (!Array.isArray(v) || v.length !== 7) return null
+  const L = NET.coordLimit
+  const i = int(v[0], 1, 1e9)
+  const sp = int(v[1], 0, SPECIES_IDS.length - 1)
+  const x = num(v[2], -L, L)
+  const z = num(v[3], -L, L)
+  const h = num(v[4], -10, 10)
+  const pose = int(v[5], 0, ANIMAL_POSES.length - 1)
+  const hp = int(v[6], 0, 10)
+  return i === null || sp === null || x === null || z === null || h === null || pose === null || hp === null ? null : [i, sp, x, z, h, pose, hp]
 }
 
 function readPeer(v: unknown): PeerInfo | null {
@@ -260,6 +296,26 @@ export function parseServerMsg(raw: string): ServerMsg | null {
       const day = int(m.day, 1, MAX_DAY)
       return day !== null ? { type: 'morning', day } : null
     }
+    case 'animals': {
+      // 틀린 동물만 빼고 읽는다
+      if (!Array.isArray(m.list) || m.list.length > NET.maxAnimals) return null
+      return { type: 'animals', list: m.list.map(animalTuple).filter((a): a is AnimalTuple => a !== null) }
+    }
+    case 'loot': {
+      const L = NET.coordLimit
+      const x = num(m.x, -L, L)
+      const z = num(m.z, -L, L)
+      if (!Array.isArray(m.items) || m.items.length > 10 || x === null || z === null) return null
+      const items = m.items.map((v) => oneOf(v, RAW_ITEM_IDS))
+      return items.every((v) => v !== null) ? { type: 'loot', items: items as RawItemId[], x, z } : null
+    }
+    case 'hurt': {
+      const dmg = num(m.dmg, 0, 200)
+      const by = oneOf(m.by, HURT_BY)
+      if (dmg === null || !by) return null
+      const from = id(m.from)
+      return from ? { type: 'hurt', dmg, by, from } : { type: 'hurt', dmg, by }
+    }
     default:
       return null
   }
@@ -268,6 +324,16 @@ export function parseServerMsg(raw: string): ServerMsg | null {
 /** 소수 둘째 자리로 (+ 0: -0 을 0 으로) */
 const r2 = (n: number) => Math.round(n * 100) / 100 + 0
 const r3 = (v: Vec3): Vec3 => [r2(v[0]), r2(v[1]), r2(v[2])]
+
+/** 보내기 (서버): 그리는 값 → 짧은 배열 (소수 둘째 자리) */
+export function packAnimals(list: readonly AnimalView[]): AnimalTuple[] {
+  return list.map((a) => [a.id, SPECIES_IDS.indexOf(a.sp), r2(a.x), r2(a.z), r2(a.h), ANIMAL_POSES.indexOf(a.pose), a.hp])
+}
+
+/** 받기: 짧은 배열 → 그리는 값 */
+export function unpackAnimals(list: readonly AnimalTuple[]): AnimalView[] {
+  return list.map(([id, sp, x, z, h, pose, hp]) => ({ id, sp: SPECIES_IDS[sp], x, z, h, pose: ANIMAL_POSES[pose], hp }))
+}
 
 /** 보내기 전 숫자를 소수 둘째 자리로 (메시지 크기를 줄인다) */
 export function roundState(s: NetState): NetState {
@@ -292,6 +358,17 @@ export function roundState(s: NetState): NetState {
 /** "바뀐 게 있나" 비교용 열쇠. 저절로 늘어나는 나이(몇 초 전)는 빼고 무엇을 하는지만 넣는다 */
 export function stateKey(s: NetState): string {
   return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.meal ?? null, s.act.airAge !== null, s.boat?.dir ?? null, s.tool ?? null])
+}
+
+/**
+ * 내 모습을 지금 보낼까. since: 지난번 보낸 뒤 초, changed: stateKey 가 바뀌었나.
+ * 바뀌었으면 초당 최대 NET.sendHz 번, 그대로면 NET.idleSendEvery 초마다. 단 들판 근처(nearAnimalField)면 그대로여도 NET.sendHz 로:
+ * 서버는 alarm 없이 이 메시지에 맞춰 동물을 움직인다 (창이 뒤에 있으면 그리지 않아 보내지도 않는다)
+ */
+export function stateSendDue(s: NetState, changed: boolean, since: number): boolean {
+  if (since >= NET.idleSendEvery) return true
+  if (since < 1 / NET.sendHz) return false
+  return changed || nearAnimalField(s.p[0], s.p[2])
 }
 
 const age = (now: number, at: number) => Math.min(NET.actAgeCap, Math.max(0, now - at))

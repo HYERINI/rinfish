@@ -1,7 +1,11 @@
 import { useFrame } from '@react-three/fiber'
 import { MEADOW_RECT, toMeadowLocal } from '../game/data/meadow'
+import { lootList } from '../game/hunt/animalRig'
+import type { Interactable } from '../game/logic/interaction'
+import { nearestLoot } from '../game/logic/loot'
 import { meadowNearbyUpdate, nearestSpot, type MeadowSpot } from '../game/logic/meadowInteract'
 import { clampDelta } from '../game/logic/time'
+import { netNow } from '../game/net/remoteRig'
 import { playerRig } from '../game/scene/Player'
 import { useSessionStore } from '../game/stores/sessionStore'
 import { stepStoveCook } from './meadowActions'
@@ -12,7 +16,8 @@ const usable = (s: MeadowSpot) => s.target.kind !== 'pickup' || meadowPickups()[
 
 /**
  * 화면엔 아무것도 그리지 않고, 매 프레임 초원 E 대상(meadowSpots)을 은지처럼 가장 가까운 것 하나로 고른다.
- * 감지 상자(침대 등)나 물가 낚시가 이미 잡혀 있으면 그쪽이 먼저다. 버섯 다시 자라기와 가스레인지 요리 완성도 여기서
+ * 발밑(1.6m) 전리품이 있으면 그게 먼저다 (방금 잡은 걸 줍는다). 감지 상자(침대 등)나 물가 낚시가 이미 잡혀 있으면 그쪽이 먼저다.
+ * 버섯 다시 자라기와 가스레인지 요리 완성도 여기서
  */
 export function MeadowInteractions() {
   useFrame((_, delta) => {
@@ -23,7 +28,8 @@ export function MeadowInteractions() {
     const { x, z } = playerRig.position
     // 섬에선 찾지 않는다 (내가 잡아 둔 게 있으면 지운다)
     const [lx, lz] = toMeadowLocal(x, z)
-    const found = x > MEADOW_RECT.x0 - 2 ? nearestSpot(lx, lz, meadowSpots(), usable) : null
+    const loot = nearestLoot(lootList(), x, z, netNow())
+    const found: Interactable | null = loot ? { kind: 'loot', key: loot.key, item: loot.item } : x > MEADOW_RECT.x0 - 2 ? nearestSpot(lx, lz, meadowSpots(), usable) : null
     const current = session.nearby
     const next = meadowNearbyUpdate(current, found)
     if (next === 'clear') {

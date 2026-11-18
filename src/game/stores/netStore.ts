@@ -2,7 +2,9 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { NET, NET_SAVE_KEY } from '../data/net'
 import type { CharacterLook } from '../data/types'
-import type { ClientMsg, ErrorCode, JoinMode, NetState, ServerMsg } from '../logic/netProtocol'
+import type { MeleeId } from '../data/melee'
+import { unpackAnimals, type ClientMsg, type ErrorCode, type JoinMode, type NetState, type ServerMsg } from '../logic/netProtocol'
+import { forgetRoomAnimals, receiveAnimals, receiveHurt, spawnLoot } from '../hunt/animalRig'
 import { hubRoomName, hubRoomPassword } from '../logic/hubParams'
 import { allowEvery } from '../logic/rateLimit'
 import { cleanText, normalizeNick, normalizeRoomName, passHashFor, roomIdFor, textLength } from '../logic/roomKey'
@@ -41,6 +43,8 @@ type NetStore = {
   sendProfile: (nick: string, look: CharacterLook) => void
   /** 잠 투표: 침대에 누웠다(true) / 일어났다(false). 같이 하는 중에만 보낸다 */
   sendSleep: (on: boolean) => void
+  /** 들판 동물을 때렸다 (서버가 검사한다). 같이 하는 중에만 보낸다 */
+  sendAnimalHit: (id: number, dmg: number, w: MeleeId) => void
   /** 테스트에서 가짜 연결로 바꾼다 */
   _setConnector: (c: Connector) => void
 }
@@ -72,6 +76,7 @@ export const useNetStore = create<NetStore>()(
         switch (m.type) {
           case 'welcome': {
             forgetRemote()
+            forgetRoomAnimals()
             const peers: Record<string, Peer> = {}
             for (const p of m.players) {
               peers[p.id] = { nick: p.nick, look: p.look }
@@ -93,6 +98,7 @@ export const useNetStore = create<NetStore>()(
             hubRetry = null
             conn = null
             forgetRemote()
+            forgetRoomAnimals()
             set({ phase: 'off', room: null, you: null, peers: {}, error: m.code })
             useDayStore.getState().toSoloClock()
             // 같이 하던 중 거절당했으면(다시 붙다가 꽉 참 등) 이유를 볼 수 있게 로비로 돌아간다
@@ -143,6 +149,16 @@ export const useNetStore = create<NetStore>()(
             if (wasVoting) get().sendSleep(false)
             return
           }
+          case 'animals':
+            receiveAnimals(unpackAnimals(m.list), now)
+            return
+          case 'loot':
+            spawnLoot(m.items, m.x, m.z, now)
+            notify('사냥 성공! 재료를 떨어뜨렸어요 (E 로 줍기)')
+            return
+          case 'hurt':
+            receiveHurt(m.dmg)
+            return
         }
       }
 
@@ -170,6 +186,7 @@ export const useNetStore = create<NetStore>()(
         conn = null
         c?.close()
         forgetRemote()
+        forgetRoomAnimals()
         set({ phase: 'off', room: null, you: null, peers: {} })
         // 방을 나오면 저장된 혼자 시계로 돌아간다
         useDayStore.getState().toSoloClock()
@@ -195,6 +212,7 @@ export const useNetStore = create<NetStore>()(
             // 끊겨서 다시 붙는 중엔 다른 사람을 숨긴다 (다시 붙으면 welcome 으로 채운다)
             if (status === 'connecting' && get().phase === 'online') {
               forgetRemote()
+              forgetRoomAnimals()
               set({ phase: 'reconnecting', peers: {} })
             }
             // 처음부터 끝내 안 붙었다 (서버가 꺼져 있음 등)
@@ -260,6 +278,10 @@ export const useNetStore = create<NetStore>()(
 
         sendSleep(on) {
           if (get().phase === 'online') conn?.send({ type: 'sleep', on })
+        },
+
+        sendAnimalHit(id, dmg, w) {
+          if (get().phase === 'online') conn?.send({ type: 'animalHit', id, dmg, w })
         },
 
         _setConnector(c) {

@@ -90,6 +90,15 @@ describe('죽음 판정 (피해)', () => {
     expect(takeDamage(at(10, 100), 15)).toEqual({ survival: at(0, 100), died: true })
     expect(takeDamage(at(30, 100), 15)).toEqual({ survival: at(15, 100), died: false })
   })
+  it('피해 0(또는 이상한 값)은 아무 일도 없다: 이미 지친 사람도 죽지 않고 약화 유예도 그대로', () => {
+    expect(takeDamage(at(0, 100, 42), 0)).toEqual({ survival: at(0, 100, 42), died: false })
+    expect(takeDamage(at(0, 100, 42), Number.NaN)).toEqual({ survival: at(0, 100, 42), died: false })
+    expect(takeDamage(at(30, 100), -5)).toEqual({ survival: at(30, 100), died: false })
+  })
+  it('죽으면 약화 유예를 지운다 (진료소로 가지 않는다). 약화 중에 맞아도 죽음', () => {
+    expect(takeDamage(at(5, 100, 42), 15)).toEqual({ survival: at(0, 100), died: true })
+    expect(takeDamage(at(0, 100, 42), 6)).toEqual({ survival: at(0, 100), died: true })
+  })
 })
 
 describe('먹기·잠·깨어나기', () => {

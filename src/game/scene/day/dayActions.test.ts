@@ -6,7 +6,9 @@ import { liveClock, useDayStore } from '../../stores/dayStore'
 import { useNetStore } from '../../stores/netStore'
 import { INITIAL_PROGRESS, useProgressStore } from '../../stores/progressStore'
 import { useSessionStore } from '../../stores/sessionStore'
-import { startDeath, startSleep, stepRest, wake } from './dayActions'
+import { ME, calmSolo, resetAnimalRig, setSoloHerd, soloHerd } from '../../hunt/animalRig'
+import { hitAnimal } from '../../logic/animalSim'
+import { startDeath, startSleep, stepRest, takeHit, wake } from './dayActions'
 
 const day = () => useDayStore.getState()
 const session = () => useSessionStore.getState()
@@ -155,5 +157,38 @@ describe('죽음 → 침대', () => {
     const first = day().seq
     startDeath()
     expect(day().seq).toBe(first)
+  })
+})
+
+describe('동물에게 맞기 (3-3)', () => {
+  beforeEach(() => resetAnimalRig())
+
+  it('맞으면 체력이 줄고 화면이 번쩍인다. 0 이 되면 죽음 (침대)', () => {
+    takeHit(15)
+    expect(useProgressStore.getState().survival.stamina).toBe(5)
+    expect(session().hurtAt).not.toBeNull()
+    expect(day().seq).toBeNull()
+    takeHit(15)
+    expect(day().seq?.kind).toBe('death')
+    expect(session().mode).toBe('sleep')
+  })
+  it('피해가 0 이하·숫자가 아니면 번쩍이지 않는다', () => {
+    for (const dmg of [0, -3, NaN]) takeHit(dmg)
+    expect(session().hurtAt).toBeNull()
+    expect(useProgressStore.getState().survival.stamina).toBe(20)
+  })
+  it('잠·죽음으로 어두워지는 동안엔 맞지 않는다', () => {
+    startDeath()
+    useProgressStore.setState({ survival: { stamina: 40, hunger: 50, graceLeft: null, buffs: [] } })
+    takeHit(15)
+    expect(useProgressStore.getState().survival.stamina).toBe(40)
+  })
+  it('죽으면 나를 쫓던 혼자 동물이 진정한다', () => {
+    const cow = soloHerd().animals.find((a) => a.sp === 'cow')!
+    setSoloHerd(hitAnimal(soloHerd(), cow.id, 1, ME).herd)
+    expect(soloHerd().animals.find((a) => a.id === cow.id)?.state).toBe('attack')
+    startDeath()
+    expect(soloHerd().animals.find((a) => a.id === cow.id)?.state).toBe('idle')
+    calmSolo()
   })
 })

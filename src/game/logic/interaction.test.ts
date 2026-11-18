@@ -180,3 +180,13 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'vendor', null)).toEqual({ type: 'closePanel' })
   })
 })
+
+describe('전리품 줍기 (3-3)', () => {
+  it('탐험 중 전리품 앞에서 E → 줍기, 같은 번호면 같은 대상', () => {
+    const beef = { kind: 'loot', key: 5, item: 'beef' } as const
+    expect(resolveKeyAction('KeyE', 'explore', beef)).toEqual({ type: 'pickLoot', key: 5 })
+    expect(resolveKeyAction('KeyE', 'bag', beef)).toEqual({ type: 'none' })
+    expect(isSameInteractable(beef, { ...beef })).toBe(true)
+    expect(isSameInteractable(beef, { ...beef, key: 6 })).toBe(false)
+  })
+})

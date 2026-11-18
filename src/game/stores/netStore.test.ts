@@ -4,6 +4,7 @@ import { DEFAULT_LOOK } from '../data/characterParts'
 import type { ClientMsg, NetState, ServerMsg } from '../logic/netProtocol'
 import type { ConnStatus, Connector } from '../net/connection'
 import { remoteRig, selfBubble } from '../net/remoteRig'
+import { animalViews, lootList, resetAnimalRig, setHurtHandler } from '../hunt/animalRig'
 import { liveClock, useDayStore } from './dayStore'
 import { useNetStore } from './netStore'
 import { useProgressStore } from './progressStore'
@@ -271,5 +272,33 @@ describe('netStore', () => {
     useNetStore.getState().sendSleep(true)
     useNetStore.getState().sendSleep(false)
     expect(sent).toEqual([{ type: 'sleep', on: true }, { type: 'sleep', on: false }])
+  })
+})
+
+describe('들판 동물 메시지 (3-3)', () => {
+  beforeEach(() => resetAnimalRig())
+
+  it('animals 를 쌓아 그리고, loot 는 전리품과 알림, hurt 는 처리기로. 방을 나오면 동물을 지운다', async () => {
+    await join()
+    push({ type: 'welcome', you: 'me', players: [] })
+    push({ type: 'animals', list: [[1, 0, 180, -40, 0, 2, 3]] })
+    expect(animalViews(true, performance.now() / 1000 + 1)).toEqual([{ id: 1, sp: 'cow', x: 180, z: -40, h: 0, pose: 'walk', hp: 3 }])
+    push({ type: 'loot', items: ['beef', 'bone'], x: 180, z: -40 })
+    expect(lootList().map((l) => l.item)).toEqual(['beef', 'bone'])
+    expect(notice()).toContain('사냥 성공')
+    const hurt = vi.fn()
+    setHurtHandler(hurt)
+    push({ type: 'hurt', dmg: 15, by: 'animal' })
+    expect(hurt).toHaveBeenCalledWith(15)
+    useNetStore.getState().leave()
+    expect(animalViews(true, performance.now() / 1000 + 1)).toEqual([])
+  })
+  it('명중은 같이 하는 중에만 보낸다', async () => {
+    useNetStore.getState().sendAnimalHit(1, 1, 'knife')
+    expect(sent).toEqual([])
+    await join()
+    push({ type: 'welcome', you: 'me', players: [] })
+    useNetStore.getState().sendAnimalHit(3, 2, 'stab')
+    expect(sent.at(-1)).toEqual({ type: 'animalHit', id: 3, dmg: 2, w: 'stab' })
   })
 })

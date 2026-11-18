@@ -36,10 +36,15 @@ export function tickSurvival(s: Survival, dt: number, ctx: SurvivalTickContext):
   return { survival: { ...next, graceLeft }, fainted: false, died: false }
 }
 
-/** 동물·PvP 피해 (3-3·3-4 에서 쓴다). 체력이 0 이 되면 약화 없이 바로 죽음 */
+/**
+ * 동물·PvP 피해. 맞아서 체력이 0 이 되면 약화 없이 바로 죽음 (약화 유예는 지운다).
+ * 피해가 0 이하면 아무 일도 없다 (이미 지친 사람도 죽지 않는다). 약화 중(체력 0)에 맞으면 죽음
+ */
 export function takeDamage(s: Survival, amount: number): { survival: Survival; died: boolean } {
-  const stamina = Math.max(0, s.stamina - Math.max(0, amount))
-  return { survival: { ...s, stamina }, died: stamina === 0 }
+  if (!(amount > 0)) return { survival: s, died: false }
+  const stamina = Math.max(0, s.stamina - amount)
+  if (stamina > 0) return { survival: { ...s, stamina }, died: false }
+  return { survival: { ...s, stamina: 0, graceLeft: null }, died: true }
 }
 
 /** 먹기: 체력(약화도 풀린다)과 배고픔이 찬다 */

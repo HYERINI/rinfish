@@ -5,7 +5,7 @@ import { MAP_BOUNDS, MAP_PX_PER_M, fitBigMap, mapPixel, miniMapPoint } from '../
 import { remoteRig } from '../net/remoteRig'
 import { playerRig } from '../scene/Player'
 import { useSessionStore } from '../stores/sessionStore'
-import { useTouchUi } from '../input/touchDevice'
+import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { ANIMAL_ZONE, YARD } from '../../meadow/vendor/outdoor.js'
 import { TOWN_LAYOUT } from '../../meadow/vendor/town.js'
 import { ROOMS } from '../../meadow/vendor/world.js'
@@ -100,6 +100,9 @@ export function MiniMap() {
   const narrowScreen = useNarrow()
   const touchUi = useTouchUi()
   const narrow = narrowScreen || touchUi
+  // 폰 가로 화면은 키가 낮아(390) 188 에 두면 점프 버튼·상호작용 버튼과 겹친다: 위 버튼 줄과 방 표시(52) 바로 아래로
+  const portrait = useMediaQuery('(orientation: portrait)')
+  const top = touchUi && narrowScreen && !portrait ? 88 : narrow ? 188 : 140
   // 큰 지도는 모드로 연다 (열린 동안 이동·E 가 막히고 ESC 로 닫힌다. 메뉴의 지도 버튼도 같은 길)
   const big = mode === 'map'
   const { openMap, closeMap } = useSessionStore.getState()
@@ -168,7 +171,7 @@ export function MiniMap() {
   }, [big])
 
   if (mode === 'cutscene' || mode === 'lobby' || mode === 'aquariumView' || mode === 'wardrobe') return null
-  const box: CSSProperties = { position: 'absolute', top: safeTop(narrow ? 188 : 140), right: safeRight(16), width: size, height: size, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)', overflow: 'hidden', cursor: 'pointer', pointerEvents: 'auto', zIndex: 1000 }
+  const box: CSSProperties = { position: 'absolute', top: safeTop(top), right: safeRight(16), width: size, height: size, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.85)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)', overflow: 'hidden', cursor: 'pointer', pointerEvents: 'auto', zIndex: 1000 }
   return (
     <>
       <canvas ref={mini} width={size * 2} height={size * 2} style={box} onClick={openMap} aria-label="미니맵 (누르면 큰 지도)" />

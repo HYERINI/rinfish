@@ -2,3 +2,4 @@
 export const ITEMS: Record<string, { name: string; icon: string; tags: string[]; sate?: number; desc: string }>
 export const RECIPES: { id: string; name: string; time: number; ingredients: ({ id: string; n: number } | { tag: string; n: number })[]; result: string }[]
 export function hasTag(id: string, tag: string): boolean
+export const DROPS: Record<string, { id: string; n: number; p?: number }[]>

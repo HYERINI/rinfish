@@ -23,8 +23,8 @@ export function nearestSpot(px: number, pz: number, spots: readonly MeadowSpot[]
   return best?.target ?? null
 }
 
-/** 초원 감시자(MeadowInteractions)가 정하는 E 대상 종류. 그 밖(침대 감지 상자·물가 낚시 등)은 건드리지 않는다 */
-const MEADOW_KINDS: ReadonlySet<string> = new Set(['pickup', 'stove', 'door', 'vendor'])
+/** 초원 감시자(MeadowInteractions)가 정하는 E 대상 종류 (전리품 포함). 그 밖(침대 감지 상자·물가 낚시 등)은 건드리지 않는다 */
+const MEADOW_KINDS: ReadonlySet<string> = new Set(['pickup', 'stove', 'door', 'vendor', 'loot'])
 
 /**
  * 이번 프레임에 찾은 초원 대상(found)으로 nearby 를 어떻게 할까: 'keep' 그대로, 'clear' 지우기, 아니면 그 대상으로 바꾸기.

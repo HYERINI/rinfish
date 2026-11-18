@@ -24,7 +24,9 @@ import { applyMouseLook, pitchedOffset } from '../logic/mouseLook'
 import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
-import { fishingLook } from '../logic/characterPose'
+import { fishingLook, swingArm } from '../logic/characterPose'
+import { swingProgress } from '../logic/melee'
+import { meleeRig } from '../hunt/meleeRig'
 import { cameraRig, isGrounded, moveSpeed, nextAction, shouldFaceCamera, shownTool } from '../logic/playerMotion'
 import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
@@ -103,6 +105,9 @@ function rodAngle(fishing: FishingState | null, now: number): number {
       return fishing.result === 'snapped' ? -1.45 : 1.1
   }
 }
+
+/** 휘두르는 동안 칼날을 앞으로 눕히는 각도 (동작 가운데에서 가장 크게) */
+const KNIFE_SWING_TILT = 1.1
 
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 export const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
@@ -370,6 +375,9 @@ export function Player() {
       // 연출 중엔 고치는 곳을 바라보며 구경한다
       const [sx, sz] = REPAIR_PLANS[session.cutscene.zoneId].site
       facing.current = Math.atan2(sx - x, sz - z)
+    } else if (mode === 'explore' && swingProgress(meleeRig.swing, now) >= 0) {
+      // 휘두르는 동안엔 휘두른 쪽(그때 카메라가 보던 쪽)을 본다
+      facing.current = meleeRig.yaw + Math.PI
     } else if (moveDir.lengthSq() > 0) {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
@@ -408,13 +416,15 @@ export function Player() {
         // 캐릭터는 동작 상태와 속도로만 그린다 (다른 사람 캐릭터도 같은 값으로 그릴 수 있게)
         const seated = mode === 'rest' || boatAt !== null
         m.update(delta, now, fishingLook(fishing), action, speed, rod.current.rotation.x, seated, boatAt ? BOAT_SEAT_SHAPE : BENCH_SEAT_SHAPE)
+        const swingAt = swingProgress(meleeRig.swing, now)
+        if (swingAt >= 0 && meleeRig.swing) m.swing(swingArm(meleeRig.swing.kind, swingAt))
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
-        // 칼도 같은 손에, 낚싯대처럼 앞으로 살짝 숙여 든다
+        // 칼도 같은 손에, 낚싯대처럼 앞으로 살짝 숙여 든다. 휘두르는 동안엔 칼날을 앞으로 눕힌다
         if (knife.current) {
           knife.current.position.copy(rod.current.position)
-          knife.current.rotation.x = rod.current.rotation.x
+          knife.current.rotation.x = rod.current.rotation.x + (swingAt >= 0 ? KNIFE_SWING_TILT * Math.sin(Math.PI * swingAt) : 0)
         }
         // 먹는 음식도 같은 손에 든다
         if (food.current) food.current.position.copy(grip)

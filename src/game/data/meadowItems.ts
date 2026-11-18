@@ -1,3 +1,5 @@
+import type { SpeciesId } from './animals'
+
 /**
  * 은지 게임 식재료·요리·배합법 (은지 `src/meadow/vendor/items.js` 값을 그대로 옮긴 것. 같은지 meadowItems.test 가 본다).
  * 서버(3-3 전리품)와 같이 하기 메시지(먹는 요리)도 쓰므로 은지 JS 가 아닌 TS 데이터로 둔다
@@ -62,6 +64,8 @@ export const ITEMS: Record<ItemId, ItemDef> = {
 
 /** 사전 순서 (가방·상점 카드 순서) */
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[]
+/** 요리가 아닌 재료 (사전 순서. 같이 하기 loot 받는 쪽 검사) */
+export const RAW_ITEM_IDS = ITEM_IDS.filter((id) => !ITEMS[id].tags.includes('dish')) as RawItemId[]
 export const MEADOW_DISH_IDS = ITEM_IDS.filter((id) => ITEMS[id].tags.includes('dish')) as MeadowDishId[]
 
 export const TAGS: Record<ItemTag, { name: string; icon: string }> = { meat: { name: '아무 고기', icon: '🥩' }, dish: { name: '요리', icon: '🍽️' } }
@@ -94,3 +98,21 @@ export function getRecipe(id: MeadowDishId): Recipe {
 
 export const hasTag = (id: ItemId, tag: ItemTag): boolean => ITEMS[id].tags.includes(tag)
 export const isMeadowDish = (id: string): id is MeadowDishId => (MEADOW_DISH_IDS as string[]).includes(id)
+
+/** 동물마다 떨어뜨리는 것 (은지 items.js DROPS). p 가 있으면 그 확률로만 */
+export const DROPS: Record<SpeciesId, { id: RawItemId; n: number; p?: number }[]> = {
+  cow: [{ id: 'beef', n: 2 }, { id: 'bone', n: 1 }],
+  pig: [{ id: 'pork', n: 2 }, { id: 'fat', n: 1 }],
+  hog: [{ id: 'boar', n: 2 }, { id: 'fat', n: 1, p: 0.6 }, { id: 'bone', n: 1, p: 0.5 }],
+  deer: [{ id: 'venison', n: 2 }, { id: 'bone', n: 1, p: 0.6 }],
+  bunny: [{ id: 'rabbit', n: 1 }],
+  fox: [{ id: 'foxmeat', n: 1 }],
+  chick: [{ id: 'chicken', n: 1 }, { id: 'egg', n: 1, p: 0.5 }],
+}
+
+/** 전리품 굴리기 (은지 rollDrops). rng: 0 이상 1 미만 */
+export function rollDrops(species: SpeciesId, rng: () => number = Math.random): RawItemId[] {
+  const out: RawItemId[] = []
+  for (const d of DROPS[species]) if (d.p === undefined || rng() < d.p) for (let k = 0; k < d.n; k++) out.push(d.id)
+  return out
+}

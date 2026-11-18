@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { isCookingSkipKey, resolveKeyAction } from '../logic/interaction'
 import { harvest, toggleDoor } from '../../meadow/meadowActions'
+import { pickLoot } from '../hunt/huntActions'
 import { finishCooking } from '../scene/cooking/finishCooking'
 import { startSleep, wake } from '../scene/day/dayActions'
 import { useFishingStore } from '../stores/fishingStore'
@@ -79,6 +80,9 @@ export function runKeyAction(code: string): boolean {
       break
     case 'harvest':
       harvest(action.index)
+      break
+    case 'pickLoot':
+      pickLoot(action.key)
       break
     case 'eatBest':
       eatBestNow()

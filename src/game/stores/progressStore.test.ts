@@ -368,6 +368,17 @@ describe('progressStore', () => {
     expect(store().inventory).toHaveLength(1)
   })
 
+  it('동물에게 맞으면 체력이 줄고, 0 이 되면 true (가방·코인은 그대로). 피해 0 은 아무 일도 없다', () => {
+    useProgressStore.setState({ coins: 50, survival: { stamina: 20, hunger: 80, graceLeft: null, buffs: [] } })
+    expect(store().hurt(15)).toBe(false)
+    expect(store().survival.stamina).toBe(5)
+    expect(store().hurt(0)).toBe(false)
+    expect(store().survival.stamina).toBe(5)
+    expect(store().hurt(15)).toBe(true)
+    expect(store().survival).toMatchObject({ stamina: 0, graceLeft: null })
+    expect(store().coins).toBe(50)
+  })
+
   it('같이 하는 중(시계 null)엔 저장된 혼자 시계를 건드리지 않는다', () => {
     useProgressStore.setState({ clock: { t: 0.3, day: 2 } })
     store().tick(1, { fighting: false, resting: false }, null)
