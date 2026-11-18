@@ -22,6 +22,8 @@ type DayState = {
   /** HUD 시계 글자 ("☀️ 3일차 14:20") */
   clockText: string
   night: boolean
+  /** 지금 날짜 (06:00 에 바뀐다). 농산물 가게 하루 수량이 본다 */
+  day: number
   /** 같이 하는 중: 방(서버) 시계를 따른다. 저장된 혼자 시계는 건드리지 않는다 */
   roomClock: boolean
   seq: RestSeq | null
@@ -57,7 +59,8 @@ export const useDayStore = create<DayState>((set, get) => {
   const publish = () => {
     const text = clockText(liveClock)
     const night = isNight(liveClock.t)
-    if (text !== get().clockText || night !== get().night) set({ clockText: text, night })
+    const day = liveClock.day
+    if (text !== get().clockText || night !== get().night || day !== get().day) set({ clockText: text, night, day })
   }
   /** 잠 투표 화면을 닫는다 (아직 어두워지는 중이 아니면 탐험으로) */
   const stopVoting = () => {
@@ -70,6 +73,7 @@ export const useDayStore = create<DayState>((set, get) => {
   return {
     clockText: clockText(FIRST_MORNING),
     night: false,
+    day: FIRST_MORNING.day,
     roomClock: false,
     seq: null,
     voting: false,

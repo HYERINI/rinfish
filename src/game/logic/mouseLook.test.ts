@@ -59,6 +59,7 @@ describe('마우스 잠금', () => {
   it('탐험 중에만 잠글 수 있다', () => {
     expect(canLockPointer('explore')).toBe(true)
     expect(canLockPointer('rest')).toBe(true)
+    expect(canLockPointer('emote')).toBe(true)
     expect(canLockPointer('fishing')).toBe(false)
     expect(canLockPointer('menu')).toBe(false)
     expect(canLockPointer('wardrobe')).toBe(false)
@@ -68,6 +69,7 @@ describe('마우스 잠금', () => {
     expect(shouldOpenMenuOnUnlock('explore', false)).toBe(true)
     expect(shouldOpenMenuOnUnlock('explore', true)).toBe(false)
     expect(shouldOpenMenuOnUnlock('shop', false)).toBe(false)
+    expect(shouldOpenMenuOnUnlock('emote', false)).toBe(false)
   })
 })
 

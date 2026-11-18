@@ -3,6 +3,7 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { AquariumPanel } from './AquariumPanel'
 import { AquariumView } from './AquariumView'
+import { BagPanel } from './BagPanel'
 import { CharacterCreator } from './CharacterCreator'
 import { DexPanel } from './DexPanel'
 import { GearShopPanel } from './GearShopPanel'
@@ -11,6 +12,7 @@ import { MarketPanel } from './MarketPanel'
 import { MenuPanel } from './MenuPanel'
 import { SellPanel } from './SellPanel'
 import { UnlockPanel } from './UnlockPanel'
+import { VendorPanel } from './VendorPanel'
 
 /** 현재 mode에 맞는 패널 하나를 띄운다 */
 export function Panels({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) {
@@ -35,6 +37,10 @@ export function Panels({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) 
       return <UnlockPanel />
     case 'lobby':
       return <Lobby onExit={onExit} hub={hub} />
+    case 'bag':
+      return <BagPanel />
+    case 'vendor':
+      return <VendorPanel />
     case 'wardrobe':
       return <CharacterCreator firstTime={!look} />
     default:

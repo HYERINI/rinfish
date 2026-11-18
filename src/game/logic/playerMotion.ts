@@ -1,5 +1,6 @@
 import { CAMERA_ZOOM, EAT, GRAVITY, MOVE } from '../data/balance'
 import { EMOTES, type EmoteId } from '../data/emotes'
+import type { ToolId } from '../data/tools'
 import type { FoodId } from '../data/types'
 import type { Mode } from './interaction'
 
@@ -104,9 +105,13 @@ export function shouldFaceCamera(mode: Mode, zoom: number, idleTime: number, act
   return !action.airborne && action.emote !== 'roll'
 }
 
-/** 낚싯대를 보일까. 낚시 중엔 늘, 그 밖엔 서 있거나 걸을 때만(감정 표현·점프·먹기·휴식 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다) */
-export function rodVisible(mode: Mode, zoom: number, action: PlayerAction): boolean {
-  if (mode === 'fishing') return true
-  if (mode === 'rest' || mode === 'boat' || action.emote || action.airborne || action.eat) return false
-  return zoom >= CAMERA_ZOOM.hideRodBelow
+/**
+ * 손에 그릴 도구. 낚시 중엔 늘 낚싯대. 그 밖엔 든 도구를 서 있거나 걸을 때만(감정 표현·점프·먹기·휴식·배·침대 중엔 몸을 뚫는다).
+ * 낚싯대는 가까운 줌에서 화면을 가려 숨긴다. 주먹은 그릴 게 없다
+ */
+export function shownTool(mode: Mode, zoom: number, action: PlayerAction, tool: ToolId | null): ToolId | null {
+  if (mode === 'fishing') return 'rod'
+  if (!tool || tool === 'fists' || mode === 'rest' || mode === 'boat' || mode === 'sleep' || action.emote || action.airborne || action.eat) return null
+  if (tool === 'rod' && zoom < CAMERA_ZOOM.hideRodBelow) return null
+  return tool
 }

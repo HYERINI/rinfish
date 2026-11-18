@@ -44,10 +44,10 @@ export const disabledButton: CSSProperties = {
   cursor: 'not-allowed',
 }
 
-/** 화면 아래 가운데 안내 문구 */
+/** 화면 아래 가운데 안내 문구 (도구 칸 위) */
 export const hint: CSSProperties = {
   position: 'absolute',
-  bottom: 32,
+  bottom: 96,
   left: '50%',
   transform: 'translateX(-50%)',
   background: 'rgba(0, 0, 0, 0.6)',

@@ -1,8 +1,11 @@
 import { PointLight, type Object3D, type Vector3 } from 'three'
+import { MEADOW_VENDORS } from '../game/data/meadow'
 import { ISLAND_LANTERNS } from '../game/data/zones'
 import { skyNow } from '../game/scene/skyNow'
 import { DayNight } from './vendor/daynight.js'
-import { ROOMS, createWorld, type EunjiWorld } from './vendor/world.js'
+import { boxesToCuboids, doorBox, type Cuboid } from '../game/logic/meadowColliders'
+import { MEADOW_REACH, type MeadowSpot } from '../game/logic/meadowInteract'
+import { ROOMS, createWorld, type EunjiPickup, type EunjiWorld } from './vendor/world.js'
 
 let world: EunjiWorld | null = null
 let daynight: DayNight | null = null
@@ -16,14 +19,13 @@ const ROOM_LAMP = 5
 const isPointLight = (o: Object3D): o is PointLight => (o as PointLight).isPointLight === true
 
 /**
- * 은지 맵. 한 번만 만든다 (모델을 내려받기 시작한다). 문은 3-2 전까지 열어 둔다.
+ * 은지 맵. 한 번만 만든다 (모델을 내려받기 시작한다). 문은 닫힌 채로 만들어지고 MeadowDoors 가 저장된 상태로 맞춘다.
  * group 은 모델이 다 온 뒤에 붙으므로 그 안의 빛은 미리 꺼낸다 (빛 개수가 중간에 바뀌면 모든 재질을 다시 컴파일해 끊긴다):
  * 방 조명·가로등은 group 에서 꺼내 MeadowLighting 이 처음부터 붙이고, 밤낮은 세기로만 바꾼다
  */
 export function meadowWorld(): EunjiWorld {
   if (!world) {
     world = createWorld()
-    for (const d of world.doors) d.setOpen(true, true)
     // 가로등도 같은 group 에 바로 붙어 있다 (처음 세기 0, DayNight 가 밤에 올린다)
     const town = new Set<Object3D>(world.lights.lamps)
     roomLamps = world.group.children.filter((o): o is PointLight => isPointLight(o) && !town.has(o))
@@ -95,4 +97,63 @@ export function setMeadowShadowSize(size: number) {
   sun.shadow.mapSize.set(size, size)
   sun.shadow.map?.dispose()
   sun.shadow.map = null
+}
+
+/** 버섯·호박 (은지 좌표). 모델이 들어오는 대로 늘어난다 */
+export function meadowPickups(): EunjiPickup[] {
+  return meadowWorld().outdoor.pickups
+}
+
+/** 따기: 숨기고 다시 자랄 시간을 건다. 이미 숨겼거나 없는 번호면 null */
+export function harvestPickup(index: number): EunjiPickup['id'] | null {
+  const p = meadowPickups()[index]
+  if (!p || !p.obj.visible) return null
+  p.obj.visible = false
+  p.timer = p.respawn
+  return p.id
+}
+
+/** 숨긴 것의 남은 시간을 줄이고, 다 되면 다시 보인다 (은지 그대로 내 화면만) */
+export function regrowPickups(dt: number) {
+  for (const p of meadowPickups()) {
+    if (p.obj.visible) continue
+    p.timer -= dt
+    if (p.timer <= 0) p.obj.visible = true
+  }
+}
+
+let spots: MeadowSpot[] = []
+let spotsKey = ''
+
+/** 초원 E 대상 (은지 좌표): 가스레인지·문·상인·버섯·호박. 모델이 들어와 자리·개수가 바뀔 때만 다시 만든다 */
+export function meadowSpots(): MeadowSpot[] {
+  const w = meadowWorld()
+  const pickups = w.outdoor.pickups
+  const key = `${pickups.length}:${w.stove.center.x}:${w.stove.center.z}`
+  if (key !== spotsKey) {
+    spotsKey = key
+    spots = [
+      { target: { kind: 'stove' }, x: w.stove.center.x, z: w.stove.center.z, reach: MEADOW_REACH.stove },
+      ...w.doors.map((d, index): MeadowSpot => ({ target: { kind: 'door', index }, x: d.center.x, z: d.center.z, reach: MEADOW_REACH.door })),
+      ...MEADOW_VENDORS.map((v): MeadowSpot => ({ target: { kind: 'vendor', id: v.id }, x: v.at[0], z: v.at[1], reach: MEADOW_REACH.vendor })),
+      ...pickups.map((p, index): MeadowSpot => ({ target: { kind: 'pickup', index, item: p.id }, x: p.center.x, z: p.center.z, reach: MEADOW_REACH.pickup })),
+    ]
+  }
+  return spots
+}
+
+/** 문 하나의 Rapier 상자 (세계 좌표). 문짝이 다 돌아간 뒤(열림 90°·닫힘 0°) 자리로 잰다 */
+export function doorCuboid(index: number, open: boolean): Cuboid | null {
+  const d = meadowWorld().doors[index]
+  if (!d) return null
+  const box = doorBox({ x: d.group.position.x, z: d.group.position.z, yaw: d.base + (open ? Math.PI / 2 : 0), width: d.width, height: d.panel.geometry.parameters.height })
+  return boxesToCuboids([box])[0] ?? null
+}
+
+/** 저장된 문 상태로 맞춘다. instant 면 애니메이션 없이 바로 (처음 붙일 때) */
+export function applyDoors(opens: readonly boolean[], instant: boolean) {
+  meadowWorld().doors.forEach((d, i) => {
+    const open = opens[i] === true
+    if (d.open !== open) d.setOpen(open, instant)
+  })
 }

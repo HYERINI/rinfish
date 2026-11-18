@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CAMERA_ZOOM, EAT, MOVE, PLAYER_BODY } from '../data/balance'
 import { BARRIER_COLLIDER_HEIGHT } from '../data/zones'
-import { IDLE_ACTION, cameraRig, isGrounded, maxJumpHeight, moveSpeed, nextAction, rodVisible, shouldFaceCamera, type MotionInput, type PlayerAction } from './playerMotion'
+import { IDLE_ACTION, cameraRig, isGrounded, maxJumpHeight, moveSpeed, nextAction, shouldFaceCamera, shownTool, type MotionInput, type PlayerAction } from './playerMotion'
 
 const input = (over: Partial<MotionInput> = {}): MotionInput => ({
   moving: false,
@@ -198,24 +198,36 @@ describe('nextAction: 먹기', () => {
   })
 
   it('먹는 동안엔 낚싯대를 숨긴다', () => {
-    expect(rodVisible('explore', 10, { ...IDLE_ACTION, eat: 'bowl', eatAt: 10 })).toBe(false)
+    expect(shownTool('explore', 10, { ...IDLE_ACTION, eat: 'bowl', eatAt: 10 }, 'rod')).toBeNull()
   })
 })
 
-describe('rodVisible', () => {
+describe('shownTool', () => {
   it('배에 앉아 있으면 낚싯대를 숨긴다', () => {
-    expect(rodVisible('boat', 10, IDLE_ACTION)).toBe(false)
+    expect(shownTool('boat', 10, IDLE_ACTION, 'rod')).toBeNull()
   })
-  it('낚시 중엔 늘 보인다', () => {
-    expect(rodVisible('fishing', 1.5, IDLE_ACTION)).toBe(true)
-    expect(rodVisible('fishing', 10, { ...IDLE_ACTION, airborne: true })).toBe(true)
+  it('낚시 중엔 늘 낚싯대 (다른 도구를 들고 있었어도)', () => {
+    expect(shownTool('fishing', 1.5, IDLE_ACTION, 'rod')).toBe('rod')
+    expect(shownTool('fishing', 10, { ...IDLE_ACTION, airborne: true }, 'knife')).toBe('rod')
   })
 
   it('서 있거나 걸을 땐 보이고, 감정 표현·점프·휴식·가까운 줌에선 숨긴다', () => {
-    expect(rodVisible('explore', 10, IDLE_ACTION)).toBe(true)
-    expect(rodVisible('explore', 10, { ...IDLE_ACTION, emote: 'spell' })).toBe(false)
-    expect(rodVisible('explore', 10, { ...IDLE_ACTION, airborne: true })).toBe(false)
-    expect(rodVisible('rest', 10, IDLE_ACTION)).toBe(false)
-    expect(rodVisible('explore', CAMERA_ZOOM.hideRodBelow - 0.1, IDLE_ACTION)).toBe(false)
+    expect(shownTool('explore', 10, IDLE_ACTION, 'rod')).toBe('rod')
+    expect(shownTool('explore', 10, { ...IDLE_ACTION, emote: 'spell' }, 'rod')).toBeNull()
+    expect(shownTool('explore', 10, { ...IDLE_ACTION, airborne: true }, 'rod')).toBeNull()
+    expect(shownTool('rest', 10, IDLE_ACTION, 'rod')).toBeNull()
+    expect(shownTool('explore', CAMERA_ZOOM.hideRodBelow - 0.1, IDLE_ACTION, 'rod')).toBeNull()
+  })
+
+  it('침대에 누워 있으면(sleep) 낚싯대·칼을 숨긴다', () => {
+    expect(shownTool('sleep', 10, IDLE_ACTION, 'rod')).toBeNull()
+    expect(shownTool('sleep', 10, IDLE_ACTION, 'knife')).toBeNull()
+  })
+
+  it('칼은 가까운 줌에서도 보이고, 주먹·빈손은 그릴 게 없다', () => {
+    expect(shownTool('explore', CAMERA_ZOOM.hideRodBelow - 0.1, IDLE_ACTION, 'knife')).toBe('knife')
+    expect(shownTool('explore', 10, { ...IDLE_ACTION, emote: 'dance' }, 'knife')).toBeNull()
+    expect(shownTool('explore', 10, IDLE_ACTION, 'fists')).toBeNull()
+    expect(shownTool('explore', 10, IDLE_ACTION, null)).toBeNull()
   })
 })

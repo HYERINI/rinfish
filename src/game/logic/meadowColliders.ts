@@ -28,3 +28,25 @@ export function boxesToCuboids(boxes: readonly BoxLike[]): Cuboid[] {
   }
   return out
 }
+
+/** 문짝 두께 (은지 door.js BoxGeometry 0.06) */
+export const DOOR_THICK = 0.06
+
+/**
+ * 은지 문짝의 축 정렬 상자 (은지 좌표). 문 그룹은 경첩 (x, z) 에 서서 y 축으로 yaw 만큼 돌아 있고, 문짝은 그룹 기준
+ * x ±두께/2, y 0..높이, z 0..폭 이다. 은지 door.collider 는 세계 행렬로 재서(setFromObject) 초원 변환 그룹 아래에선 세계 좌표가 되므로 직접 잰다
+ */
+export function doorBox(d: { x: number; z: number; yaw: number; width: number; height: number }): BoxLike {
+  const c = Math.cos(d.yaw)
+  const s = Math.sin(d.yaw)
+  const xs: number[] = []
+  const zs: number[] = []
+  for (const lx of [-DOOR_THICK / 2, DOOR_THICK / 2]) {
+    for (const lz of [0, d.width]) {
+      // three.js y 축 회전: x' = x cos + z sin, z' = -x sin + z cos
+      xs.push(d.x + lx * c + lz * s)
+      zs.push(d.z - lx * s + lz * c)
+    }
+  }
+  return { min: { x: Math.min(...xs), y: 0, z: Math.min(...zs) }, max: { x: Math.max(...xs), y: d.height, z: Math.max(...zs) } }
+}

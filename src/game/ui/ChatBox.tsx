@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NET } from '../data/net'
-import { useTouchUi } from '../input/touchDevice'
+import { TOUCH } from '../data/touch'
+import { useMediaQuery, useTouchUi } from '../input/touchDevice'
 import { isTypingTarget } from '../input/typing'
 import type { Mode } from '../logic/interaction'
 import { netNow } from '../net/remoteRig'
@@ -10,6 +11,8 @@ import { button, safeBottom, safeLeft } from './styles'
 
 /** 채팅을 열 수 있는 모드 (패널이 열려 있을 땐 그 패널 입력과 겹치지 않게 막는다) */
 const CHAT_MODES: Mode[] = ['explore', 'fishing', 'rest', 'sleep']
+/** 컴퓨터: 도구 칸(아래 44 + 높이 46) 위. 좁은 창에서도 도구 칸·조작 안내와 겹치지 않는다 */
+const DESKTOP_CHAT_BOTTOM = 100
 /** 흐려지기 시작해서 사라질 때까지(초) */
 const FADE_OUT = 3
 
@@ -19,6 +22,7 @@ export function ChatBox() {
   const chat = useNetStore((s) => s.chat)
   const mode = useSessionStore((s) => s.mode)
   const touchUi = useTouchUi()
+  const portrait = useMediaQuery('(orientation: portrait)')
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const input = useRef<HTMLInputElement>(null)
@@ -56,8 +60,8 @@ export function ChatBox() {
   }
 
   return (
-    <div style={{ position: 'absolute', left: safeLeft(16), bottom: safeBottom(touchUi ? 200 : 60), width: 'min(340px, 64vw)', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '30vh', overflow: 'hidden', justifyContent: 'flex-end' }}>
+    <div style={{ position: 'absolute', left: safeLeft(16), bottom: safeBottom(touchUi ? TOUCH.chatBottom[portrait ? 'portrait' : 'landscape'] : DESKTOP_CHAT_BOTTOM), width: 'min(340px, 58vw)', pointerEvents: 'none', display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: touchUi ? (portrait ? '24vh' : '18vh') : '30vh', overflow: 'hidden', justifyContent: 'flex-end' }}>
         {chat.map((line) => {
           const age = now - line.at
           const opacity = open ? 1 : Math.max(0, 1 - Math.max(0, age - NET.chatFadeSeconds) / FADE_OUT)

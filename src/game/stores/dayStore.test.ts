@@ -31,6 +31,12 @@ describe('혼자 시계', () => {
     expect(liveClock.t).toBeCloseTo(0.5)
   })
 
+  it('날짜(day)도 알린다: 06:00 를 지나면 다음 날', () => {
+    expect(day().day).toBe(3)
+    day().stepClock(DAY_LENGTH * 0.76, false)
+    expect(day().day).toBe(4)
+  })
+
   it('20시가 되면 밤', () => {
     useProgressStore.setState({ clock: { t: 0.58, day: 1 } })
     day().toSoloClock()

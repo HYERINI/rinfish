@@ -73,12 +73,11 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'menu', null)).toEqual({ type: 'closePanel' })
   })
 
-  it('낚시 중 1~3은 미끼, 0은 미끼 없이. 탐험·패널에선 숫자 키를 받지 않는다(감정 표현)', () => {
+  it('낚시 중 1~3은 미끼, 0은 미끼 없이. 패널에선 숫자 키를 받지 않는다', () => {
     expect(resolveKeyAction('Digit1', 'fishing', spot)).toEqual({ type: 'selectBait', bait: 'worm' })
     expect(resolveKeyAction('Digit3', 'fishing', spot)).toEqual({ type: 'selectBait', bait: 'lure' })
     expect(resolveKeyAction('Digit0', 'fishing', spot)).toEqual({ type: 'selectBait', bait: null })
     expect(resolveKeyAction('Digit5', 'fishing', spot)).toEqual({ type: 'none' })
-    expect(resolveKeyAction('Digit1', 'explore', null)).toEqual({ type: 'none' })
     expect(resolveKeyAction('Digit2', 'shop', null)).toEqual({ type: 'none' })
   })
 
@@ -126,5 +125,58 @@ describe('resolveKeyAction', () => {
 
   it('어항 크게 보기에서 ESC를 누르면 어항 패널로 돌아간다', () => {
     expect(resolveKeyAction('Escape', 'aquariumView', null)).toEqual({ type: 'openMode', mode: 'aquarium' })
+  })
+
+  it('Tab: 탐험·배·메뉴·지도에서 큰 지도를 열고 닫는다. 낚시·패널·바퀴에선 무시', () => {
+    for (const mode of ['explore', 'boat', 'menu', 'map'] as const) expect(resolveKeyAction('Tab', mode, null)).toEqual({ type: 'toggleMap' })
+    for (const mode of ['fishing', 'shop', 'sleep', 'emote', 'lobby', 'cutscene'] as const) expect(resolveKeyAction('Tab', mode, null)).toEqual({ type: 'none' })
+  })
+  it('감정 표현 바퀴(emote) 중엔 E·숫자는 무시하고 ESC 는 닫기', () => {
+    expect(resolveKeyAction('KeyE', 'emote', { kind: 'sellBox' })).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit1', 'emote', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Escape', 'emote', null)).toEqual({ type: 'closePanel' })
+  })
+
+  it('탐험 중 숫자 키는 도구 칸 (1 낚싯대 · 2 주먹 · 3 칼), 빈 칸은 무시. X 는 넣기', () => {
+    expect(resolveKeyAction('Digit1', 'explore', null)).toEqual({ type: 'equip', tool: 'rod' })
+    expect(resolveKeyAction('Digit2', 'explore', null)).toEqual({ type: 'equip', tool: 'fists' })
+    expect(resolveKeyAction('Digit3', 'explore', null)).toEqual({ type: 'equip', tool: 'knife' })
+    expect(resolveKeyAction('Digit4', 'explore', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit0', 'explore', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('KeyX', 'explore', null)).toEqual({ type: 'equip', tool: null })
+    // 낚시 중 숫자는 그대로 미끼, 패널에선 무시
+    expect(resolveKeyAction('Digit2', 'fishing', null)).toEqual({ type: 'selectBait', bait: 'shrimp' })
+    expect(resolveKeyAction('KeyX', 'fishing', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit1', 'market', null)).toEqual({ type: 'none' })
+  })
+
+  it('탐험 중 F 는 먹기, I 는 가방 (가방에서 I·ESC 는 닫기). 낚시·패널 중엔 무시', () => {
+    expect(resolveKeyAction('KeyF', 'explore', null)).toEqual({ type: 'eatBest' })
+    expect(resolveKeyAction('KeyI', 'explore', null)).toEqual({ type: 'openMode', mode: 'bag' })
+    expect(resolveKeyAction('KeyI', 'bag', null)).toEqual({ type: 'closePanel' })
+    expect(resolveKeyAction('Escape', 'bag', null)).toEqual({ type: 'closePanel' })
+    for (const mode of ['fishing', 'market', 'map', 'emote', 'sleep'] as const) {
+      expect(resolveKeyAction('KeyF', mode, null).type).not.toBe('eatBest')
+      expect(resolveKeyAction('KeyI', mode, null).type).not.toBe('openMode')
+    }
+  })
+
+  it('초원: 버섯 E 는 따기, 가스레인지 E 는 가방(요리법). 같은 버섯인지는 번호로', () => {
+    const shroom = { kind: 'pickup' as const, index: 4, item: 'mushroom' as const }
+    expect(resolveKeyAction('KeyE', 'explore', shroom)).toEqual({ type: 'harvest', index: 4 })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'stove' })).toEqual({ type: 'openMode', mode: 'bag' })
+    expect(isSameInteractable(shroom, { kind: 'pickup', index: 4, item: 'mushroom' })).toBe(true)
+    expect(isSameInteractable(shroom, { kind: 'pickup', index: 5, item: 'mushroom' })).toBe(false)
+  })
+
+  it('문 앞에서 E 는 여닫기. 다른 문이면 다른 대상', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'door', index: 2 })).toEqual({ type: 'toggleDoor', index: 2 })
+    expect(isSameInteractable({ kind: 'door', index: 2 }, { kind: 'door', index: 3 })).toBe(false)
+  })
+
+  it('상인 앞에서 E 는 사고팔기 창. 다른 상인이면 다른 대상', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'vendor', id: 'grocer' })).toEqual({ type: 'openVendor', id: 'grocer' })
+    expect(isSameInteractable({ kind: 'vendor', id: 'grocer' }, { kind: 'vendor', id: 'butcher' })).toBe(false)
+    expect(resolveKeyAction('Escape', 'vendor', null)).toEqual({ type: 'closePanel' })
   })
 })

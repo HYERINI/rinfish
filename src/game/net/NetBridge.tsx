@@ -48,6 +48,7 @@ export function NetBridge() {
     }
     // 배 타는 동안 내내 보낸다 (mode 는 잠깐 lobby·menu 일 수 있어 session.boat 기준)
     if (session.boat) raw.boat = { dir: session.boat.dir, t: boatProgress(performance.now() / 1000 - session.boat.startedAt) }
+    if (session.tool) raw.tool = session.tool
     const s = roundState(raw)
     const key = stateKey(s)
     const since = now - last.current.at

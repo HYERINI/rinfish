@@ -1,8 +1,10 @@
 import { DAY_LENGTH } from '../data/balance'
 import { DISHES } from '../data/dishes'
 import { EMOTES, type EmoteId } from '../data/emotes'
+import { MEADOW_DISH_IDS, isMeadowDish, type MeadowDishId } from '../data/meadowItems'
 import { NET } from '../data/net'
 import { SNACK_IDS } from '../data/snacks'
+import { TOOL_IDS, type ToolId } from '../data/tools'
 import type { CharacterLook, FoodId } from '../data/types'
 import type { BoatDir } from './boatRoute'
 import { FISHING_POSES, type FishingLook, type FishingPose } from './characterPose'
@@ -17,13 +19,22 @@ import { cleanText, textLength } from './roomKey'
  */
 
 export type Vec3 = [number, number, number]
-/** 동작 상태. 기기마다 시계가 달라 시각 대신 "몇 초 전" 으로 보낸다 */
-export type NetAct = { emote: EmoteId | null; emoteAge: number; airAge: number | null; landedAge: number; eat: FoodId | null; eatAge: number }
+/**
+ * 동작 상태. 기기마다 시계가 달라 시각 대신 "몇 초 전" 으로 보낸다.
+ * meal: 은지 요리를 먹는 중이면 그 요리 (3-2). 옛 빌드는 모르는 eat 이 오면 모습 전체를 버리므로
+ * 은지 요리는 eat 에 옛 음식(LEGACY_MEAL)을 넣고 진짜 요리는 meal 에 담는다. 받는 쪽은 meal 을 먼저 본다
+ */
+export type NetAct = { emote: EmoteId | null; emoteAge: number; airAge: number | null; landedAge: number; eat: FoodId | null; eatAge: number; meal?: MeadowDishId }
+/** 은지 요리를 먹을 때 옛 빌드에 보이는 음식 (그릇에 담긴 매운탕) */
+export const LEGACY_MEAL: FoodId = 'stew'
 /** 배 타는 중이면 가는 방향과 진행도(0~1). 없으면 배를 타지 않았다 (옛 클라이언트도 보내지 않는다) */
 export type NetBoat = { dir: BoatDir; t: number }
 const BOAT_DIRS: BoatDir[] = ['toIsland', 'toMeadow']
-/** 내 모습 한 장면. p: 몸 가운데(캡슐 가운데) 위치, f: 바라보는 각도, v: 수평 속도 */
-export type NetState = { p: Vec3; f: number; v: number; rest: boolean; fish: FishingLook | null; rod: number; rodOn: boolean; bob: Vec3 | null; act: NetAct; boat?: NetBoat }
+/**
+ * 내 모습 한 장면. p: 몸 가운데(캡슐 가운데) 위치, f: 바라보는 각도, v: 수평 속도.
+ * tool: 손에 든 도구 (3-2. 빈손이거나 옛 클라이언트면 없다. 낚싯대가 보이는지는 rodOn 이 정한다)
+ */
+export type NetState = { p: Vec3; f: number; v: number; rest: boolean; fish: FishingLook | null; rod: number; rodOn: boolean; bob: Vec3 | null; act: NetAct; boat?: NetBoat; tool?: ToolId }
 export type JoinMode = 'create' | 'join'
 export type ErrorCode = 'bad-hello' | 'room-exists' | 'no-room' | 'bad-password' | 'full' | 'version'
 export const ERROR_CODES: ErrorCode[] = ['bad-hello', 'room-exists', 'no-room', 'bad-password', 'full', 'version']
@@ -54,7 +65,7 @@ export type ServerMsg =
   | { type: 'morning'; day: number }
 
 const EMOTE_IDS = EMOTES.map((e) => e.id)
-const FOOD_IDS: FoodId[] = [...DISHES.map((d) => d.id), ...SNACK_IDS]
+const FOOD_IDS: FoodId[] = [...DISHES.map((d) => d.id), ...SNACK_IDS, ...MEADOW_DISH_IDS]
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const num = (v: unknown, lo: number, hi: number): number | null => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : null)
@@ -94,14 +105,20 @@ function readAct(v: unknown): NetAct | null {
   if (!isRecord(v)) return null
   const cap = NET.actAgeCap
   const emote = v.emote === null ? null : oneOf(v.emote, EMOTE_IDS)
+  // 모르는 음식(더 새 클라이언트의 요리)은 "안 먹는 중" 으로 읽는다 (모습 전체를 버리지 않는다)
   const eat = v.eat === null ? null : oneOf(v.eat, FOOD_IDS)
   const emoteAge = num(v.emoteAge, 0, cap)
   const airAge = v.airAge === null ? null : num(v.airAge, 0, cap)
   const landedAge = num(v.landedAge, 0, cap)
   const eatAge = num(v.eatAge, 0, cap)
-  if ((v.emote !== null && emote === null) || (v.eat !== null && eat === null)) return null
+  if (v.emote !== null && emote === null) return null
+  if (v.eat !== null && typeof v.eat !== 'string') return null
   if (emoteAge === null || landedAge === null || eatAge === null || (v.airAge !== null && airAge === null)) return null
-  return { emote, emoteAge, airAge, landedAge, eat, eatAge }
+  const act: NetAct = { emote, emoteAge, airAge, landedAge, eat, eatAge }
+  // 틀린 meal 은 그 필드만 버린다
+  const meal = oneOf(v.meal, MEADOW_DISH_IDS)
+  if (meal) act.meal = meal
+  return act
 }
 
 /** 낚시 정보. 틀리면 undefined (null 은 "낚시 중 아님" 이라는 맞는 값) */
@@ -135,6 +152,9 @@ export function readNetState(v: unknown): NetState | null {
   // 배 정보는 틀려도 그 필드만 버린다 (모습 전체를 버리지 않는다)
   const boat = readBoat(v.boat)
   if (boat) out.boat = boat
+  // 도구도 틀리면 그 필드만 버린다 (모르는 도구 = 3-4 의 총을 든 새 클라이언트)
+  const tool = oneOf(v.tool, TOOL_IDS)
+  if (tool) out.tool = tool
   return out
 }
 
@@ -263,27 +283,32 @@ export function roundState(s: NetState): NetState {
     bob: s.bob && r3(s.bob),
     act: { emote: a.emote, emoteAge: r2(a.emoteAge), airAge: a.airAge === null ? null : r2(a.airAge), landedAge: r2(a.landedAge), eat: a.eat, eatAge: r2(a.eatAge) },
   }
+  if (a.meal) out.act.meal = a.meal
   if (s.boat) out.boat = { dir: s.boat.dir, t: r2(s.boat.t) }
+  if (s.tool) out.tool = s.tool
   return out
 }
 
 /** "바뀐 게 있나" 비교용 열쇠. 저절로 늘어나는 나이(몇 초 전)는 빼고 무엇을 하는지만 넣는다 */
 export function stateKey(s: NetState): string {
-  return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.airAge !== null, s.boat?.dir ?? null])
+  return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.meal ?? null, s.act.airAge !== null, s.boat?.dir ?? null, s.tool ?? null])
 }
 
 const age = (now: number, at: number) => Math.min(NET.actAgeCap, Math.max(0, now - at))
 
 /** 내 동작 상태 → 보낼 값 (now: 동작 시각과 같은 시계) */
 export function toNetAct(action: PlayerAction, now: number): NetAct {
-  return {
+  const meal = action.eat && isMeadowDish(action.eat) ? action.eat : null
+  const act: NetAct = {
     emote: action.emote,
     emoteAge: age(now, action.emoteAt),
     airAge: action.airborne ? age(now, action.jumpAt) : null,
     landedAge: age(now, action.landedAt),
-    eat: action.eat,
+    eat: meal ? LEGACY_MEAL : action.eat,
     eatAge: age(now, action.eatAt),
   }
+  if (meal) act.meal = meal
+  return act
 }
 
 /** 같은 동작인데 시작 시각이 이보다(초) 적게 다르면 네트워크 지연 차이로 보고 그대로 둔다 */
@@ -301,11 +326,12 @@ function startAt(prevAt: number, now: number, ageSec: number, same: boolean): nu
  * 한 번짜리 동작이 받을 때마다 처음부터 다시 재생되지 않게 한다. 바뀐 게 없으면 prev 를 그대로 돌려준다
  */
 export function fromNetAct(act: NetAct, now: number, prev: PlayerAction): PlayerAction {
+  const eat = act.meal ?? act.eat
   const airborne = act.airAge !== null
   const emoteAt = startAt(prev.emoteAt, now, act.emoteAge, act.emote === prev.emote)
   const jumpAt = airborne ? startAt(prev.jumpAt, now, act.airAge!, prev.airborne) : prev.jumpAt
   const landedAt = startAt(prev.landedAt, now, act.landedAge, true)
-  const eatAt = startAt(prev.eatAt, now, act.eatAge, act.eat === prev.eat)
-  const same = act.emote === prev.emote && emoteAt === prev.emoteAt && airborne === prev.airborne && jumpAt === prev.jumpAt && landedAt === prev.landedAt && act.eat === prev.eat && eatAt === prev.eatAt
-  return same ? prev : { emote: act.emote, emoteAt, airborne, jumpAt, landedAt, eat: act.eat, eatAt }
+  const eatAt = startAt(prev.eatAt, now, act.eatAge, eat === prev.eat)
+  const same = act.emote === prev.emote && emoteAt === prev.emoteAt && airborne === prev.airborne && jumpAt === prev.jumpAt && landedAt === prev.landedAt && eat === prev.eat && eatAt === prev.eatAt
+  return same ? prev : { emote: act.emote, emoteAt, airborne, jumpAt, landedAt, eat, eatAt }
 }

@@ -15,7 +15,7 @@ import { overlayLayer, touchHint } from './styles'
 const { joystick: JOY, buttons: BTN } = TOUCH
 
 /**
- * 휴대폰·태블릿 조작: 왼쪽 아래 조이스틱, 오른쪽 아래 버튼(상호작용·점프·감정 표현, 낚시 중엔 던지기·감기).
+ * 휴대폰·태블릿 조작: 왼쪽 아래 조이스틱, 오른쪽 아래 버튼(상호작용·점프·감정 표현·가방, 낚시 중엔 던지기·감기).
  * 손가락마다 따로 받아서 조이스틱을 밀면서 버튼을 누르거나 화면을 끌어 시점을 돌릴 수 있다.
  * 터치 화면을 쓰는 중에만 보인다 (컴퓨터에선 아무것도 그리지 않는다)
  */
@@ -42,6 +42,13 @@ export function TouchControls() {
 function ExploreControls() {
   const nearby = useSessionStore((s) => s.nearby)
   const [emotesOpen, setEmotesOpen] = useState(false)
+  const portrait = useMediaQuery('(orientation: portrait)')
+  const bag = (
+    <TapButton className="tc-btn tc-small" ariaLabel="가방" onTap={() => useSessionStore.getState().setMode('bag')}>
+      <span style={{ fontSize: 22, lineHeight: 1 }}>🎒</span>
+      <span style={{ fontSize: 11 }}>가방</span>
+    </TapButton>
+  )
   return (
     <>
       <Joystick />
@@ -64,13 +71,16 @@ function ExploreControls() {
             ))}
           </div>
         )}
-        {/* 가까이 있는 대상이 있을 때만: E 와 같은 길로 (낚시 시작·가게 열기·구역 문 살펴보기) */}
+        {/* 가까이 있는 대상이 있을 때만: E 와 같은 길로 (낚시 시작·가게 열기·구역 문 살펴보기). 글이 길어도 조이스틱 위에 오도록 가방 줄 위 */}
         {nearby && (
           <TapButton className="tc-btn tc-pill tc-action" onTap={() => runKeyAction('KeyE')}>
             {interactLabel(nearby)}
           </TapButton>
         )}
+        {/* 세로 화면은 좁아서 가방을 점프 위 오른쪽 끝에 둔다 (한 줄에 셋이면 조이스틱 자리와 겹친다). 가로 화면은 한 줄 그대로 */}
+        {portrait && <div className="tc-row">{bag}</div>}
         <div className="tc-row">
+          {!portrait && bag}
           <TapButton className={`tc-btn tc-small${emotesOpen ? ' on' : ''}`} ariaLabel="감정 표현" onTap={() => setEmotesOpen((o) => !o)}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>😀</span>
             <span style={{ fontSize: 11 }}>표현</span>
@@ -278,13 +288,13 @@ const CSS = `
   margin: ${px(-JOY.knob)} 0 0 ${px(-JOY.knob)}; border-radius: 50%; background: rgba(255,255,255,0.85); box-shadow: 0 2px 8px rgba(0,0,0,0.35); }
 .tc-joy-knob.run { background: rgba(255, 209, 102, 0.95); }
 .tc-joy-run { position: absolute; left: 50%; top: -22px; transform: translateX(-50%); font-size: 12px; font-weight: 700; text-shadow: 0 1px 2px #000; }
-.tc-help { position: absolute; left: 50%; transform: translateX(-50%); bottom: ${safe('bottom', 16)}; width: max-content;
+.tc-help { position: absolute; left: 50%; transform: translateX(-50%); bottom: ${safe('bottom', TOUCH.hotbarBottom.landscape + 56)}; width: max-content;
   max-width: calc(100% - 2 * ${px(JOY.margin + JOY.radius * 2 + 24)}); font-size: 12px; opacity: 0.75; text-align: center;
   text-shadow: 0 1px 2px #000; }
 .tc-x { pointer-events: auto; border: none; background: rgba(255,255,255,0.2); color: #fff; border-radius: 50%; width: 30px; height: 30px; font-size: 14px; }
 @media (orientation: portrait) {
   .tc-help { left: ${safe('left', 16)}; transform: none; text-align: left; max-width: 60%;
-    bottom: ${safe('bottom', JOY.margin + JOY.radius * 2 + 34)}; }
+    bottom: ${safe('bottom', TOUCH.hotbarBottom.portrait + 54)}; }
 }
 `
 

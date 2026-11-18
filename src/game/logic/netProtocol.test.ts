@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_LOOK } from '../data/characterParts'
+import { DISHES } from '../data/dishes'
+import { SNACK_IDS } from '../data/snacks'
 import { IDLE_ACTION, type PlayerAction } from './playerMotion'
 import { fromNetAct, parseClientMsg, parseServerMsg, roundState, stateKey, toNetAct, type NetState } from './netProtocol'
 
@@ -158,5 +160,68 @@ describe('toNetAct·fromNetAct', () => {
     const act = toNetAct(jumping, now)
     expect(act.airAge).toBeCloseTo(0.2)
     expect(fromNetAct(act, 10, IDLE_ACTION)).toMatchObject({ airborne: true })
+  })
+})
+
+describe('은지 요리 먹기 (3-2)', () => {
+  const eating = (eat: unknown) => ({ ...state(), act: { ...state().act, eat, eatAge: 1 } })
+  it('은지 요리를 먹는 모습을 읽는다', () => {
+    expect(parseClientMsg(json({ type: 'state', s: eating('steak') }))).toEqual({ type: 'state', s: eating('steak') })
+  })
+  it('모르는 음식은 안 먹는 중으로 읽고 모습은 살린다. 글자가 아니면 버린다', () => {
+    expect(parseClientMsg(json({ type: 'state', s: eating('pizza') }))).toEqual({ type: 'state', s: eating(null) })
+    expect(parseClientMsg(json({ type: 'state', s: eating(3) }))).toBeNull()
+  })
+})
+
+describe('은지 요리 먹기는 옛 빌드와 맞게 보낸다 (3-2)', () => {
+  // 옛 클라이언트·옛 서버의 readAct 는 eat 이 이 목록에 없으면 모습 전체를 버린다
+  const LEGACY_FOOD: string[] = [...DISHES.map((d) => d.id), ...SNACK_IDS]
+  const steakAt: PlayerAction = { ...IDLE_ACTION, eat: 'steak', eatAt: 99 }
+  it('eat 에는 옛 음식, meal 에는 은지 요리를 담는다', () => {
+    const act = toNetAct(steakAt, 100)
+    expect(LEGACY_FOOD).toContain(act.eat)
+    expect(act.meal).toBe('steak')
+    const sent = JSON.parse(json({ type: 'state', s: roundState({ ...state(), act }) }))
+    expect(LEGACY_FOOD).toContain(sent.s.act.eat)
+    expect(sent.s.act.meal).toBe('steak')
+  })
+  it('새 쪽은 meal 을 먼저 보고 은지 요리를 보여 준다 (서버를 거쳐도 meal 이 남는다)', () => {
+    const relayed = parseClientMsg(json({ type: 'state', s: roundState({ ...state(), act: toNetAct(steakAt, 100) }) }))
+    expect(relayed?.type).toBe('state')
+    const s = (relayed as { s: NetState }).s
+    expect(s.act.meal).toBe('steak')
+    const back = parseServerMsg(json({ type: 'state', id: 'a', s }))
+    expect(fromNetAct((back as { s: NetState }).s.act, 500, IDLE_ACTION).eat).toBe('steak')
+  })
+  it('틀린 meal 은 그 필드만 버리고 eat 을 쓴다', () => {
+    const bad = { ...state(), act: { ...state().act, eat: 'stew', eatAge: 1, meal: 'pizza' } }
+    const r = parseClientMsg(json({ type: 'state', s: bad })) as { s: NetState }
+    expect(r.s.act).not.toHaveProperty('meal')
+    expect(r.s.act.eat).toBe('stew')
+    expect(fromNetAct(r.s.act, 500, IDLE_ACTION).eat).toBe('stew')
+  })
+  it('옛 음식은 meal 없이 그대로 보낸다', () => {
+    const act = toNetAct({ ...IDLE_ACTION, eat: 'gimbap', eatAt: 99 }, 100)
+    expect(act.eat).toBe('gimbap')
+    expect(act).not.toHaveProperty('meal')
+  })
+  it('은지 요리를 바꾸면 다른 상태', () => {
+    const a = { ...state(), act: toNetAct(steakAt, 100) }
+    const b = { ...state(), act: toNetAct({ ...steakAt, eat: 'roast' }, 100) }
+    expect(stateKey(a)).not.toBe(stateKey(b))
+  })
+})
+
+describe('손에 든 도구 (3-2)', () => {
+  it('tool 은 있으면 검사하고, 틀리거나 모르는 도구면 그 필드만 버린다', () => {
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), tool: 'knife' } }))).toEqual({ type: 'state', s: { ...state(), tool: 'knife' } })
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), tool: 'bazooka' } }))).toEqual({ type: 'state', s: state() })
+    expect(parseServerMsg(json({ type: 'state', id: 'a', s: { ...state(), tool: 'fists' } }))).toEqual({ type: 'state', id: 'a', s: { ...state(), tool: 'fists' } })
+  })
+  it('보낼 때 그대로 두고, 도구를 바꾸면 다른 상태', () => {
+    expect(roundState({ ...state(), tool: 'knife' }).tool).toBe('knife')
+    expect(roundState(state())).not.toHaveProperty('tool')
+    expect(stateKey({ ...state(), tool: 'knife' })).not.toBe(stateKey({ ...state(), tool: 'fists' }))
   })
 })
