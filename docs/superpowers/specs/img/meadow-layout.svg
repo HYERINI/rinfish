@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 340" font-family="sans-serif">
+  <rect width="540" height="340" fill="#5aa9e6"/>
+  <!-- 세계 좌표를 그대로 쓴다: px = (x+45)*1.5, py = (z+120)*1.5. 위 = 북(-z), 오른쪽 = 동(+x) -->
+  <g transform="translate(67.5,180) scale(1.5)">
+    <rect x="90" y="-110" width="200" height="200" fill="#e9d7a5"/>
+    <rect x="94" y="-106" width="192" height="192" fill="#8bc34a"/>
+    <rect x="167.5" y="-22.5" width="42.5" height="40" fill="#aed581" stroke="#6d4c41" stroke-width="0.8"/>
+    <rect x="166" y="-52" width="40" height="26" fill="#c5e1a5" stroke="#7cb342" stroke-width="0.6" stroke-dasharray="2 1"/>
+    <rect x="133" y="-17" width="28" height="32" fill="#d7ccc8" stroke="#8d6e63" stroke-width="0.6"/>
+    <circle cx="148" cy="-2" r="2" fill="#4fc3f7"/>
+    <rect x="185" y="-5" width="20" height="10" fill="#ffcc80" stroke="#5d4037" stroke-width="0.6"/>
+    <rect x="187" y="5" width="8" height="8" fill="#ffcc80" stroke="#5d4037" stroke-width="0.6"/>
+    <rect x="173" y="-5" width="12" height="10" fill="#bdbdbd" stroke="#757575" stroke-width="0.5" stroke-dasharray="1.5 1"/>
+    <circle cx="0" cy="0" r="30" fill="#e9d7a5"/>
+    <circle cx="0" cy="0" r="27" fill="#9ccc65"/>
+    <rect x="84" y="-3.5" width="6" height="3" fill="#795548"/>
+    <rect x="-1.7" y="20.8" width="3.4" height="9.2" fill="#795548"/>
+    <path d="M 82 -2 C 70 6, 62 14, 55 18 S 35 38, 25 40 S 5 36, 0 32" fill="none" stroke="#fff" stroke-width="1.2" stroke-dasharray="3 2"/>
+    <circle cx="188" cy="-12" r="2.2" fill="#e53935" stroke="#fff" stroke-width="0.6"/>
+  </g>
+  <g font-size="10" fill="#1b2a1b">
+    <text x="440" y="250">들판</text>
+    <text x="300" y="97">동물 구역(이번엔 뺌)</text>
+    <text x="277" y="150" font-weight="bold">마을</text>
+    <text x="300" y="220" fill="#444">사격장(이번엔 뺌)</text>
+    <text x="356" y="160" fill="#b71c1c" font-weight="bold">시작</text>
+    <text x="364" y="198" font-weight="bold">집</text>
+    <text x="50" y="183" font-weight="bold">낚시섬</text>
+  </g>
+  <g font-size="10" fill="#fff">
+    <text x="205" y="22" font-size="12" font-weight="bold">초원 (은지 맵, 180° 돌림) 200m × 200m</text>
+    <text x="128" y="170">초원 선착장 ⚓</text>
+    <text x="14" y="250">⚓ 섬 선착장</text>
+    <text x="150" y="226">뱃길 약 12초</text>
+    <text x="118" y="140">← 바다 60m →</text>
+    <text x="12" y="330" font-size="9">위 = 북 · 오른쪽 = 동 · 실제 비율 (1px ≈ 0.67m) · 은지 지도(M)와 같은 방향</text>
+  </g>
+</svg>
