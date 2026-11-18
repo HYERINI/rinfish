@@ -18,7 +18,7 @@ export function pinchZoom(distance: number, prevSpan: number, span: number): num
   return Math.min(CAMERA_ZOOM.max, Math.max(CAMERA_ZOOM.min, next))
 }
 
-const ZOOM_MODES: Mode[] = ['explore', 'fishing', 'rest']
+const ZOOM_MODES: Mode[] = ['explore', 'fishing', 'rest', 'boat']
 
 export function canZoom(mode: Mode): boolean {
   return ZOOM_MODES.includes(mode)

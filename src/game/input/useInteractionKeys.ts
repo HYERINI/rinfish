@@ -52,6 +52,9 @@ export function runKeyAction(code: string) {
     case 'selectBait':
       useProgressStore.getState().selectBait(action.bait)
       break
+    case 'boardBoat':
+      session.startBoat(action.dir)
+      break
     case 'none':
       break
   }

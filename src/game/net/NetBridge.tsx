@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { NET } from '../data/net'
+import { boatProgress } from '../logic/boatRoute'
 import { fishingLook } from '../logic/characterPose'
 import { roundState, stateKey, toNetAct, type NetState } from '../logic/netProtocol'
 import { playerRig } from '../scene/Player'
@@ -33,7 +34,8 @@ export function NetBridge() {
     }
     const now = clock.elapsedTime
     const bob = fishingFx.bobber
-    const s: NetState = roundState({
+    const session = useSessionStore.getState()
+    const raw: NetState = {
       p: [playerRig.position.x, playerRig.position.y, playerRig.position.z],
       f: playerRig.facing,
       v: playerRig.speed,
@@ -42,8 +44,11 @@ export function NetBridge() {
       rod: playerRig.rodAngle,
       rodOn: playerRig.rodShown,
       bob: bob?.visible ? [bob.position.x, bob.position.y, bob.position.z] : null,
-      act: toNetAct(useSessionStore.getState().playerAction, now),
-    })
+      act: toNetAct(session.playerAction, now),
+    }
+    // 배 타는 동안 내내 보낸다 (mode 는 잠깐 lobby·menu 일 수 있어 session.boat 기준)
+    if (session.boat) raw.boat = { dir: session.boat.dir, t: boatProgress(performance.now() / 1000 - session.boat.startedAt) }
+    const s = roundState(raw)
     const key = stateKey(s)
     const since = now - last.current.at
     if ((key !== last.current.key && since >= 1 / NET.sendHz) || since >= NET.idleSendEvery) {

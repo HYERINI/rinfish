@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CAMERA_ZOOM, EAT, MOVE, PLAYER_BODY } from '../data/balance'
 import { BARRIER_COLLIDER_HEIGHT } from '../data/zones'
-import { IDLE_ACTION, cameraRig, maxJumpHeight, moveSpeed, nextAction, rodVisible, shouldFaceCamera, type MotionInput, type PlayerAction } from './playerMotion'
+import { IDLE_ACTION, cameraRig, isGrounded, maxJumpHeight, moveSpeed, nextAction, rodVisible, shouldFaceCamera, type MotionInput, type PlayerAction } from './playerMotion'
 
 const input = (over: Partial<MotionInput> = {}): MotionInput => ({
   moving: false,
@@ -91,6 +91,19 @@ describe('nextAction: 탐험 모드가 아닐 때', () => {
   it('공중에서 낚시를 시작해도 착지는 기록한다 (점프 자세가 남지 않게)', () => {
     const air: PlayerAction = { ...IDLE_ACTION, airborne: true, jumpAt: 10 }
     expect(nextAction(air, input({ mode: 'fishing', now: 11 }), length).airborne).toBe(false)
+  })
+})
+
+describe('isGrounded', () => {
+  it('발 아래 땅이 있고 위아래로 빠르게 움직이지 않으면 땅에 있다', () => {
+    expect(isGrounded(true, 0, false)).toBe(true)
+    expect(isGrounded(true, 5, false)).toBe(false)
+    expect(isGrounded(false, 0, false)).toBe(false)
+  })
+
+  it('배를 타는 중엔 아래에 땅이 없어도 땅에 있는 것으로 본다 (점프 자세가 남거나 도착 때 착지 동작이 나오지 않게)', () => {
+    expect(isGrounded(false, 0, true)).toBe(true)
+    expect(isGrounded(false, 3, true)).toBe(true)
   })
 })
 
@@ -190,6 +203,9 @@ describe('nextAction: 먹기', () => {
 })
 
 describe('rodVisible', () => {
+  it('배에 앉아 있으면 낚싯대를 숨긴다', () => {
+    expect(rodVisible('boat', 10, IDLE_ACTION)).toBe(false)
+  })
   it('낚시 중엔 늘 보인다', () => {
     expect(rodVisible('fishing', 1.5, IDLE_ACTION)).toBe(true)
     expect(rodVisible('fishing', 10, { ...IDLE_ACTION, airborne: true })).toBe(true)

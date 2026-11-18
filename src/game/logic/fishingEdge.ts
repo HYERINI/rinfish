@@ -1,6 +1,7 @@
 import type { ZoneId } from '../data/types'
 import { FENCE_Z, FISHING_EDGE, INLAND_WATERS, INLAND_WATER_Y, ISLAND_RADIUS, REEF_SEA_MIN_X, WATER_Y, type FishingSpot, type InlandWater } from '../data/zones'
 import { castDistance } from './cast'
+import { landAt } from './land'
 import { isZoneOpen } from './zoneUnlock'
 
 /**
@@ -74,6 +75,8 @@ function candidates(x: number, z: number): Candidate[] {
  * 그쪽으로 가까이(maxNear 안)에 물이 시작돼 넉넉히(minWater) 이어져야 한다. 잠긴 구역이면 null
  */
 export function findFishingEdge(x: number, z: number, unlocked: readonly ZoneId[]): FishingPlace | null {
+  // 바다 판정은 "섬에서 멀다 = 바다" 라서 섬 위에서만 찾는다 (초원 해안 낚시는 3단계)
+  if (landAt(x, z) !== 'island') return null
   for (const c of candidates(x, z)) {
     if (!isZoneOpen(c.zone, unlocked)) continue
     const reach = waterReach(x, z, c.facing, c.water)

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CAST } from '../data/balance'
 import type { ZoneId } from '../data/types'
 import { CAVE_WALL, FISHING_SPOTS, INLAND_WATERS, INLAND_WATER_Y, ISLAND_RADIUS, WATER_Y } from '../data/zones'
+import { clampToLand } from './land'
 import { clampToWater, findFishingEdge, landingDistance, seaZoneAt, shouldRefreshPlace, type FishingPlace } from './fishingEdge'
 
 const ALL: ZoneId[] = ['pond', 'cave', 'reef']
@@ -128,5 +129,18 @@ describe('shouldRefreshPlace', () => {
     expect(shouldRefreshPlace(a, { ...a, position: [1, 28] })).toBe(true)
     expect(shouldRefreshPlace(a, { ...a, facing: [Math.sin(0.2), Math.cos(0.2)] })).toBe(true)
     expect(shouldRefreshPlace(a, { ...a, id: 'shore:pond' })).toBe(true)
+  })
+})
+
+describe('findFishingEdge: 초원', () => {
+  it('초원 위에서는 바다 낚시 안내를 하지 않는다 (섬에서 멀다고 바다가 아니다)', () => {
+    expect(findFishingEdge(150, 0, ALL)).toBeNull()
+    expect(findFishingEdge(91.2, 30, ALL)).toBeNull()
+    expect(findFishingEdge(85, -2, ALL)).toBeNull()
+  })
+  it('섬 가장자리로 붙잡은 자리(반올림 오차로 29 를 살짝 넘음)에서도 낚시 안내가 난다', () => {
+    const p = clampToLand({ x: 0, z: 0 }, { x: 10.500579143934814, z: 33.387689911731854 })
+    expect(Math.hypot(p.x, p.z)).toBeGreaterThan(29)
+    expect(findFishingEdge(p.x, p.z, ALL)).not.toBeNull()
   })
 })

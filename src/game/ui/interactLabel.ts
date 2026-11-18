@@ -1,7 +1,7 @@
 import { MARKET } from '../data/market'
 import type { Interactable } from '../logic/interaction'
 
-const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate'>, string> = {
+const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock'>, string> = {
   fishingSpot: '낚시하기',
   sellBox: '물고기 팔기',
   gearShop: '장비 상점',
@@ -19,5 +19,7 @@ const GATE_LABEL: Record<string, string> = {
 
 /** 가까이 있는 대상에 할 수 있는 일 (E 안내·터치 상호작용 버튼 글씨) */
 export function interactLabel(target: Interactable): string {
-  return target.kind === 'zoneGate' ? (GATE_LABEL[target.zoneId] ?? '살펴보기') : LABEL[target.kind]
+  if (target.kind === 'zoneGate') return GATE_LABEL[target.zoneId] ?? '살펴보기'
+  if (target.kind === 'dock') return target.dir === 'toIsland' ? '⛵ 배 타기 (섬으로)' : '⛵ 배 타기 (초원으로)'
+  return LABEL[target.kind]
 }

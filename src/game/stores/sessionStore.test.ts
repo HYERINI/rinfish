@@ -1,0 +1,87 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useSessionStore } from './sessionStore'
+
+describe('배 타는 중 모드', () => {
+  beforeEach(() => useSessionStore.getState().resetSession())
+
+  it('배 타는 중엔 탐험으로 돌려도 배 모드를 지킨다 (로비를 닫아도 조작이 풀리지 않는다)', () => {
+    const s = useSessionStore.getState()
+    s.startBoat('toIsland')
+    s.setMode('lobby')
+    s.setMode('explore')
+    expect(useSessionStore.getState().mode).toBe('boat')
+    expect(useSessionStore.getState().boat).not.toBeNull()
+  })
+
+  it('순간이동(쓰러져 진료소로)하면 배에서 내리고 탐험으로 돌아간다', () => {
+    const s = useSessionStore.getState()
+    s.startBoat('toMeadow')
+    s.setMode('explore')
+    s.requestTeleport([5, 5])
+    const after = useSessionStore.getState()
+    expect(after.boat).toBeNull()
+    expect(after.mode).toBe('explore')
+    expect(after.teleport).toEqual([5, 5])
+  })
+
+  it('배를 안 탈 땐 모드를 그대로 바꾼다', () => {
+    const s = useSessionStore.getState()
+    s.setMode('rest')
+    s.setMode('explore')
+    expect(useSessionStore.getState().mode).toBe('explore')
+  })
+})
+
+describe('큰 지도', () => {
+  beforeEach(() => useSessionStore.getState().resetSession())
+
+  it('탐험 중에 열면 지도 모드가 되고(이동·키 막힘), 닫으면 탐험으로 돌아간다', () => {
+    const s = useSessionStore.getState()
+    s.openMap()
+    expect(useSessionStore.getState().mode).toBe('map')
+    s.closeMap()
+    expect(useSessionStore.getState().mode).toBe('explore')
+  })
+
+  it('메뉴에서 열 수 있다', () => {
+    const s = useSessionStore.getState()
+    s.setMode('menu')
+    s.openMap()
+    expect(useSessionStore.getState().mode).toBe('map')
+  })
+
+  it('배 타는 중에 열고 닫으면 배 모드로 돌아간다', () => {
+    const s = useSessionStore.getState()
+    s.startBoat('toMeadow')
+    s.openMap()
+    expect(useSessionStore.getState().mode).toBe('map')
+    s.closeMap()
+    expect(useSessionStore.getState().mode).toBe('boat')
+  })
+
+  it('지도를 보는 중 배가 도착하면 지도는 남고, 닫으면 탐험', () => {
+    const s = useSessionStore.getState()
+    s.startBoat('toIsland')
+    s.openMap()
+    s.endBoat()
+    expect(useSessionStore.getState().mode).toBe('map')
+    s.closeMap()
+    expect(useSessionStore.getState().mode).toBe('explore')
+  })
+
+  it('낚시·패널·연출 중엔 열지 않는다', () => {
+    const s = useSessionStore.getState()
+    for (const m of ['fishing', 'sell', 'rest', 'cutscene', 'lobby'] as const) {
+      s.setMode(m)
+      s.openMap()
+      expect(useSessionStore.getState().mode).toBe(m)
+    }
+  })
+
+  it('지도가 아닐 때 닫기는 아무 일도 하지 않는다', () => {
+    const s = useSessionStore.getState()
+    s.setMode('fishing')
+    s.closeMap()
+    expect(useSessionStore.getState().mode).toBe('fishing')
+  })
+})

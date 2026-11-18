@@ -11,6 +11,17 @@ const state = (over: Partial<NetState> = {}): NetState => ({
 const json = (v: unknown) => JSON.stringify(v)
 
 describe('parseClientMsg', () => {
+  it('초원 좌표(최대 400)를 받는다', () => {
+    expect(parseClientMsg(json({ type: 'state', s: state({ p: [290, 0, -110] }) }))).toEqual({ type: 'state', s: state({ p: [290, 0, -110] }) })
+    expect(parseClientMsg(json({ type: 'state', s: state({ p: [401, 0, 0] }) }))).toBeNull()
+  })
+  it('배 정보는 있으면 검사하고, 틀리면 그 필드만 버린다', () => {
+    const boat = { dir: 'toIsland', t: 0.4 }
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), boat } }))).toEqual({ type: 'state', s: { ...state(), boat } })
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), boat: { dir: 'toMoon', t: 0.4 } } }))).toEqual({ type: 'state', s: state() })
+    expect(parseClientMsg(json({ type: 'state', s: { ...state(), boat: { dir: 'toMeadow', t: 2 } } }))).toEqual({ type: 'state', s: state() })
+    expect(parseClientMsg(json({ type: 'state', s: state() }))).toEqual({ type: 'state', s: state() })
+  })
   it('맞는 hello·state·chat·profile 을 읽는다', () => {
     const hello = { type: 'hello', v: 1, mode: 'join', passHash: 'a'.repeat(64), nick: ' 혜린 ', look: DEFAULT_LOOK }
     expect(parseClientMsg(json(hello))).toEqual({ ...hello, nick: '혜린' })
@@ -56,6 +67,12 @@ describe('parseServerMsg', () => {
 })
 
 describe('roundState·stateKey', () => {
+  it('배 진행도도 둘째 자리로, 배를 타고 내리면 다른 상태', () => {
+    const s = state({ boat: { dir: 'toMeadow', t: 0.123456 } })
+    expect(roundState(s).boat).toEqual({ dir: 'toMeadow', t: 0.12 })
+    expect(stateKey(roundState(s))).not.toBe(stateKey(state()))
+    expect('boat' in roundState(state())).toBe(false)
+  })
   it('숫자를 소수 둘째 자리로', () => {
     const r = roundState(state({ p: [1.23456, 0.001, -3.999], f: 1.005, bob: [1.111, 2.222, 3.333] }))
     expect(r.p).toEqual([1.23, 0, -4])
