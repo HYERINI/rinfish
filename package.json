@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint --ignore-pattern=.claude/** --ignore-pattern=tools/**",
+    "lint": "oxlint --ignore-pattern=.claude/** --ignore-pattern=tools/** --ignore-pattern=src/meadow/vendor/**",
     "preview": "vite preview",
     "test": "vitest run",
     "server:dev": "wrangler dev --config server/wrangler.toml --port 8787",
