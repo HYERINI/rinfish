@@ -3,6 +3,7 @@ import { EMOTES, type EmoteId } from '../data/emotes'
 import { NET } from '../data/net'
 import { SNACK_IDS } from '../data/snacks'
 import type { CharacterLook, FoodId } from '../data/types'
+import type { BoatDir } from './boatRoute'
 import { FISHING_POSES, type FishingLook, type FishingPose } from './characterPose'
 import { normalizeLook } from './characterLook'
 import type { PlayerAction } from './playerMotion'
@@ -16,8 +17,11 @@ import { cleanText, textLength } from './roomKey'
 export type Vec3 = [number, number, number]
 /** 동작 상태. 기기마다 시계가 달라 시각 대신 "몇 초 전" 으로 보낸다 */
 export type NetAct = { emote: EmoteId | null; emoteAge: number; airAge: number | null; landedAge: number; eat: FoodId | null; eatAge: number }
+/** 배 타는 중이면 가는 방향과 진행도(0~1). 없으면 배를 타지 않았다 (옛 클라이언트도 보내지 않는다) */
+export type NetBoat = { dir: BoatDir; t: number }
+const BOAT_DIRS: BoatDir[] = ['toIsland', 'toMeadow']
 /** 내 모습 한 장면. p: 몸 가운데(캡슐 가운데) 위치, f: 바라보는 각도, v: 수평 속도 */
-export type NetState = { p: Vec3; f: number; v: number; rest: boolean; fish: FishingLook | null; rod: number; rodOn: boolean; bob: Vec3 | null; act: NetAct }
+export type NetState = { p: Vec3; f: number; v: number; rest: boolean; fish: FishingLook | null; rod: number; rodOn: boolean; bob: Vec3 | null; act: NetAct; boat?: NetBoat }
 export type JoinMode = 'create' | 'join'
 export type ErrorCode = 'bad-hello' | 'room-exists' | 'no-room' | 'bad-password' | 'full' | 'version'
 export const ERROR_CODES: ErrorCode[] = ['bad-hello', 'room-exists', 'no-room', 'bad-password', 'full', 'version']
@@ -88,6 +92,13 @@ function readFish(v: unknown): FishingLook | null | undefined {
   return pose === null || lean === null ? undefined : { pose, lean }
 }
 
+function readBoat(v: unknown): NetBoat | null {
+  if (!isRecord(v)) return null
+  const dir = oneOf(v.dir, BOAT_DIRS)
+  const t = num(v.t, 0, 1)
+  return dir && t !== null ? { dir, t } : null
+}
+
 export function readNetState(v: unknown): NetState | null {
   if (!isRecord(v)) return null
   const p = vec3(v.p)
@@ -99,7 +110,11 @@ export function readNetState(v: unknown): NetState | null {
   const act = readAct(v.act)
   if (!p || f === null || speed === null || rod === null || fish === undefined || (v.bob !== null && bob === null) || !act) return null
   if (typeof v.rest !== 'boolean' || typeof v.rodOn !== 'boolean') return null
-  return { p, f, v: speed, rest: v.rest, fish, rod, rodOn: v.rodOn, bob, act }
+  const out: NetState = { p, f, v: speed, rest: v.rest, fish, rod, rodOn: v.rodOn, bob, act }
+  // 배 정보는 틀려도 그 필드만 버린다 (모습 전체를 버리지 않는다)
+  const boat = readBoat(v.boat)
+  if (boat) out.boat = boat
+  return out
 }
 
 function parse(raw: string): Record<string, unknown> | null {
@@ -197,7 +212,7 @@ const r3 = (v: Vec3): Vec3 => [r2(v[0]), r2(v[1]), r2(v[2])]
 /** 보내기 전 숫자를 소수 둘째 자리로 (메시지 크기를 줄인다) */
 export function roundState(s: NetState): NetState {
   const a = s.act
-  return {
+  const out: NetState = {
     p: r3(s.p),
     f: r2(s.f),
     v: r2(s.v),
@@ -208,11 +223,13 @@ export function roundState(s: NetState): NetState {
     bob: s.bob && r3(s.bob),
     act: { emote: a.emote, emoteAge: r2(a.emoteAge), airAge: a.airAge === null ? null : r2(a.airAge), landedAge: r2(a.landedAge), eat: a.eat, eatAge: r2(a.eatAge) },
   }
+  if (s.boat) out.boat = { dir: s.boat.dir, t: r2(s.boat.t) }
+  return out
 }
 
 /** "바뀐 게 있나" 비교용 열쇠. 저절로 늘어나는 나이(몇 초 전)는 빼고 무엇을 하는지만 넣는다 */
 export function stateKey(s: NetState): string {
-  return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.airAge !== null])
+  return JSON.stringify([s.p, s.f, s.v, s.rest, s.fish, s.rod, s.rodOn, s.bob, s.act.emote, s.act.eat, s.act.airAge !== null, s.boat?.dir ?? null])
 }
 
 const age = (now: number, at: number) => Math.min(NET.actAgeCap, Math.max(0, now - at))

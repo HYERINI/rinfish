@@ -5,6 +5,10 @@ import { isCookingSkipKey, isSameInteractable, resolveKeyAction } from './intera
 const place = (id: string): FishingPlace => ({ id, zone: 'beach', position: [0, 28], facing: [0, 1], surfaceY: -0.3, reach: { near: 2, far: Infinity } })
 
 describe('isSameInteractable', () => {
+  it('선착장은 가는 방향이 같아야 같은 대상', () => {
+    expect(isSameInteractable({ kind: 'dock', dir: 'toIsland' }, { kind: 'dock', dir: 'toIsland' })).toBe(true)
+    expect(isSameInteractable({ kind: 'dock', dir: 'toIsland' }, { kind: 'dock', dir: 'toMeadow' })).toBe(false)
+  })
   it('같은 낚시 자리(같은 물)면 true, 다른 물이면 false', () => {
     const a = { kind: 'fishingSpot' as const, spot: place('shore:sea') }
     expect(isSameInteractable(a, { kind: 'fishingSpot', spot: place('shore:sea') })).toBe(true)
@@ -19,6 +23,20 @@ describe('isSameInteractable', () => {
 })
 
 describe('resolveKeyAction', () => {
+  it('선착장에서 E 로 배를 탄다', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'dock', dir: 'toIsland' })).toEqual({ type: 'boardBoat', dir: 'toIsland' })
+  })
+  it('배 타는 중엔 어떤 키도 모드를 바꾸지 않는다', () => {
+    for (const code of ['Escape', 'KeyE', 'Digit1', 'Space']) {
+      expect(resolveKeyAction(code, 'boat', { kind: 'dock', dir: 'toMeadow' })).toEqual({ type: 'none' })
+    }
+  })
+  it('큰 지도를 보는 중엔 ESC 로 닫기만 하고(메뉴 안 열림) E·숫자·Space 는 무시한다', () => {
+    expect(resolveKeyAction('Escape', 'map', null)).toEqual({ type: 'closePanel' })
+    for (const code of ['KeyE', 'Digit1', 'Space', 'KeyW']) {
+      expect(resolveKeyAction(code, 'map', { kind: 'dock', dir: 'toMeadow' })).toEqual({ type: 'none' })
+    }
+  })
   it('로비에선 ESC·E 모두 아무 일도 하지 않는다 (혼자 하기/같이 하기를 골라야 닫힌다)', () => {
     expect(resolveKeyAction('Escape', 'lobby', null)).toEqual({ type: 'none' })
     expect(resolveKeyAction('KeyE', 'lobby', { kind: 'sellBox' })).toEqual({ type: 'none' })

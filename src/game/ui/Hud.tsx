@@ -80,6 +80,8 @@ export function Hud() {
 
       {mode === 'rest' && (touchUi ? <div style={touchHint}>벤치에서 쉬는 중… 체력 회복 · 화면을 끌어 둘러보기</div> : <div style={hint}>벤치에서 쉬는 중… 체력 회복 · 마우스로 둘러보기 · E 일어나기</div>)}
 
+      {mode === 'boat' && <div style={touchUi ? touchHint : hint}>⛵ 배 타고 건너는 중…</div>}
+
       {mode === 'explore' && (
         <>
           <div style={{ position: 'absolute', top: safeTop(16), right: safeRight(16), display: 'flex', gap: 8 }}>

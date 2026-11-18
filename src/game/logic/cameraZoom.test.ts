@@ -40,3 +40,9 @@ describe('canZoom', () => {
     for (const mode of ['menu', 'dex', 'sell', 'shop', 'market', 'aquarium', 'aquariumView', 'wardrobe'] as const) expect(canZoom(mode)).toBe(false)
   })
 })
+
+describe('배 타는 중 줌', () => {
+  it('확대·축소할 수 있다', () => {
+    expect(canZoom('boat')).toBe(true)
+  })
+})

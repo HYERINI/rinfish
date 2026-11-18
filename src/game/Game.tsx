@@ -20,6 +20,7 @@ import { ROOM_SERVER } from './net/serverUrl'
 import { useNetStore } from './stores/netStore'
 import { ChatBox } from './ui/ChatBox'
 import { RoomBadge } from './ui/RoomBadge'
+import { MiniMap } from './ui/MiniMap'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
 import { Hud, NoticeLayer } from './ui/Hud'
@@ -106,6 +107,7 @@ export function Game({ onExit, hub }: GameProps) {
       <WeaknessOverlay />
       <Hud />
       <RoomBadge />
+      <MiniMap />
       <GoalTracker />
       <FishingOverlay />
       <ChatBox />

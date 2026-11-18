@@ -9,6 +9,7 @@ import { button } from './styles'
 
 export function MenuPanel({ onExit }: { onExit?: () => void }) {
   const setMode = useSessionStore((s) => s.setMode)
+  const openMap = useSessionStore((s) => s.openMap)
   return (
     <Panel title="메뉴">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -17,6 +18,10 @@ export function MenuPanel({ onExit }: { onExit?: () => void }) {
         </button>
         <button style={button} onClick={() => setMode('dex')}>
           도감
+        </button>
+        {/* 마우스가 잠겨 있으면 미니맵을 누를 수 없어서 메뉴에서도 큰 지도를 연다 */}
+        <button style={button} onClick={openMap}>
+          🗺️ 지도
         </button>
         {/* 허브 로비에서 들어왔을 때만 (혼자 실행하면 돌아갈 곳이 없다) */}
         {onExit && (

@@ -70,3 +70,10 @@ describe('마우스 잠금', () => {
     expect(shouldOpenMenuOnUnlock('shop', false)).toBe(false)
   })
 })
+
+describe('배 타는 중 카메라', () => {
+  it('마우스 잠금으로 시점을 돌릴 수 있고, 잠금이 풀려도 메뉴를 열지 않는다', () => {
+    expect(canLockPointer('boat')).toBe(true)
+    expect(shouldOpenMenuOnUnlock('boat', false)).toBe(false)
+  })
+})

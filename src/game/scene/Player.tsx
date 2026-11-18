@@ -6,8 +6,12 @@ import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
-import { BENCH_SEAT, ISLAND_RADIUS } from '../data/zones'
+import { BOAT_ARRIVE, BOAT_FLOOR, BOAT_SEAT_SHAPE } from '../data/boat'
+import { BENCH_SEAT, WATER_Y } from '../data/zones'
+import { boatDestination, boatPose, boatProgress } from '../logic/boatRoute'
+import { waveHeight } from '../logic/waves'
 import { shortestAngleDelta, yawForFacing } from '../logic/cameraYaw'
+import { clampToLand } from '../logic/land'
 import { readMoveInput } from '../input/move'
 import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
 import { takeDrag } from '../input/pointer'
@@ -18,16 +22,17 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
 import { fishingLook } from '../logic/characterPose'
-import { cameraRig, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
+import { cameraRig, isGrounded, moveSpeed, nextAction, rodVisible, shouldFaceCamera } from '../logic/playerMotion'
 import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
 import { useProgressStore } from '../stores/progressStore'
 import { usePlaceStore } from '../stores/placeStore'
 import { useSessionStore } from '../stores/sessionStore'
-import { normalizePlace, placeMoved, type Place } from '../logic/place'
+import { canSavePlace, normalizePlace, placeMoved, type Place } from '../logic/place'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { fishingFx } from './fishing/fishingFx'
+import { BoatModel } from './boat/BoatModel'
 import { ChewChatter } from './ChewChatter'
 import { FoodInHand } from './FoodInHand'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
@@ -42,9 +47,10 @@ export const playerRig = {
   resting: false,
   rodAngle: 0.5,
   rodShown: true,
+  /** 카메라가 플레이어 주위를 도는 각도 (미니맵이 이 방향을 위로 그린다) */
+  yaw: 0,
 }
 
-const PLAYER_LIMIT = ISLAND_RADIUS - 1
 /** 낚시 시작 시 카메라가 물 쪽으로 돌아가는 속도 */
 const FISHING_YAW_SPEED = 4
 /** 서 있던 자리를 저장하는 간격(초) */
@@ -96,12 +102,11 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 /** 캡슐 콜라이더 바닥(발바닥) 높이. 모델은 발이 원점이라 이만큼 내린다 */
 export const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
 /**
- * 땅 판정: 몸 가운데에서 공(반지름 GROUND_BALL)을 아래로 밀어 발바닥 아래 GROUND_PROBE 안에 닿는 게 있고 세로 속도가 작으면 땅에 서 있다.
+ * 땅 판정: 몸 가운데에서 공(반지름 GROUND_BALL)을 아래로 밀어 발바닥 아래 GROUND_PROBE 안에 닿는 게 있고 세로 속도가 작으면 땅에 서 있다 (isGrounded).
  * 광선 하나는 상자 모서리에 걸터앉으면 빗나가서 공중 자세에 갇힌다
  */
 const GROUND_BALL = 0.35
 const GROUND_PROBE = 0.15
-const GROUNDED_MAX_VY = 1
 /** 카메라 거리·높이·방향(플레이어 기준 오프셋)이 따라가는 빠르기. 수평 위치는 플레이어에 바로 붙는다 */
 const CAMERA_SMOOTH = 5
 /** 수리 연출 카메라로 넘어가고 돌아오는 빠르기 */
@@ -120,8 +125,11 @@ export function Player() {
   const rod = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const model = useRef<PlayerModelHandle>(null)
+  const boatRef = useRef<Group>(null)
   /** 지난번에 서 있던 자리 (탭을 닫았다 와도 이어서). 처음 그릴 때 한 번만 읽는다 */
   const [start] = useState(() => normalizePlace(usePlaceStore.getState().place, useProgressStore.getState().unlockedZones))
+  // 땅 경계는 "이전 자리"를 기준으로 붙잡으므로 처음부터 시작 자리로 둔다
+  useState(() => playerRig.position.set(start.x, 1, start.z))
   /** 카메라가 플레이어 주위를 도는 각도 */
   const yaw = useRef(start.yaw)
   /** 카메라 위아래 기울기 (마우스 잠금 중 위아래로 움직여서). 0 = 줌 리그 기본 높이 */
@@ -151,9 +159,9 @@ export function Player() {
   // 탐험 중 카메라 회전: 마우스가 잠겨 있으면 움직이는 만큼(감도). 아니면(터치 등) 캔버스를 한 손가락으로 끈 만큼 (매 프레임 아래에서)
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
-      // 돌아다닐 때와 벤치에 앉아 쉴 때 시점을 돌릴 수 있다
+      // 돌아다닐 때와 벤치에 앉아 쉴 때, 배 탈 때 시점을 돌릴 수 있다
       const mode = useSessionStore.getState().mode
-      if ((mode !== 'explore' && mode !== 'rest') || !isPointerLocked()) return
+      if ((mode !== 'explore' && mode !== 'rest' && mode !== 'boat') || !isPointerLocked()) return
       const { lookSensitivity, invertY } = useSettingsStore.getState()
       const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, e.movementX, e.movementY, lookSensitivity, invertY)
       yaw.current = next.yaw
@@ -163,12 +171,16 @@ export function Player() {
     return () => window.removeEventListener('pointermove', onMove)
   }, [])
 
-  /** 지금 자리 (저장용) */
+  /**
+   * 지금 자리 (저장용). 몸의 실제 상태로 정한다: 배 위(키네마틱)·순간이동 직전·바다 위면 없다.
+   * 그래서 E 를 누른 뒤 첫 프레임 전에 탭을 닫아도 선착장이, 타는 중 새로고침하면 출발한 선착장이 남는다
+   */
   const currentPlace = (): Place | null => {
     const rb = body.current
     if (!rb) return null
     const p = rb.translation()
     const session = useSessionStore.getState()
+    if (!canSavePlace(p.x, p.z, rb.isDynamic(), session.teleport !== null)) return null
     return { x: p.x, z: p.z, facing: facing.current, yaw: yaw.current, pitch: pitch.current, zoom: session.zoom, resting: session.mode === 'rest' }
   }
   // 탭을 숨기거나 닫을 때 바로 저장한다 (폰은 백그라운드 탭을 언제든 없앨 수 있다)
@@ -200,6 +212,8 @@ export function Player() {
     // 쓰러진 뒤 진료소로 옮기기
     const teleport = useSessionStore.getState().teleport
     if (teleport && body.current) {
+      // 배 타던 중이면(순간이동이 배를 끝낸다) 물리로 돌린 뒤 옮긴다
+      if (body.current.bodyType() !== rapier.RigidBodyType.Dynamic) body.current.setBodyType(rapier.RigidBodyType.Dynamic, true)
       body.current.setTranslation({ x: teleport[0], y: 1, z: teleport[1] }, true)
       body.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
       useSessionStore.getState().clearTeleport()
@@ -210,6 +224,46 @@ export function Player() {
     const mode = useSessionStore.getState().mode
     const spot = useFishingStore.getState().spot
 
+    // 0-a) 배 타기: 몸을 물리에서 빼고(키네마틱) 뱃길을 따라 옮긴다. 도착하면 선착장에 내려 주고 물리로 돌린다
+    //      모드가 아니라 배 상태로 본다 (타는 중 방 연결이 끊겨 로비가 떠도 배는 끝까지 가서 내려 준다)
+    const ride = useSessionStore.getState().boat
+    let boatAt: { x: number; y: number; z: number; heading: number } | null = null
+    if (ride) {
+      const progress = boatProgress(performance.now() / 1000 - ride.startedAt)
+      if (progress >= 1) {
+        const to = BOAT_ARRIVE[boatDestination(ride.dir)]
+        rb.setBodyType(rapier.RigidBodyType.Dynamic, true)
+        rb.setTranslation({ x: to.x, y: 1, z: to.z }, true)
+        rb.setLinvel({ x: 0, y: 0, z: 0 }, true)
+        playerRig.position.set(to.x, 1, to.z)
+        facing.current = to.facing
+        useSessionStore.getState().endBoat()
+        // 도착하면 바로 저장한다
+        const place = currentPlace()
+        if (place) {
+          saved.current.place = place
+          usePlaceStore.getState().savePlace(place)
+        }
+      } else {
+        const pose = boatPose(ride.dir, progress)
+        const waterY = WATER_Y + waveHeight(pose.x, pose.z, clock.elapsedTime)
+        if (rb.bodyType() !== rapier.RigidBodyType.KinematicPositionBased) {
+          // 탄 첫 프레임: 아직 선착장에 서 있는 자리를 저장한다 (타는 중 새로고침하면 여기서 시작)
+          const place = currentPlace()
+          if (place) {
+            saved.current.place = place
+            usePlaceStore.getState().savePlace(place)
+          }
+          rb.setBodyType(rapier.RigidBodyType.KinematicPositionBased, true)
+        }
+        boatAt = { x: pose.x, y: waterY + BOAT_FLOOR - FOOT_Y, z: pose.z, heading: pose.heading }
+        rb.setNextKinematicTranslation({ x: boatAt.x, y: boatAt.y, z: boatAt.z })
+      }
+    } else if (rb.bodyType() !== rapier.RigidBodyType.Dynamic) {
+      // 배 상태가 도착 전에 지워졌으면(판 초기화 등) 물리로 돌린다
+      rb.setBodyType(rapier.RigidBodyType.Dynamic, true)
+    }
+
     // 0) 낚시 중엔 카메라를 플레이어 뒤로 돌려 물 쪽(찌가 떨어지는 곳)이 보이게 한다.
     //    탐험으로 돌아오면 이 값에서 이어서 마우스로 자유롭게 돌릴 수 있다
     if (mode === 'fishing' && spot) {
@@ -219,9 +273,9 @@ export function Player() {
       pitch.current *= Math.exp(-delta * MOUSE_LOOK.pitchResetSpeed)
     }
 
-    // 0-1) 캔버스 드래그(잠금 없는 마우스·한 손가락)로 좌우로 돌리고 위아래로 기울인다. 탐험·쉬기가 아닐 때 끈 건 버린다
+    // 0-1) 캔버스 드래그(잠금 없는 마우스·한 손가락)로 좌우로 돌리고 위아래로 기울인다. 탐험·쉬기·배 타기가 아닐 때 끈 건 버린다
     const drag = takeDrag()
-    if ((mode === 'explore' || mode === 'rest') && !isPointerLocked() && (drag.dx !== 0 || drag.dy !== 0)) {
+    if ((mode === 'explore' || mode === 'rest' || mode === 'boat') && !isPointerLocked() && (drag.dx !== 0 || drag.dy !== 0)) {
       const next = applyMouseLook({ yaw: yaw.current, pitch: pitch.current }, drag.dx, drag.dy, MOUSE_LOOK.dragSensitivity, useSettingsStore.getState().invertY)
       yaw.current = next.yaw
       pitch.current = next.pitch
@@ -245,7 +299,7 @@ export function Player() {
     const t = rb.translation()
     const ball = (groundBall.current ??= new rapier.Ball(GROUND_BALL))
     const hit = world.castShape(t, { x: 0, y: 0, z: 0, w: 1 }, { x: 0, y: -1, z: 0 }, ball, 0, -FOOT_Y - GROUND_BALL + GROUND_PROBE, true, rapier.QueryFilterFlags.EXCLUDE_SENSORS, undefined, undefined, rb)
-    const grounded = hit !== null && Math.abs(velocity.y) < GROUNDED_MAX_VY
+    const grounded = isGrounded(hit !== null, velocity.y, boatAt !== null)
     const session = useSessionStore.getState()
     const prevAction = session.playerAction
     const action = nextAction(
@@ -273,20 +327,27 @@ export function Player() {
       rb.setLinvel({ x: 0, y: velocity.y, z: 0 }, true)
     }
 
-    // 2) 섬 밖으로 못 나가게 가장자리에서 붙잡는다
+    // 2) 땅(섬·초원·선착장) 밖으로 못 나가게 가장자리에서 붙잡는다 (이전 자리가 있던 땅의 경계로). 배 위면 배 자리
     const p = rb.translation()
-    const dist = Math.hypot(p.x, p.z)
-    let x = p.x
-    let z = p.z
-    if (dist > PLAYER_LIMIT) {
-      x = (p.x * PLAYER_LIMIT) / dist
-      z = (p.z * PLAYER_LIMIT) / dist
-      rb.setTranslation({ x, y: p.y, z }, true)
+    let x: number
+    let z: number
+    let y = p.y
+    if (boatAt) {
+      x = boatAt.x
+      z = boatAt.z
+      y = boatAt.y
+    } else {
+      const held = clampToLand(playerRig.position, p)
+      x = held.x
+      z = held.z
+      if (x !== p.x || z !== p.z) rb.setTranslation({ x, y: p.y, z }, true)
     }
-    playerRig.position.set(x, p.y, z)
+    playerRig.position.set(x, y, z)
 
     // 3) 바라보는 방향: 낚시 중엔 물 쪽, 아니면 이동 방향
-    if (mode === 'fishing' && spot) {
+    if (boatAt) {
+      facing.current = boatAt.heading
+    } else if (mode === 'fishing' && spot) {
       const [fx, fz] = spot.facing
       facing.current = Math.atan2(fx, fz)
     } else if (mode === 'rest') {
@@ -307,9 +368,11 @@ export function Player() {
       facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
     }
     if (visual.current) visual.current.rotation.y = facing.current
+    if (boatRef.current) boatRef.current.visible = boatAt !== null
     playerRig.facing = facing.current
+    playerRig.yaw = yaw.current
     playerRig.speed = speed
-    playerRig.resting = mode === 'rest'
+    playerRig.resting = mode === 'rest' || boatAt !== null
 
     // 4) 낚싯대 각도: 젖혔다가 휘두르고, 줄다리기 땐 텐션만큼 휜다
     const fishing = useFishingStore.getState().state
@@ -322,14 +385,16 @@ export function Player() {
 
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
       // 낚시 중이 아니면 서 있거나 걸을 때만 보인다 (앉기·감정 표현·점프 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다)
-      rod.current.visible = rodVisible(mode, session.zoom, action)
+      // 배 위에서 큰 지도를 봐도 앉은 채로 낚싯대를 숨긴다
+      rod.current.visible = rodVisible(boatAt ? 'boat' : mode, session.zoom, action)
       playerRig.rodAngle = rod.current.rotation.x
       playerRig.rodShown = rod.current.visible
       const m = model.current
       if (m && visual.current) {
-        // 골반은 벤치 자리에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
+        // 골반은 벤치·배 가로대에 붙인다(앉기·일어나기 중엔 진행만큼). 몸이 앉는 자리에 고정되므로 모델 기준 좌표가 곧 벤치 기준 좌표다
         // 캐릭터는 동작 상태와 속도로만 그린다 (다른 사람 캐릭터도 같은 값으로 그릴 수 있게)
-        m.update(delta, now, fishingLook(fishing), action, speed, rod.current.rotation.x, mode === 'rest', BENCH_SEAT_SHAPE)
+        const seated = mode === 'rest' || boatAt !== null
+        m.update(delta, now, fishingLook(fishing), action, speed, rod.current.rotation.x, seated, boatAt ? BOAT_SEAT_SHAPE : BENCH_SEAT_SHAPE)
         visual.current.updateWorldMatrix(true, false)
         m.gripPosition(grip)
         rod.current.position.copy(visual.current.worldToLocal(grip))
@@ -350,7 +415,7 @@ export function Player() {
     c.ready = true
     c.offset.lerp(cameraTarget, k)
     c.lookY += (rig.lookAtY - c.lookY) * k
-    c.feetY += (p.y + FOOT_Y - c.feetY) * k
+    c.feetY += (y + FOOT_Y - c.feetY) * k
     camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
     lookTarget.set(x, c.feetY + c.lookY, z)
 
@@ -375,6 +440,10 @@ export function Player() {
     <RigidBody ref={body} colliders={false} position={[start.x, 2, start.z]} enabledRotations={[false, false, false]}>
       <CapsuleCollider args={[PLAYER_BODY.halfHeight, PLAYER_BODY.radius]} />
       <group ref={visual}>
+        {/* 타고 가는 배. 원점이 물 높이라 발(FOOT_Y)에서 배 바닥만큼 내린다 */}
+        <group ref={boatRef} position={[0, FOOT_Y - BOAT_FLOOR, 0]} visible={false}>
+          <BoatModel />
+        </group>
         <group position={[0, FOOT_Y, 0]}>
           <PlayerModel ref={model} look={look} />
         </group>

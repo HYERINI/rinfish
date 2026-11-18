@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { CAMERA_ZOOM } from '../data/balance'
 import type { DishId, ZoneId } from '../data/types'
+import type { BoatDir } from '../logic/boatRoute'
 import { nextZoom, pinchZoom } from '../logic/cameraZoom'
 import { isSameInteractable, type Interactable, type Mode } from '../logic/interaction'
 import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
@@ -35,6 +36,14 @@ type SessionState = {
   cooking: { dish: DishId; startedAt: number; line: string } | null
   startCooking: (dish: DishId, line: string) => void
   endCooking: () => void
+  /** 배 타고 건너는 중. startedAt: 탄 시각(performance.now() 초). 진행은 boatProgress(지금 - startedAt). 저장하지 않는다 */
+  boat: { dir: BoatDir; startedAt: number } | null
+  startBoat: (dir: BoatDir) => void
+  endBoat: () => void
+  /** 큰 지도 열기 (mode 'map'). 탐험·배 타기·메뉴에서만 연다 (낚시·패널 중엔 무시) */
+  openMap: () => void
+  /** 큰 지도 닫기. 배 타는 중이면 배 모드로 돌아간다 */
+  closeMap: () => void
   setPlayerAction: (action: PlayerAction) => void
   setMode: (mode: Mode) => void
   zoomBy: (deltaY: number) => void
@@ -49,6 +58,9 @@ type SessionState = {
   resetSession: () => void
 }
 
+/** 큰 지도를 열 수 있는 모드 */
+const MAP_FROM: Mode[] = ['explore', 'boat', 'menu']
+
 // 저장하지 않는 "이번 판" 상태
 export const useSessionStore = create<SessionState>((set, get) => ({
   mode: 'explore',
@@ -62,9 +74,18 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   endCutscene: () => set((s) => ({ cutscene: null, mode: s.mode === 'cutscene' && !s.cooking ? 'explore' : s.mode })),
   cooking: null,
   startCooking: (dish, line) => set({ cooking: { dish, startedAt: performance.now() / 1000, line }, mode: 'cutscene', nearby: null }),
+  boat: null,
+  startBoat: (dir) => set({ boat: { dir, startedAt: performance.now() / 1000 }, mode: 'boat', nearby: null }),
+  endBoat: () => set((s) => ({ boat: null, mode: s.mode === 'boat' ? 'explore' : s.mode })),
   endCooking: () => set((s) => ({ cooking: null, mode: s.mode === 'cutscene' && !s.cutscene ? 'explore' : s.mode })),
+  // 가까운 대상(nearby)은 지우지 않는다: 닫았을 때 선착장 등 안내가 그대로 남도록 (지도 중엔 E 를 받지 않는다)
+  openMap: () => set((s) => (MAP_FROM.includes(s.mode) ? { mode: 'map' } : {})),
+  closeMap: () => {
+    if (get().mode === 'map') get().setMode('explore')
+  },
   setPlayerAction: (playerAction) => set({ playerAction }),
-  setMode: (mode) => set({ mode }),
+  // 배 타는 중엔 탐험으로 돌려도(로비 닫기 등) 도착할 때까지 배 모드를 지킨다
+  setMode: (mode) => set((s) => ({ mode: s.boat && mode === 'explore' ? 'boat' : mode })),
   zoomBy: (deltaY) => set((s) => ({ zoom: nextZoom(s.zoom, deltaY) })),
   pinchZoom: (prevSpan, span) => set((s) => ({ zoom: pinchZoom(s.zoom, prevSpan, span) })),
   setNearby: (target) => set({ nearby: target }),
@@ -72,7 +93,8 @@ export const useSessionStore = create<SessionState>((set, get) => ({
     if (isSameInteractable(get().nearby, target)) set({ nearby: null })
   },
   notify: (text) => set((s) => ({ notice: { id: (s.notice?.id ?? 0) + 1, text } })),
-  requestTeleport: (pos) => set({ teleport: pos }),
+  // 순간이동(쓰러져 진료소로 등)하면 타던 배에서 내린다
+  requestTeleport: (pos) => set((s) => ({ teleport: pos, boat: null, mode: s.mode === 'boat' ? 'explore' : s.mode })),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null }),
 }))

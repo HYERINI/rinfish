@@ -2,12 +2,14 @@ import { useMemo, useRef, useState } from 'react'
 import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, Line, LineBasicMaterial, Vector3, type Group, type Mesh, type Object3D } from 'three'
+import { BOAT_FLOOR, BOAT_SEAT_SHAPE } from '../data/boat'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { NET } from '../data/net'
 import type { CharacterLook } from '../data/types'
 import { saggingLinePoint } from '../logic/castArc'
 import { sampleAt } from '../logic/interpolate'
 import { netNow, remoteRig } from '../net/remoteRig'
+import { BoatModel } from './boat/BoatModel'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { bubbleStyle, nameTagStyle } from './nameTag'
 import { FOOT_Y } from './Player'
@@ -29,6 +31,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
   const visual = useRef<Group>(null)
   const model = useRef<PlayerModelHandle>(null)
   const rod = useRef<Group>(null)
+  const boatRef = useRef<Group>(null)
   const rodTip = useRef<Object3D>(null)
   const bobber = useRef<Mesh>(null)
   const lineRef = useRef<Line>(null)
@@ -54,6 +57,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     if (bobber.current) bobber.current.visible = false
     if (!cur || !e) return
     const s = cur.s
+    if (boatRef.current) boatRef.current.visible = s.boat !== undefined
     root.current.position.set(cur.x, cur.y, cur.z)
     visual.current.rotation.y = cur.f
     // 말풍선: 바뀌었을 때만 React 상태를 바꾼다
@@ -62,8 +66,8 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
 
     const m = model.current
     if (!m || !rod.current) return
-    // 골반은 벤치 자리에 붙인다(앉아 있으면). 내 캐릭터와 같은 값으로 그린다
-    m.update(delta, now, s.fish, e.action, cur.v, s.rod, s.rest, BENCH_SEAT_SHAPE)
+    // 골반은 벤치·배 가로대에 붙인다(앉아 있으면). 내 캐릭터와 같은 값으로 그린다
+    m.update(delta, now, s.fish, e.action, cur.v, s.rod, s.rest, s.boat ? BOAT_SEAT_SHAPE : BENCH_SEAT_SHAPE)
     rod.current.visible = s.rodOn
     rod.current.rotation.x = s.rod
     visual.current.updateWorldMatrix(true, false)
@@ -89,6 +93,10 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
     <>
       <group ref={root} visible={false}>
         <group ref={visual}>
+          {/* 배 타는 사람은 배째로 (원점 = 물 높이, 발에서 배 바닥만큼 아래) */}
+          <group ref={boatRef} position={[0, FOOT_Y - BOAT_FLOOR, 0]} visible={false}>
+            <BoatModel />
+          </group>
           <group position={[0, FOOT_Y, 0]}>
             <PlayerModel ref={model} look={look} />
           </group>

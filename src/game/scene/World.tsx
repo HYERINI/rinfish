@@ -1,5 +1,7 @@
-import { useQualityPreset } from '../input/touchDevice'
+import { MeadowLighting } from '../../meadow/MeadowLighting'
+import { MeadowWorld } from '../../meadow/MeadowWorld'
 import { NetBridge } from '../net/NetBridge'
+import { Docks } from './boat/Docks'
 import { FishingSpots } from './facilities/FishingSpots'
 import { preloadFacilityAssets } from './assets'
 import { Aquarium } from './facilities/Aquarium'
@@ -23,24 +25,12 @@ import { ZoneGates } from './zones/ZoneGates'
 preloadFacilityAssets()
 
 export function World() {
-  const { shadowMapSize } = useQualityPreset()
   return (
     <>
-      {/* 하늘색 배경 */}
-      <color attach="background" args={['#9fd8ff']} />
-      <ambientLight intensity={0.6} />
-      {/* 섬 전체에 그림자가 생기도록 그림자 카메라 범위를 넓힌다. 그림자 맵 크기는 품질 설정을 따른다 (바뀌면 빛을 새로 만든다) */}
-      <directionalLight
-        key={shadowMapSize}
-        position={[20, 30, 10]}
-        intensity={1.6}
-        castShadow
-        shadow-mapSize={[shadowMapSize, shadowMapSize]}
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
-      />
+      {/* 빛·하늘색은 은지 것 한 벌 (meadow/MeadowLighting) */}
+      <MeadowLighting />
+      <MeadowWorld />
+      <Docks />
       <Island />
       <IslandDecor />
       <ZoneGates />

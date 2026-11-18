@@ -63,6 +63,14 @@ export function nextAction(action: PlayerAction, input: MotionInput, emoteLength
   return next
 }
 
+/** 땅에 서 있다고 보는 세로 속도 한계 (m/s) */
+const GROUNDED_MAX_VY = 1
+
+/** 땅 판정: 발 아래 땅이 닿고 세로 속도가 작다. 배 타는 중엔 몸이 키네마틱이라 아래에 땅이 없어도 땅에 있는 것으로 본다 */
+export function isGrounded(probeHit: boolean, vy: number, riding: boolean): boolean {
+  return riding || (probeHit && Math.abs(vy) < GROUNDED_MAX_VY)
+}
+
 /** 수평 이동 속도 (m/s) */
 export function moveSpeed(sprint: boolean): number {
   return sprint ? MOVE.sprintSpeed : MOVE.walkSpeed
@@ -99,6 +107,6 @@ export function shouldFaceCamera(mode: Mode, zoom: number, idleTime: number, act
 /** 낚싯대를 보일까. 낚시 중엔 늘, 그 밖엔 서 있거나 걸을 때만(감정 표현·점프·먹기·휴식 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다) */
 export function rodVisible(mode: Mode, zoom: number, action: PlayerAction): boolean {
   if (mode === 'fishing') return true
-  if (mode === 'rest' || action.emote || action.airborne || action.eat) return false
+  if (mode === 'rest' || mode === 'boat' || action.emote || action.airborne || action.eat) return false
   return zoom >= CAMERA_ZOOM.hideRodBelow
 }
