@@ -1,4 +1,4 @@
-import { CAMERA_ZOOM, EAT, GRAVITY, MOVE } from '../data/balance'
+import { CAMERA_ZOOM, EAT, GRAVITY, MOVE, NEAR_VIEW } from '../data/balance'
 import { EMOTES, type EmoteId } from '../data/emotes'
 import type { ToolId } from '../data/tools'
 import type { FoodId } from '../data/types'
@@ -79,14 +79,16 @@ export function moveSpeed(sprint: boolean): number {
 
 /**
  * 3인칭 카메라 높이와 시선 높이 (발바닥 기준, m). 카메라 높이 = 시선 높이 + 거리 × 높이 비율.
- * closeFrom 보다 가까워질수록 높이 비율은 heightRatio → closeHeightRatio, 시선은 farLookAt → closeLookAt(키 대비)로 부드럽게 옮겨 간다
+ * closeFrom 보다 가까워질수록 높이 비율은 heightRatio → closeHeightRatio, 시선은 farLookAt → closeLookAt(키 대비)로 부드럽게 옮겨 간다.
+ * low(0~1): 가까운 시점(초원·무기) 비율. 1 이면 멀 때 높이 비율이 NEAR_VIEW.heightRatio 라 더 낮게 (은지 어깨 높이 느낌)
  */
-export function cameraRig(distance: number, characterHeight: number): { height: number; lookAtY: number } {
+export function cameraRig(distance: number, characterHeight: number, low = 0): { height: number; lookAtY: number } {
   const { min, closeFrom } = CAMERA_ZOOM
   const k = Math.min(1, Math.max(0, (closeFrom - distance) / (closeFrom - min)))
   const t = k * k * (3 - 2 * k) // smoothstep: 양 끝에서 갑자기 꺾이지 않게
   const lookAtY = characterHeight * (CAMERA_ZOOM.farLookAt + (CAMERA_ZOOM.closeLookAt - CAMERA_ZOOM.farLookAt) * t)
-  const ratio = CAMERA_ZOOM.heightRatio + (CAMERA_ZOOM.closeHeightRatio - CAMERA_ZOOM.heightRatio) * t
+  const far = CAMERA_ZOOM.heightRatio + (NEAR_VIEW.heightRatio - CAMERA_ZOOM.heightRatio) * Math.min(1, Math.max(0, low))
+  const ratio = far + (CAMERA_ZOOM.closeHeightRatio - far) * t
   return { height: lookAtY + distance * ratio, lookAtY }
 }
 

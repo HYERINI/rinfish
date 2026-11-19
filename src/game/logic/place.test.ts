@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { CAMERA_ZOOM } from '../data/balance'
+import { CAMERA_ZOOM, NEAR_VIEW } from '../data/balance'
 import { canSavePlace, normalizePlace, placeMoved, START_PLACE } from './place'
 
 describe('normalizePlace', () => {
   it('정상 저장본은 그대로 쓴다', () => {
-    const p = { x: 5, z: 12, facing: 1, yaw: 2, pitch: 0.2, zoom: 6, resting: true }
+    const p = { x: 5, z: 12, facing: 1, yaw: 2, pitch: 0.2, zoom: 6, meadowZoom: 3, resting: true }
     expect(normalizePlace(p, [])).toEqual(p)
   })
   it('깨졌거나 비었으면 처음 자리', () => {
@@ -22,6 +22,8 @@ describe('normalizePlace', () => {
   it('줌은 범위 안으로, 빠진 값은 기본값', () => {
     const p = normalizePlace({ x: 0, z: 10, zoom: 999 }, [])
     expect(p.zoom).toBe(CAMERA_ZOOM.max)
+    expect(p.meadowZoom).toBe(NEAR_VIEW.meadowInitial)
+    expect(normalizePlace({ x: 0, z: 10, meadowZoom: 999 }, []).meadowZoom).toBe(NEAR_VIEW.meadowMax)
     expect(p.facing).toBe(START_PLACE.facing)
     expect(p.resting).toBe(false)
   })
@@ -44,6 +46,7 @@ describe('placeMoved', () => {
     expect(placeMoved(START_PLACE, { ...START_PLACE, x: START_PLACE.x + 0.1 })).toBe(false)
     expect(placeMoved(START_PLACE, { ...START_PLACE, x: START_PLACE.x + 1 })).toBe(true)
     expect(placeMoved(START_PLACE, { ...START_PLACE, resting: true })).toBe(true)
+    expect(placeMoved(START_PLACE, { ...START_PLACE, meadowZoom: START_PLACE.meadowZoom + 1 })).toBe(true)
   })
 })
 

@@ -207,6 +207,13 @@ export const CAMERA_ZOOM = {
 }
 
 /**
+ * 가까운 시점 (은지 초원 3.5m·어깨 높이 느낌). 초원에 있거나 무기(주먹·칼·총)를 들고 돌아다니면 카메라를 당기고 낮춘다.
+ * armedMax: 무기를 들면 이 거리보다 멀리 두지 않는다, meadowInitial·meadowMin·meadowMax: 초원 휠 줌 (섬 줌과 따로 기억한다),
+ * heightRatio: 멀 때 높이 비율 (CAMERA_ZOOM.heightRatio 대신. 작을수록 낮게), smooth: 거리·높이가 따라가는 빠르기
+ */
+export const NEAR_VIEW = { armedMax: 4, meadowInitial: 4, meadowMin: 1.5, meadowMax: 8, heightRatio: 0.45, smooth: 5 }
+
+/**
  * 음식 먹는 동작(초). duration 동안 오른손에 든 음식을 입으로 가져가 냠냠 먹는다.
  * raiseTime: 손을 올리고 내리는 시간, biteEvery: 한 입 베어 무는 간격
  */

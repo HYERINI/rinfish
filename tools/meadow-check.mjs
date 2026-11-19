@@ -136,6 +136,19 @@ async function turnTo(b, target, py = 0) {
     return true
   })()`)
 }
+/**
+ * yaw 로 돌리고 기울기를 수평(0)으로: 끝(1.2)까지 내린 뒤 1.2 만큼 올린다 (앞 점검에서 남은 기울기와 상관없게).
+ * 그러면 화면 가운데 광선은 3인칭 카메라 자리(어깨 너머·거리·높이)에서 시선점 쪽으로 조금 내려간다
+ */
+async function levelTo(b, target) {
+  // 바쁜 기계에선 끈 것이 프레임에 안 들어갈 때가 있다: 각 끌기에 yaw 도 조금 바꿔서 들어갔는지 보고, 안 들어갔으면 다시 끈다
+  for (const [yaw, py] of [[target + 0.1, 400], [target, -240]]) {
+    for (let i = 0; i < 3; i++) {
+      await turnTo(b, yaw, py)
+      if (await b.until(`(async () => { const d = (await ${camYaw}) - ${yaw}; return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) < 0.02 })()`, 3000)) break
+    }
+  }
+}
 
 const A = await open(9731, 0)
 await A.evaluate(`__click('혼자 하기')`)
@@ -928,11 +941,13 @@ check(bought[0] === 220 && bought[1] === res0 + 12, `37) 권총 탄약 12발을 
 await gkey(G, 'Escape')
 
 // 38) 총: 쏘면 탄창이 줄고 R 로 장전, 동물을 맞히면 체력이 준다 (혼자), 벽엔 총알 자국. 소총 조준은 1인칭 조준경, 휠로 배율
-await G.evaluate(teleport(186, -20))
+// 들판 울타리(z -24) 안쪽에 선다: 카메라가 몸 뒤 4m·어깨 높이라 울타리 밖에서 쏘면 광선이 울타리 가로대에 먼저 걸린다
+await G.evaluate(teleport(186, -30))
 await wait(1500)
 await gkey(G, 'Digit4', '4')
 check((await G.evaluate(`(async () => ${GSESS}.getState().tool)()`)) === 'pistol', '38) 4 → 권총')
-await turnTo(G, 0, -110)
+// 기울기를 수평으로: 화면 가운데 광선이 카메라에서 몸 앞 땅 쪽으로 내려가 아래 산탄 점검의 소 자리(높이 0.6m)가 몸 앞에 온다
+await levelTo(G, 0)
 await wait(600)
 check(await gfire(G), '38) 권총을 쏜다')
 check((await gammo(G, 'pistol')) === 11, '38) 탄창 12 → 11')
@@ -942,26 +957,40 @@ await G.shot('38-pistol')
 // 광선이 높이 0.6m 를 지나는 곳에 소(1번)를 세우고 산탄총으로 쏜다
 await gkey(G, 'Digit6', '6')
 await wait(500)
+// 소 자리는 실제로 쏜 광선(카메라 자리·방향)에서 정한다. 카메라와 내 몸 사이(총알이 건너뛰는 곳)면 안 된다
 const cowAt = await G.evaluate(`(async () => {
   const r = (await __mod('/src/game/hunt/animalRig.ts')); const s = ${GRIG}.lastShot
+  const { playerRig } = await __mod('/src/game/scene/Player.tsx')
   const t = (s.o.y - 0.6) / -s.d.y
   const x = s.o.x + s.d.x * t, z = s.o.z + s.d.z * t
-  const h = r.soloHerd()
-  r.setSoloHerd({ ...h, animals: h.animals.map((a) => a.id === 1 ? { ...a, x, z, state: 'idle', target: null } : a) })
-  return [x, z, t]
+  // 7m 안의 소는 바로 달아나므로 쏠 때까지 매 프레임 그 자리에 세워 둔다. 맞아서 체력이 줄면 놓아준다 (맞은 뒤 상태는 게임 그대로)
+  const hp0 = r.soloHerd().animals.find((a) => a.id === 1).hp
+  const put = () => { const h = r.soloHerd(); r.setSoloHerd({ ...h, animals: h.animals.map((a) => a.id === 1 && a.hp === hp0 ? { ...a, x, z, state: 'idle', target: null } : a) }) }
+  put()
+  window.__holdCow = true
+  const hold = () => { if (!window.__holdCow || r.soloHerd().animals.find((a) => a.id === 1).hp !== hp0) return; put(); requestAnimationFrame(hold) }
+  requestAnimationFrame(hold)
+  return [x, z, t, Math.hypot(s.o.x - playerRig.position.x, s.o.z - playerRig.position.z)]
 })()`)
+check(cowAt[2] > cowAt[3], `38) 소 자리가 내 몸보다 앞이다 (카메라에서 ${cowAt[2].toFixed(1)}m, 몸까지 ${cowAt[3].toFixed(1)}m)`)
 await wait(600)
 check(await gfire(G), '38) 산탄총을 쏜다')
+await G.evaluate(`(window.__holdCow = false, true)`)
 const cow38 = await G.evaluate(`(async () => (await __mod('/src/game/hunt/animalRig.ts')).soloHerd().animals.find((a) => a.id === 1))()`)
 check(cow38.hp < 3, `38) 산탄 여러 알이 소에 맞아 체력이 준다 (${cowAt[2].toFixed(1)}m, 체력 ${cow38.hp}, ${cow38.state})`)
 await G.shot('38-shotgun-cow')
+// 침실 남쪽 벽(세계 z -5, x 195~205) 3m 앞에서 벽 쪽(+z, yaw π)을 수평으로 보고 쏜다. 실제 광선이 그 벽 면을 지나는지도 본다 (땅이 아니라)
 await G.evaluate(teleport(201, -8))
 await wait(1200)
 await gequip(G, 'pistol')
-await turnTo(G, -Math.PI / 2, 0)
+await levelTo(G, Math.PI)
 await wait(600)
 await gfire(G)
-check((await G.evaluate(`(async () => ${GRIG}.lastShot.hit)()`)) === 'wall', '38) 집 벽을 쏘면 벽에 맞는다 (총알 자국)')
+const wall38 = await G.evaluate(`(async () => {
+  const s = ${GRIG}.lastShot; const t = (-5 - s.o.z) / s.d.z
+  return [s.hit, s.o.x + s.d.x * t, s.o.y + s.d.y * t]
+})()`)
+check(wall38[0] === 'wall' && wall38[1] > 195 && wall38[1] < 205 && wall38[2] > 0 && wall38[2] < 3, `38) 집 벽을 쏘면 벽에 맞는다 (총알 자국) (${wall38[0]}, x ${wall38[1]?.toFixed(1)}, 높이 ${wall38[2]?.toFixed(2)})`)
 await G.shot('38-wall-hole')
 await gkey(G, 'Digit5', '5')
 await gkey(G, 'KeyV', 'v')
@@ -981,9 +1010,8 @@ await G.evaluate(teleport(181.5, 0))
 await wait(1500)
 await gequip(G, 'pistol')
 await gkey(G, 'KeyV', 'v')
-// 기울기를 끝(1.2)까지 내린 뒤 1.2 만큼 올려 수평(0)으로 맞춘다 (앞 점검에서 고개를 든 채로 남아 있다)
-await turnTo(G, Math.PI / 2, 400)
-await turnTo(G, Math.PI / 2, -240)
+// 기울기를 수평(0)으로 맞춘다 (앞 점검에서 고개를 든 채로 남아 있다)
+await levelTo(G, Math.PI / 2)
 await wait(600)
 await G.shot('39-range')
 check(await gfire(G), '39) 사격장에서 쏜다')
