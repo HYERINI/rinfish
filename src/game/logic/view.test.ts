@@ -11,11 +11,12 @@ describe('1인칭·조준 카메라', () => {
   it('3인칭에서 조준경 총으로 조준하면 그동안 1인칭 (은지 그대로)', () => {
     expect(isFirstPerson('third', 'explore', true)).toBe(true)
   })
-  it('조준 FOV: 배율 조준경은 가운데가 mag 배, 그 밖엔 은지 aimFov 비율 (권총 50/60)', () => {
-    expect(Math.tan((scopeFov(50, 4) * Math.PI) / 360)).toBeCloseTo(Math.tan((25 * Math.PI) / 180) / 4)
-    expect(aimFov('pistol', null)).toBeCloseTo(41.67, 1)
-    expect(aimFov('rifle', { label: '홀로', mag: 1 })).toBeCloseTo(37.5)
-    expect(aimFov('sniper', { label: '8x', mag: 8 })).toBeCloseTo(scopeFov(50, 8))
+  it('조준 FOV: 배율 조준경은 가운데가 mag 배, 그 밖엔 은지 aimFov 그대로 (기본 FOV 가 은지와 같은 60)', () => {
+    expect(Math.tan((scopeFov(60, 4) * Math.PI) / 360)).toBeCloseTo(Math.tan((30 * Math.PI) / 180) / 4)
+    expect(aimFov('pistol', null)).toBeCloseTo(50)
+    expect(aimFov('rifle', { label: '홀로', mag: 1 })).toBeCloseTo(45)
+    expect(aimFov('sniper', { label: '8x', mag: 8 })).toBeCloseTo(scopeFov(60, 8))
+    expect(aimFov('pistol', null, 50)).toBeCloseTo(41.67, 1)
   })
   it('휠: 위로 굴리면 더 크게, 아래로 굴리면 작게, 끝에서 멈춘다', () => {
     expect(stepZoom(0, 2, -100)).toBe(1)

@@ -42,7 +42,7 @@ export function scopeFov(baseFov: number, mag: number): number {
   return (2 * Math.atan(Math.tan((baseFov * Math.PI) / 360) / mag) * 180) / Math.PI
 }
 
-/** 조준할 때 FOV (도): 배율 조준경(2.5x·4x·8x)이면 그만큼, 아니면 은지 aimFov 를 우리 FOV 비율로 (권총 50/60 → 41.7) */
+/** 조준할 때 FOV (도): 배율 조준경(2.5x·4x·8x)이면 그만큼, 아니면 은지 aimFov 를 우리 FOV 비율로 (지금은 둘 다 60 이라 그대로: 권총 50) */
 export function aimFov(gun: GunId, optic: ZoomStep | null, baseFov = AIM_VIEW.baseFov): number {
   if (optic && optic.mag > 1) return scopeFov(baseFov, optic.mag)
   return (baseFov * GUNS[gun].aimFov) / AIM_VIEW.eunjiBaseFov

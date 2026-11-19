@@ -73,11 +73,11 @@ export const PEER_HIT = { radius: 0.32, length: 1.3 }
 export const ANIMAL_HIT_HEIGHT = { perScale: 1.5, min: 0.4 }
 
 /**
- * 조준·1인칭 카메라 (은지 cameraRig·weapons.js). baseFov: 우리 카메라 FOV (은지는 60 이라 은지 aimFov 는 이 비율로 줄인다),
+ * 조준·1인칭 카메라 (은지 cameraRig·weapons.js). baseFov: 우리 카메라 FOV (은지와 같은 60. 다르면 은지 aimFov 를 이 비율로 줄인다),
  * aimDistance·shoulder: 3인칭 조준 때 카메라 거리 상한과 오른쪽 어깨 너머로 비키는 거리, fovSpeed: FOV 가 따라가는 빠르기,
  * firstPitch: 1인칭에서 위아래로 볼 수 있는 한계 (rad)
  */
-export const AIM_VIEW = { baseFov: 50, eunjiBaseFov: 60, aimDistance: 1.9, shoulder: 0.65, fovSpeed: 14, firstPitch: 1.3 }
+export const AIM_VIEW = { baseFov: 60, eunjiBaseFov: 60, aimDistance: 1.9, shoulder: 0.65, fovSpeed: 14, firstPitch: 1.3 }
 
 /**
  * 1인칭 무기 자리 (카메라 기준, 은지 _hip·_knifePos·_fistsPos). 조준하면 가늠쇠(sight)가 화면 가운데 오도록 옮긴다.

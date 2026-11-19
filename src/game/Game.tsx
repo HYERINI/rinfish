@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, type CSSProperties } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { Physics } from '@react-three/rapier'
 import { GRAVITY } from './data/balance'
+import { AIM_VIEW } from './data/guns'
 import { useInteractionKeys } from './input/useInteractionKeys'
 import { usePlayerActionKeys } from './input/usePlayerActionKeys'
 import { useWheelZoom } from './input/useWheelZoom'
@@ -107,7 +108,7 @@ export function Game({ onExit, hub }: GameProps) {
     <div style={rootStyle}>
       {/* 캔버스 영역 클릭만 게임 입력으로 받는다 (UI 버튼 클릭은 제외). 손가락으로 끌어도 페이지가 움직이거나 확대되지 않게 막는다 */}
       <div ref={canvasArea} style={{ position: 'absolute', inset: 0, touchAction: 'none' }} onPointerDown={pressPointer} onContextMenu={(e) => e.preventDefault()}>
-        <Canvas shadows dpr={dpr} camera={{ position: [0, 8, 25], fov: 50 }}>
+        <Canvas shadows dpr={dpr} camera={{ position: [0, 8, 25], fov: AIM_VIEW.baseFov }}>
           {/* Rapier는 물리 엔진(wasm)을 비동기로 불러오므로 Suspense가 필요하다 */}
           <Suspense fallback={null}>
             <Physics gravity={[0, -GRAVITY, 0]}>
