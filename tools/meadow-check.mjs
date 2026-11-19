@@ -154,23 +154,23 @@ const A = await open(9731, 0)
 await A.evaluate(`__click('혼자 하기')`)
 await wait(3000)
 const p0 = await A.evaluate(pos)
-check(Math.hypot(p0[0] - 188, p0[2] + 12) < 2, `1) 새 저장본은 초원 마당에서 시작 (${p0.map((v) => v.toFixed(1))})`)
+check(Math.hypot(p0[0] - 160, p0[2] + 12) < 2, `1) 새 저장본은 초원 마당에서 시작 (${p0.map((v) => v.toFixed(1))})`)
 await A.shot('1-start')
 
-// 2) 침실 서쪽 벽은 은지 x -5 → 세계 x 205. 그 바깥 세계 (207, -2) = 은지 (-7, 2) 는 집 밖 마당이다. 세계 서쪽(-x)으로 걸으면 그 벽에 막힌다
-await A.evaluate(teleport(207, -2))
+// 2) 침실 서쪽 벽은 은지 x -5 → 세계 x 177. 그 바깥 세계 (179, -2) = 은지 (-7, 2) 는 집 밖 마당이다. 세계 서쪽(-x)으로 걸으면 그 벽에 막힌다
+await A.evaluate(teleport(179, -2))
 await wait(1500)
 await walk(A, await keyToward(A, -1, 0), 2500)
 const p2 = await A.evaluate(pos)
-check(p2[0] > 205, `2) 집 벽을 넘지 않는다 (x ${p2[0].toFixed(2)} > 205)`)
+check(p2[0] > 177, `2) 집 벽을 넘지 않는다 (x ${p2[0].toFixed(2)} > 177)`)
 await A.shot('2-wall')
 
-// 3) 초원 남쪽 끝(세계 z 89) 근처에서 남쪽(+z)으로 계속 걸어도 바다에 빠지지 않는다
-await A.evaluate(teleport(150, 86))
+// 3) 초원 남쪽 끝(세계 z 32 = 은지 GROUND minZ -33 에서 1m 안쪽) 근처에서 남쪽(+z)으로 계속 걸어도 바다에 빠지지 않는다
+await A.evaluate(teleport(150, 29))
 await wait(1500)
 await walk(A, await keyToward(A, 0, 1), 3000)
 const p3 = await A.evaluate(pos)
-check(p3[2] <= 89.01 && p3[1] > -0.5, `3) 초원 끝에서 멈춘다 (z ${p3[2].toFixed(2)}, y ${p3[1].toFixed(2)})`)
+check(p3[2] <= 32.01 && p3[1] > -0.5, `3) 초원 끝에서 멈춘다 (z ${p3[2].toFixed(2)}, y ${p3[1].toFixed(2)})`)
 await A.shot('3-edge')
 
 // 섬 색 비교용 (스펙 "낚시섬 색 맞추기")
@@ -248,7 +248,7 @@ await turnTo(A, Math.PI / 2, -80)
 await A.evaluate(teleport(-27, 0))
 await wait(2500)
 await A.shot('13-ocean-island-west')
-await A.evaluate(teleport(287, -10))
+await A.evaluate(teleport(194, -10))
 await wait(2500)
 await turnTo(A, -Math.PI / 2)
 await wait(800)
@@ -270,7 +270,7 @@ check(await A.until(`document.body.innerText.includes('배 타기 (섬으로)')`
 await A.evaluate(teleport(0, 27))
 await wait(1500)
 check(await A.until(`document.body.innerText.includes('낚시하기')`, 5000), '5) 섬 선착장 끝에서 낚시 안내')
-await A.evaluate(teleport(150, 0))
+await A.evaluate(teleport(122, 0))
 await wait(1500)
 check(await A.evaluate(`!document.body.innerText.includes('낚시하기')`), '5) 초원에서는 낚시 안내 없음')
 
@@ -355,12 +355,12 @@ check(!!savedAfter && Math.hypot(savedAfter.x - clinic[0], savedAfter.z - clinic
 const dayStore = `(await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState()`
 const progress = `(await __mod('/src/game/stores/progressStore.ts')).useProgressStore`
 const live = `(await __mod('/src/game/stores/dayStore.ts')).liveClock`
-const BED = [197.8, -2.4]
+const BED = [169.8, -2.4]
 const nearBed = (p) => Math.hypot(p[0] - BED[0], p[2] - BED[1]) < 1.5
 
 // 14) 밤이 온다: 혼자 시계를 22:00 으로 옮기면 HUD 가 🌙, 하늘이 어둡고 광장 가로등·섬 등불이 켜진다
 // 광장 분수 앞 (카메라가 분수·가로등 쪽을 본다)
-await A.evaluate(teleport(150, 0))
+await A.evaluate(teleport(122, 0))
 await wait(1500)
 await A.evaluate(`(async () => { ${dayStore}.setSoloClock({ t: 16 / 24, day: 1 }); return true })()`)
 await wait(800)
@@ -393,7 +393,7 @@ check(slept[0] > 99 && slept[1] > 33 && slept[1] < 36 && slept[2] === 2 && slept
 check((await A.evaluate(mode)) === 'explore', '15) 깨면 탐험 모드')
 
 // 16) 굶어 죽음: 배고픔 0 이면 경고, 체력이 다 떨어지면 침대 옆에서 깨어난다 (다음 날, 체력 100·배고픔 60). 그 자리를 저장한다
-await A.evaluate(teleport(150, 0))
+await A.evaluate(teleport(122, 0))
 await wait(1500)
 await A.evaluate(`(async () => { ${progress}.setState({ survival: { stamina: 3, hunger: 0, graceLeft: null, buffs: [] } }); return true })()`)
 check(await A.until(`document.body.innerText.includes('배고파요! 뭐라도 먹어야 해요')`, 1500), '16) 배고픔 0 이면 "배고파요" 경고')
@@ -549,9 +549,9 @@ await wait(500)
 await M.shot('21-eating')
 
 
-// 22) 텃밭 호박 따기: 은지 (6.5, -15.2) → 세계 (193.5, 15.2)
+// 22) 텃밭 호박 따기: 은지 (6.5, -15.2) → 세계 (165.5, 15.2)
 check(await M.until(`(async () => ${W}.outdoor.pickups.length >= 20)()`, 30000), `22) 버섯·호박이 놓였다 (${await M.evaluate(`(async () => ${W}.outdoor.pickups.length)()`)}개)`)
-await M.evaluate(teleport(193.5, 14.2))
+await M.evaluate(teleport(165.5, 14.2))
 check(await M.until(`document.body.innerText.includes('호박 따기')`, 6000), '22) 호박 앞에서 "호박 따기" 안내')
 await M.shot('22-pumpkin')
 await press('KeyE', 'e')
@@ -559,7 +559,7 @@ check((await prog('p.items.pumpkin')) === 1, '22) E → 가방에 호박 1개')
 check(await M.until(`(async () => ${W}.outdoor.pickups.filter((p) => !p.obj.visible).length === 1)()`, 2000), '22) 딴 호박은 숨긴다')
 
 // 23) 가스레인지 요리: 달걀 1개로 달걀 프라이 (2초)
-const stove = await M.evaluate(`(async () => { const c = ${W}.stove.center; return [200 - c.x, -c.z] })()`)
+const stove = await M.evaluate(`(async () => { const c = ${W}.stove.center; return [172 - c.x, -c.z] })()`)
 await prog(`(p.addItem('egg', 1), true)`)
 await M.evaluate(teleport(stove[0], stove[1]))
 check(await M.until(`document.body.innerText.includes('요리하기 (요리법 보기)')`, 6000), `23) 가스레인지 앞 안내 (${stove.map((v) => v.toFixed(1))})`)
@@ -575,13 +575,13 @@ await M.shot('23-cooking')
 check(await M.until(`(async () => ${P}.items.friedegg === 1)()`, 5000), '23) 2초 뒤 가방에 달걀 프라이')
 
 
-// 24) 침실 문(거실 문, 은지 x 5 → 세계 x 195): 닫혀 있으면 거실에서 침실로 못 간다. E 로 열면 지나간다. 상태는 저장된다
+// 24) 침실 문(거실 문, 은지 x 5 → 세계 x 167): 닫혀 있으면 거실에서 침실로 못 간다. E 로 열면 지나간다. 상태는 저장된다
 check(JSON.stringify(await prog('p.doors')) === '[false,false,false,false]', '24) 처음엔 문이 모두 닫혀 있다')
-await M.evaluate(teleport(193, 0))
+await M.evaluate(teleport(165, 0))
 await wait(1500)
 await walk(M, await keyToward(M, 1, 0), 2000)
 const d0 = await M.evaluate(pos)
-check(d0[0] > 193.5 && d0[0] < 195, `24) 문 쪽으로 걸어가서 닫힌 문에 막힌다 (193.5 < x ${d0[0].toFixed(2)} < 195)`)
+check(d0[0] > 165.5 && d0[0] < 167, `24) 문 쪽으로 걸어가서 닫힌 문에 막힌다 (165.5 < x ${d0[0].toFixed(2)} < 167)`)
 check(await M.until(`document.body.innerText.includes('거실 문 여닫기')`, 3000), '24) 문 앞 "거실 문 여닫기" 안내')
 await press('KeyE', 'e')
 await wait(800)
@@ -589,15 +589,15 @@ check((await prog('p.doors[0]')) === true, '24) E 로 열었다')
 await M.shot('24-door-open')
 await walk(M, await keyToward(M, 1, 0), 2000)
 const d1 = await M.evaluate(pos)
-check(d1[0] > 195.5, `24) 열린 문으로 지나간다 (x ${d1[0].toFixed(2)})`)
+check(d1[0] > 167.5, `24) 열린 문으로 지나간다 (x ${d1[0].toFixed(2)})`)
 const savedDoors = await M.evaluate(`JSON.parse(localStorage.getItem('fishing-island-save-v1')).state.doors`)
 check(savedDoors?.[0] === true, `24) 문 상태를 저장한다 (${JSON.stringify(savedDoors)})`)
 
 
-// 25) 농산물 가게 (은지 58, 11.5): 앞(은지 58, 9.5 → 세계 142, -9.5)에서 E → 팔기·사기
+// 25) 농산물 가게 (은지 58, 11.5): 앞(은지 58, 9.5 → 세계 114, -9.5)에서 E → 팔기·사기
 await prog(`(p.addItem('pumpkin', 2), true)`)
 const before25 = await prog('[p.coins, p.items.pumpkin, p.items.mushroom]')
-await M.evaluate(teleport(142, -9.5))
+await M.evaluate(teleport(114, -9.5))
 check(await M.until(`document.body.innerText.includes('농산물 가게 —')`, 6000), '25) 농산물 가게 앞 안내')
 await turnTo(M, 0, -60)
 await M.evaluate(`(async () => { ${S}.zoomBy(-200); return true })()`)
@@ -695,13 +695,13 @@ const hev = (expr) => H.evaluate(`(async () => { const r = ${RIG}; const s = ${H
 const hpress = async (code, k = code) => { await H.key('keydown', code, k); await H.key('keyup', code, k); await wait(300) }
 const herd = () => hev(`r.animalViews(false, 0)`)
 
-// 28) 혼자: 들판(세계 x 166..206, z -52..-26)에 동물 12마리, 은지 Cube Pets 모델을 받는다
-await H.evaluate(teleport(186, -23))
+// 28) 혼자: 들판(세계 x 138..178, z -52..-26)에 동물 12마리, 은지 Cube Pets 모델을 받는다
+await H.evaluate(teleport(158, -23))
 await wait(1500)
 await turnTo(H, 0, -40)
 check(await H.until(`(async () => ${RIG}.herdDrawn.count === 12)()`, 30000), '28) 동물 모델을 받아 12마리를 그린다')
 const herd28 = await herd()
-check(herd28.length === 12 && herd28.every((a) => a.x >= 155 && a.x <= 217 && a.z >= -59 && a.z <= -23), `28) 혼자 하면 들판에 동물 12마리 (${herd28.length})`)
+check(herd28.length === 12 && herd28.every((a) => a.x >= 127 && a.x <= 189 && a.z >= -59 && a.z <= -23), `28) 혼자 하면 들판에 동물 12마리 (${herd28.length})`)
 await wait(1500)
 await H.shot('28-animals')
 
@@ -785,7 +785,7 @@ for (let i = 0; i < 4 && chasing !== 'attack'; i++) {
   await wait(900)
   chasing = (await H.evaluate(hogById))?.state
 }
-await H.evaluate(teleport(197, -2))
+await H.evaluate(teleport(169, -2))
 check(chasing === 'attack' && (await H.until(`(async () => { const r = ${RIG}; return r.soloHerd().animals.find((a) => a.id === ${hog.id})?.state !== 'attack' })()`, 3000)), `34) 실내로 들어가면 쫓던 멧돼지가 포기한다 (${chasing})`)
 /**
  * 화면 위 UI 가 서로 겹치는 쌍 (이름 목록). 미니맵·휘두르기·점프·가방·표현·조이스틱·안내 글씨·방 표시(🔒)·채팅 줄(text 를 준 경우).
@@ -801,7 +801,8 @@ const layoutClash = (chatText = '') => `(() => {
     joy: document.querySelector('.tc-joy-base'),
     help: document.querySelector('.tc-help'),
     badge: [...document.querySelectorAll('div')].find((d) => getComputedStyle(d).position === 'absolute' && d.innerText.startsWith('🔒')),
-    chat: ${JSON.stringify(chatText)} ? [...document.querySelectorAll('div,span')].filter((d) => d.children.length === 0 && d.textContent.includes(${JSON.stringify(chatText)})).at(-1) : null,
+    // 채팅 줄만 (머리 위 말풍선은 3D 이름표(Html)라 캔버스 쪽 div 안에 있다. 그건 사람 자리 따라 어디든 갈 수 있으니 뺀다)
+    chat: ${JSON.stringify(chatText)} ? [...document.querySelectorAll('div,span')].filter((d) => d.children.length === 0 && d.textContent.includes(${JSON.stringify(chatText)}) && !document.querySelector('canvas').parentElement.parentElement.contains(d)).at(-1) : null,
   }
   const r = Object.entries(pick).filter(([, e]) => e && e.getClientRects().length).map(([k, e]) => [k, e.getBoundingClientRect()])
   const out = []
@@ -814,7 +815,7 @@ const layoutClash = (chatText = '') => `(() => {
 const LAYOUT_CLASH = layoutClash()
 
 // 35) 폰: 주먹·칼을 들면 휘두르기 버튼. 세로 화면은 가방 줄(점프 위)에 있어 조이스틱과 겹치지 않는다. 누르면 휘두른다
-await H.evaluate(teleport(188, -12))
+await H.evaluate(teleport(160, -12))
 await wait(1000)
 await H.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: true }); return true })()`)
 const overlapJoy = `(() => { const a = document.querySelector('button[aria-label="휘두르기"]')?.getBoundingClientRect(); const j = document.querySelector('.tc-joy')?.getBoundingClientRect(); if (!a || !j) return null; return a.left < j.right && a.right > j.left && a.top < j.bottom && a.bottom > j.top })()`
@@ -845,8 +846,8 @@ await B5.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '비이')`
 await B5.evaluate(`__click('들어가기')`)
 check(await B5.until(`document.body.innerText.includes('👥 2명')`, 20000), '36) B 들어가기')
 const roomHerd = (b) => b.evaluate(`(async () => { const r = ${RIG}; return r.animalViews(true, performance.now() / 1000) })()`)
-await A5.evaluate(teleport(186, -23))
-await B5.evaluate(teleport(180, -23))
+await A5.evaluate(teleport(158, -23))
+await B5.evaluate(teleport(152, -23))
 await wait(2500)
 // 두 화면을 거의 같은 때 읽는다 (달리는 동물은 초당 5m 까지 움직인다). 번호·종은 모두 같고, 자리는 대부분 1.5m 안
 const [ha, hb] = await Promise.all([roomHerd(A5), roomHerd(B5)])
@@ -927,7 +928,7 @@ const G = await open(9745, 0)
 await G.evaluate(`__click('혼자 하기')`)
 await wait(3000)
 await G.evaluate(`(async () => { ${GPROG}.setState({ coins: 300 }); return true })()`)
-await G.evaluate(teleport(148, -12.6))
+await G.evaluate(teleport(120, -12.6))
 check(await G.until(`document.body.innerText.includes('잡화점 — 탄약을 팝니다')`, 5000), '37) 잡화점 앞 "탄약을 팝니다"')
 await gkey(G, 'KeyE', 'e')
 await G.evaluate(`__click('사기')`)
@@ -942,7 +943,7 @@ await gkey(G, 'Escape')
 
 // 38) 총: 쏘면 탄창이 줄고 R 로 장전, 동물을 맞히면 체력이 준다 (혼자), 벽엔 총알 자국. 소총 조준은 1인칭 조준경, 휠로 배율
 // 들판 울타리(z -24) 안쪽에 선다: 카메라가 몸 뒤 4m·어깨 높이라 울타리 밖에서 쏘면 광선이 울타리 가로대에 먼저 걸린다
-await G.evaluate(teleport(186, -30))
+await G.evaluate(teleport(158, -30))
 await wait(1500)
 await gkey(G, 'Digit4', '4')
 check((await G.evaluate(`(async () => ${GSESS}.getState().tool)()`)) === 'pistol', '38) 4 → 권총')
@@ -987,8 +988,8 @@ await G.evaluate(`(window.__holdCow = false, true)`)
 const cow38 = await G.evaluate(`(async () => (await __mod('/src/game/hunt/animalRig.ts')).soloHerd().animals.find((a) => a.id === 1))()`)
 check(cow38.hp < 3, `38) 산탄 여러 알이 소에 맞아 체력이 준다 (${cowAt[2].toFixed(1)}m, 체력 ${cow38.hp}, ${cow38.state})`)
 await G.shot('38-shotgun-cow')
-// 침실 남쪽 벽(세계 z -5, x 195~205) 3m 앞에서 벽 쪽(+z, yaw π)을 수평으로 보고 쏜다. 실제 광선이 그 벽 면을 지나는지도 본다 (땅이 아니라)
-await G.evaluate(teleport(201, -8))
+// 침실 남쪽 벽(세계 z -5, x 167~177) 3m 앞에서 벽 쪽(+z, yaw π)을 수평으로 보고 쏜다. 실제 광선이 그 벽 면을 지나는지도 본다 (땅이 아니라)
+await G.evaluate(teleport(173, -8))
 await wait(1200)
 await gequip(G, 'pistol')
 await levelTo(G, Math.PI)
@@ -998,7 +999,7 @@ const wall38 = await G.evaluate(`(async () => {
   const s = ${GRIG}.lastShot; const t = (-5 - s.o.z) / s.d.z
   return [s.hit, s.o.x + s.d.x * t, s.o.y + s.d.y * t]
 })()`)
-check(wall38[0] === 'wall' && wall38[1] > 195 && wall38[1] < 205 && wall38[2] > 0 && wall38[2] < 3, `38) 집 벽을 쏘면 벽에 맞는다 (총알 자국) (${wall38[0]}, x ${wall38[1]?.toFixed(1)}, 높이 ${wall38[2]?.toFixed(2)})`)
+check(wall38[0] === 'wall' && wall38[1] > 167 && wall38[1] < 177 && wall38[2] > 0 && wall38[2] < 3, `38) 집 벽을 쏘면 벽에 맞는다 (총알 자국) (${wall38[0]}, x ${wall38[1]?.toFixed(1)}, 높이 ${wall38[2]?.toFixed(2)})`)
 await G.shot('38-wall-hole')
 await gkey(G, 'Digit5', '5')
 await gkey(G, 'KeyV', 'v')
@@ -1014,7 +1015,7 @@ await G.evaluate(`(async () => { (await __mod('/src/game/input/pointer.ts')).set
 check(await G.until(`(async () => !(await __mod('/src/game/scene/Player.tsx')).playerRig.firstPerson)()`, 3000), '38) 조준을 놓으면 3인칭으로')
 
 // 39) 사격장: 표적판을 맞히면 점수, G 60초 연습 게임 (사격장 안에서만), 최고 점수 저장, 무기 선반 E → 고르기
-await G.evaluate(teleport(181.5, 0))
+await G.evaluate(teleport(153.5, 0))
 await wait(1500)
 await gequip(G, 'pistol')
 await gkey(G, 'KeyV', 'v')
@@ -1024,12 +1025,12 @@ await wait(600)
 await G.shot('39-range')
 check(await gfire(G), '39) 사격장에서 쏜다')
 /**
- * 마지막 한 발의 광선이 표적판 면(세계 x 174.4)을 지나는 곳으로 표적(lane 0..2)을 옮긴다.
+ * 마지막 한 발의 광선이 표적판 면(세계 x 146.4)을 지나는 곳으로 표적(lane 0..2)을 옮긴다.
  * hold: 게임 중엔 표적이 좌우로 움직이므로, 사격장 update 가 끝날 때마다 그 자리로 되돌린다 (게임 시간·점수는 그대로)
  */
 const holdTarget = (lane, hold) => G.evaluate(`(async () => {
   const s = ${GRIG}.lastShot; const r = ${GRANGE}; const tg = r.targets[${lane}]
-  const t = (174.4 - s.o.x) / s.d.x
+  const t = (146.4 - s.o.x) / s.d.x
   const y = s.o.y + s.d.y * t, z = -(s.o.z + s.d.z * t)
   const put = () => { tg.homeZ = z; tg.phase = 0; tg.down = false; tg.pivot.position.y = y - 1.3; tg.pivot.position.z = z }
   put()
@@ -1045,11 +1046,11 @@ await wait(1500)
 await gfire(G)
 check((await G.evaluate(`(async () => ${GRIG}.lastShot.hit)()`)) === 'target', '39) 표적판에 맞는다')
 await G.shot('39-target')
-await G.evaluate(teleport(188, -12))
+await G.evaluate(teleport(160, -12))
 await wait(800)
 await gkey(G, 'KeyG', 'g')
 check((await G.evaluate(`(async () => ${GRANGE}.game.state)()`)) === 'idle' && (await G.evaluate(`document.body.innerText.includes('사격장 안에서')`)), '39) 사격장 밖에선 G 를 눌러도 시작하지 않는다')
-await G.evaluate(teleport(181.5, 0))
+await G.evaluate(teleport(153.5, 0))
 await wait(1500)
 await gkey(G, 'KeyG', 'g')
 check((await G.evaluate(`(async () => ${GRANGE}.game.state)()`)) === 'countdown', '39) G → 3초 카운트다운')
@@ -1070,7 +1071,7 @@ check((await G.evaluate(`(async () => ${GRANGE}.game.state)()`)) === 'over', '39
 check(await G.until(`(async () => ${GPROG}.getState().rangeBest === ${GRANGE}.game.score && ${GRANGE}.game.score > 0)()`, 10000), '39) 최고 점수를 저장한다')
 await G.shot('39-result')
 await gkey(G, 'KeyV', 'v')
-await G.evaluate(teleport(183.3, 4.0))
+await G.evaluate(teleport(155.3, 4.0))
 check(await G.until(`document.body.innerText.includes('무기 고르기')`, 15000), '39) 무기 선반 앞 "E 무기 고르기"')
 await gkey(G, 'KeyE', 'e')
 check((await G.evaluate(`(async () => ${GSESS}.getState().mode)()`)) === 'rack', '39) E → 무기 선반 창')
@@ -1101,7 +1102,7 @@ const weaponClash = `(() => {
 })()`
 await G.evaluate(`(async () => { (await __mod('/src/game/input/touchDevice.ts')).useTouchUiStore.setState({ touchUi: true }); return true })()`)
 for (const near of [false, true]) {
-  await G.evaluate(teleport(near ? 148 : 160, near ? -12.6 : -25))
+  await G.evaluate(teleport(near ? 120 : 132, near ? -12.6 : -25))
   await wait(1500)
   for (const tool of ['pistol', 'knife']) {
     await gequip(G, tool)
@@ -1116,7 +1117,7 @@ for (const near of [false, true]) {
   }
 }
 await G.send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 2, mobile: true })
-await G.evaluate(teleport(160, -25))
+await G.evaluate(teleport(132, -25))
 await gequip(G, 'pistol')
 await wait(1000)
 await G.evaluate(`(async () => { ${GPROG}.setState({ ammo: { ...${GPROG}.getState().ammo, pistol: 12 } }); return true })()`)
@@ -1162,8 +1163,8 @@ const B6 = await open(9747, 1, `?room=pvp-${RUN34}`)
 await B6.evaluate(`__fill('암호', 'secret1') && __fill('닉네임', '비이')`)
 await B6.evaluate(`__click('들어가기')`)
 check(await B6.until(`document.body.innerText.includes('👥 2명')`, 20000), '41) B 들어가기')
-await A6.evaluate(teleport(150, -5))
-await B6.evaluate(teleport(150, 5))
+await A6.evaluate(teleport(122, -5))
+await B6.evaluate(teleport(122, 5))
 await wait(1500)
 await gkey(A6, 'Digit4', '4')
 await gkey(A6, 'KeyV', 'v')
@@ -1194,9 +1195,39 @@ check(await B6.until(`(async () => (await __mod('/src/game/stores/dayStore.ts'))
 check(await A6.until(`document.body.innerText.includes('에이 님이 비이 님을 쓰러뜨렸어요')`, 5000), '41) A 화면에 "에이 님이 비이 님을 쓰러뜨렸어요"')
 check(await B6.until(`(async () => (await __mod('/src/game/stores/netStore.ts')).useNetStore.getState().chat.some((l) => l.text === '에이 님이 비이 님을 쓰러뜨렸어요'))()`, 5000), '41) B 채팅 기록에도')
 await A6.shot('41-kill')
-check(await B6.until(`(async () => { const { playerRig } = await __mod('/src/game/scene/Player.tsx'); return !(await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState().seq && Math.hypot(playerRig.position.x - 197.8, playerRig.position.z + 2.4) < 1.5 })()`, 15000), '41) B 는 침대 옆에서 깨어난다 (체력 100)')
+check(await B6.until(`(async () => { const { playerRig } = await __mod('/src/game/scene/Player.tsx'); return !(await __mod('/src/game/stores/dayStore.ts')).useDayStore.getState().seq && Math.hypot(playerRig.position.x - 169.8, playerRig.position.z + 2.4) < 1.5 })()`, 15000), '41) B 는 침대 옆에서 깨어난다 (체력 100)')
 A6.close()
 B6.close()
+
+// 42) 이름표(drei Html)는 벽·거리와 상관없이 화면 맨 위에 그려진다: 초원에서 섬 쪽(서쪽)을 봐도 섬 간판·잠긴 문 안내(🔒)가 없고,
+// 섬에선 초원 상인 이름표가 없다. Html 은 캔버스를 감싼 이벤트 div(캔버스의 할아버지)에 붙으니 그 안의 글자를 본다
+const htmlText = `(document.querySelector('canvas').parentElement.parentElement.textContent)`
+const VENDOR_TAGS = ['정육점', '잡화점', '농산물 가게']
+const ISLAND_TAGS = ['🔒', '미스터찜']
+const inMeadow42 = `(async () => ${session}.inMeadow)()`
+const islandTagsIn = (text) => JSON.stringify(ISLAND_TAGS.filter((t) => text.includes(t)))
+await A.evaluate(teleport(160, -12))
+await wait(1500)
+await turnTo(A, Math.PI / 2, -40)
+await wait(800)
+const yard42 = await A.evaluate(`(async () => [${session}.inMeadow, ${htmlText}])()`)
+check(yard42[0] === true && islandTagsIn(yard42[1]) === '[]', `42) 초원 마당에서 섬 쪽(서쪽)을 봐도 섬 이름표(🔒·미스터찜)가 없다 (inMeadow ${yard42[0]}, ${islandTagsIn(yard42[1])})`)
+await A.shot('42-meadow-look-west')
+// 상인 이름표는 가게 앞에서만 뜬다: 섬에 더 가까운 농산물 가게 앞(세계 114, -9.5)에서 서쪽을 본다
+await A.evaluate(teleport(114, -9.5))
+check(await A.until(`(async () => ${htmlText}.includes('농산물 가게'))()`, 6000), '42) 농산물 가게 앞에선 상인 이름표가 뜬다')
+await turnTo(A, Math.PI / 2, -40)
+await wait(800)
+const grocer42 = await A.evaluate(htmlText)
+check(islandTagsIn(grocer42) === '[]', `42) 가게 앞에서 섬 쪽을 봐도 섬 이름표가 없다 (${islandTagsIn(grocer42)})`)
+await A.shot('42-grocer-look-west')
+await A.evaluate(teleport(0, 22))
+check(await A.until(`(async () => !(await ${inMeadow42}))()`, 5000), '42) 섬 선착장에 오면 섬 쪽 (inMeadow false)')
+await wait(1500)
+const island42 = await A.evaluate(htmlText)
+check(VENDOR_TAGS.every((t) => !island42.includes(t)), `42) 섬에선 초원 상인 이름표가 없다 (${JSON.stringify(VENDOR_TAGS.filter((t) => island42.includes(t)))})`)
+check(island42.includes('🔒'), '42) 섬에선 잠긴 문 안내(🔒)가 있다')
+await A.shot('42-island-dock')
 
 check(!consoleErrors.some((e) => /shader|WebGLProgram/i.test(e)), '셰이더 컴파일 오류가 없다')
 if (consoleErrors.length) console.log(`콘솔 오류·경고 ${consoleErrors.length}개:\n${consoleErrors.slice(0, 20).join('\n')}`)

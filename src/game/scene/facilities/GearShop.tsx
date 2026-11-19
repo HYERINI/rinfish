@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { ASSET } from '../assets'
 import { Prop } from '../Prop'
@@ -55,9 +55,9 @@ export function GearShop() {
       <Prop url={ASSET.crateLong} height={0.5} position={[-1.45, 0, 0.4]} />
       <Prop url={ASSET.crateLong} height={0.5} position={[-1.45, 0.5, 0.35]} rotationY={0.15} />
       <Prop url={ASSET.barrel} height={0.8} position={[-1.5, 0, -0.5]} />
-      <Html center position={[0, 3.1, 0]} zIndexRange={[100, 0]} style={sign}>
+      <IslandHtml center position={[0, 3.1, 0]} zIndexRange={[100, 0]} style={sign}>
         🎣 장비 상점
-      </Html>
+      </IslandHtml>
       <InteractionZone position={[0, 1, 0]} halfSize={[3.2, 1.5, 2.8]} target={{ kind: 'gearShop' }} />
     </group>
   )

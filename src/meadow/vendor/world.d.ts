@@ -35,7 +35,7 @@ export type EunjiWorld = {
   allColliders(): Box3[]
   doors: EunjiDoor[]
   furnitureReady: Promise<unknown>
-  outdoor: { ready: Promise<unknown>; pickups: EunjiPickup[] }
+  outdoor: { ready: Promise<unknown>; pickups: EunjiPickup[]; decor: { x: number; z: number; kind: 'tree' | 'rock' }[] }
   /** 부엌 가스레인지 (가구가 들어오면 자리가 정해진다) */
   stove: { center: Vector3; label: string }
   town: { ready: Promise<unknown> }

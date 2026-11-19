@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { ASSET } from '../assets'
 import { Prop } from '../Prop'
@@ -31,9 +31,9 @@ export function SellBox() {
       <Prop url={ASSET.iceBox} height={0.65} position={[0.55, 0, 0]} rotationY={Math.PI / 2} />
       <Prop url={ASSET.fishSmall} height={0.14} position={[0.5, 0.65, 0.15]} rotationY={0.5} />
       <Prop url={ASSET.signpost} height={1.6} position={[1.2, 0, 0.55]} rotationY={0.2} />
-      <Html center position={[0, 2.1, 0]} zIndexRange={[100, 0]} style={sign}>
+      <IslandHtml center position={[0, 2.1, 0]} zIndexRange={[100, 0]} style={sign}>
         💰 판매함
-      </Html>
+      </IslandHtml>
       <InteractionZone position={[0, 0.5, 0]} halfSize={[2.6, 1.5, 2.6]} target={{ kind: 'sellBox' }} />
     </group>
   )

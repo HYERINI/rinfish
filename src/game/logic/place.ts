@@ -1,5 +1,5 @@
 import { CAMERA_ZOOM, NEAR_VIEW } from '../data/balance'
-import { START_SPOT } from '../data/meadow'
+import { MEADOW_OFFSET_X, START_SPOT } from '../data/meadow'
 import { MOUSE_LOOK } from '../data/settings'
 import type { ZoneId } from '../data/types'
 import { FENCE_Z } from '../data/zones'
@@ -52,4 +52,17 @@ export function normalizePlace(raw: unknown, unlocked: readonly ZoneId[]): Place
     // 벤치는 섬에만 있다
     resting: land === 'island' && r.resting === true,
   }
+}
+
+/** 저장본 v1 의 초원 자리 기준 (그때 초원은 은지 좌표를 동쪽으로 200m 옮겼다. 지금은 MEADOW_OFFSET_X) */
+const V1_MEADOW_OFFSET_X = 200
+/** v1 에서 이 x 보다 동쪽이면 초원 자리였다 (섬 x ≤ 30, 초원 x ≥ 84) */
+const V1_MEADOW_FROM_X = 60
+
+/** 저장본 v1 → v2: 초원을 줄이며 섬 쪽으로 당긴 만큼 초원 자리를 같이 옮긴다. 검증은 normalizePlace 가 한다 */
+export function migratePlaceV1(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return raw
+  const r = raw as Record<string, unknown>
+  if (!num(r.x) || r.x <= V1_MEADOW_FROM_X) return raw
+  return { ...r, x: r.x - (V1_MEADOW_OFFSET_X - MEADOW_OFFSET_X) }
 }

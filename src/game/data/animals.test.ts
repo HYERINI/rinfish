@@ -10,10 +10,10 @@ describe('들판 동물 수치', () => {
     expect(SPECIES.find((s) => s.id === 'cow')).toEqual({ id: 'cow', name: '소', scale: 0.8, hp: 3, speed: 1.0, run: 3.0, meat: 3, dmg: 15 })
     expect(SPECIES.filter((s) => s.dmg === 0).map((s) => s.id)).toEqual(['bunny', 'chick'])
   })
-  it('들판은 은지 ANIMAL_ZONE 을 세계 좌표로 (x 166..206, z -52..-26), 쫓기는 그보다 넓게', () => {
+  it('들판은 은지 ANIMAL_ZONE 을 세계 좌표로 (x 138..178, z -52..-26), 쫓기는 그보다 넓게', () => {
     expect(EUNJI_ANIMAL_ZONE).toEqual({ minX: ANIMAL_ZONE.minX, maxX: ANIMAL_ZONE.maxX, minZ: ANIMAL_ZONE.minZ, maxZ: ANIMAL_ZONE.maxZ })
-    expect(ANIMAL_FIELD).toEqual({ x0: 166, x1: 206, z0: -52, z1: -26 })
-    expect(ANIMAL_CHASE).toEqual({ x0: 156, x1: 216, z0: -58, z1: -24 })
+    expect(ANIMAL_FIELD).toEqual({ x0: 138, x1: 178, z0: -52, z1: -26 })
+    expect(ANIMAL_CHASE).toEqual({ x0: 128, x1: 188, z0: -58, z1: -24 })
   })
   it('판정 원: 소 0.52, 병아리처럼 작아도 0.35', () => {
     expect(hitRadius('cow')).toBeCloseTo(0.52)
