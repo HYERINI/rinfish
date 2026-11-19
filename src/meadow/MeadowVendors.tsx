@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { Html } from '@react-three/drei'
+import { MeadowHtml } from '../game/scene/PlaceHtml'
 import { useFrame } from '@react-three/fiber'
 import { DEFAULT_LOOK, LOOK_PRESETS } from '../game/data/characterParts'
 import { MEADOW_VENDORS, toWorld } from '../game/data/meadow'
@@ -21,9 +21,9 @@ function Vendor({ vendor }: { vendor: (typeof MEADOW_VENDORS)[number] }) {
     <group position={[x, 0, z]}>
       <PlayerModel ref={model} look={look} />
       {near && (
-        <Html center position={[0, 2.1, 0]} zIndexRange={[100, 0]} style={nameTag}>
+        <MeadowHtml center position={[0, 2.1, 0]} zIndexRange={[100, 0]} style={nameTag}>
           {vendor.name}
-        </Html>
+        </MeadowHtml>
       )}
     </group>
   )

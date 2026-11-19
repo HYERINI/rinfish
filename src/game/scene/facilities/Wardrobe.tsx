@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { RigidBody } from '@react-three/rapier'
 import { FACILITY } from '../../data/zones'
 import { InteractionZone } from './InteractionZone'
@@ -33,9 +33,9 @@ export function Wardrobe() {
         <boxGeometry args={[0.5, 1.6, 0.05]} />
         <meshStandardMaterial color="#cfe8ff" metalness={0.9} roughness={0.05} />
       </mesh>
-      <Html center position={[0, 2.6, 0]} zIndexRange={[100, 0]} style={sign}>
+      <IslandHtml center position={[0, 2.6, 0]} zIndexRange={[100, 0]} style={sign}>
         👗 옷장
-      </Html>
+      </IslandHtml>
       <InteractionZone position={[0, 1, 0]} halfSize={[1.8, 1.5, 1.8]} target={{ kind: 'wardrobe' }} />
     </group>
   )

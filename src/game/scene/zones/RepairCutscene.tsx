@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { useFrame } from '@react-three/fiber'
 import { Suspense, useRef } from 'react'
 import { Vector3, type Group, type Mesh, type MeshStandardMaterial } from 'three'
@@ -104,9 +104,9 @@ function Crew({ zoneId }: { zoneId: Exclude<ZoneId, 'beach'> }) {
       ))}
       {plan.workers.map((_, i) => (
         <group key={`bang${i}`} ref={(g) => void (bangGroups.current[i] = g)}>
-          <Html center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+          <IslandHtml center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
             <div ref={(el) => void (bangs.current[i] = el)} style={bangStyle} />
-          </Html>
+          </IslandHtml>
         </group>
       ))}
     </>

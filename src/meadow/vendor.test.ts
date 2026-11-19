@@ -30,6 +30,37 @@ describe('은지 맵 복사본', () => {
     expect(w.lights.sun.isDirectionalLight).toBe(true)
   })
 
+  it('초원 땅(MEADOW_RECT)은 은지 GROUND 와 같고, 나무·바위와 집·광장·동물 들판이 모두 그 안에 있다', async () => {
+    const { createWorld } = await import('./vendor/world.js')
+    const { GROUND, YARD, ANIMAL_ZONE } = await import('./vendor/outdoor.js')
+    const { TOWN } = await import('./vendor/town.js')
+    const { MEADOW_RECT, areaToWorld } = await import('../game/data/meadow')
+    expect(MEADOW_RECT).toEqual(areaToWorld(GROUND))
+    // 줄인 땅: 원본(200m)보다 훨씬 작다
+    expect(GROUND.maxX - GROUND.minX).toBeLessThan(120)
+    expect(GROUND.maxZ - GROUND.minZ).toBeLessThan(120)
+    for (const a of [YARD, TOWN, ANIMAL_ZONE]) {
+      expect(a.minX).toBeGreaterThanOrEqual(GROUND.minX + 10)
+      expect(a.maxX).toBeLessThanOrEqual(GROUND.maxX - 10)
+      expect(a.minZ).toBeGreaterThanOrEqual(GROUND.minZ + 10)
+      expect(a.maxZ).toBeLessThanOrEqual(GROUND.maxZ - 10)
+    }
+    const w = createWorld()
+    await Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready])
+    expect(w.outdoor.decor.length).toBeGreaterThan(20)
+    for (const d of w.outdoor.decor) {
+      expect(d.x).toBeGreaterThanOrEqual(GROUND.minX)
+      expect(d.x).toBeLessThanOrEqual(GROUND.maxX)
+      expect(d.z).toBeGreaterThanOrEqual(GROUND.minZ)
+      expect(d.z).toBeLessThanOrEqual(GROUND.maxZ)
+    }
+    for (const b of w.allColliders()) {
+      if (!Number.isFinite(b.min.x)) continue
+      expect(b.max.x).toBeLessThanOrEqual(GROUND.maxX + 1)
+      expect(b.min.z).toBeGreaterThanOrEqual(GROUND.minZ - 1)
+    }
+  })
+
   it('모델을 못 받아도 들판·마을 ready 는 거절하지 않는다 (나머지를 다 기다린다)', async () => {
     const { createWorld } = await import('./vendor/world.js')
     const w = createWorld()
