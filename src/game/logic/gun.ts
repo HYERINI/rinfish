@@ -1,4 +1,4 @@
-import { DRY_FIRE_PAUSE, GUNS, GUN_SWAP, HEAT, RECOIL, type GunId } from '../data/guns'
+import { AIM_VIEW, DRY_FIRE_PAUSE, GUNS, GUN_SWAP, HEAT, RECOIL, isGun, type GunId } from '../data/guns'
 
 /**
  * 총 쏘기 상태 (은지 WeaponSystem 의 cool·reloadT·heat). 시각은 초 (performance.now() 기준이라 게임을 다시 열어도 이어진다).
@@ -60,4 +60,12 @@ export function reloadProgress(s: GunState, now: number): number {
 /** 도구를 바꿨다: 장전·열기를 지우고 0.25초 뒤부터 쏜다 (은지 select) */
 export function swapGun(s: GunState, now: number): GunState {
   return { ...s, reload: null, heat: 0, heatAt: now, readyAt: Math.max(s.readyAt, now + GUN_SWAP) }
+}
+
+/**
+ * 3인칭 카메라를 오른쪽 어깨 너머로 비키는 거리(m). 총을 들고 돌아다니면 조준하지 않아도 비킨다 —
+ * 가운데 그대로면 화면 가운데 조준점이 내 몸통에 겹친다. 조준하면 Player 가 거리만 더 당긴다
+ */
+export function cameraShoulder(mode: string, tool: string | null | undefined): number {
+  return mode === 'explore' && isGun(tool) ? AIM_VIEW.shoulder : 0
 }

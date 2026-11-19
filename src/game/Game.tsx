@@ -94,7 +94,7 @@ export function Game({ onExit, hub }: GameProps) {
     else {
       // 지난번 카메라 거리와, 벤치에 앉아 있었으면 앉은 채로 이어서 (자리·방향은 Player 가 읽는다)
       const place = normalizePlace(usePlaceStore.getState().place, useProgressStore.getState().unlockedZones)
-      useSessionStore.setState({ zoom: place.zoom })
+      useSessionStore.setState({ zoom: place.zoom, meadowZoom: place.meadowZoom })
       // 방 서버가 있으면 혼자 할지 같이 할지부터 고른다. 아니면 벤치에 앉아 있던 채로 이어서
       if (ROOM_SERVER) useSessionStore.getState().setMode('lobby')
       else if (place.resting) useSessionStore.getState().setMode('rest')

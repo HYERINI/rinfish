@@ -22,7 +22,7 @@ import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
 import { takeDrag } from '../input/pointer'
 import { isPointerLocked } from '../input/pointerLock'
 import { MOUSE_LOOK } from '../data/settings'
-import { applyMouseLook, pitchedOffset } from '../logic/mouseLook'
+import { applyMouseLook } from '../logic/mouseLook'
 import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
@@ -30,7 +30,9 @@ import { fishingLook, gunArm, swingArm } from '../logic/characterPose'
 import { swingProgress } from '../logic/melee'
 import { meleeRig } from '../hunt/meleeRig'
 import { gunRig, takeKick } from '../guns/gunRig'
-import { cameraRig, isGrounded, moveSpeed, nextAction, shouldFaceCamera, shownTool } from '../logic/playerMotion'
+import { cameraShoulder } from '../logic/gun'
+import { isGrounded, moveSpeed, nextAction, shouldFaceCamera, shownTool } from '../logic/playerMotion'
+import { cameraView, followCamera, inMeadowView, orbitOffset, type CameraFollow } from '../logic/cameraFollow'
 import { NO_MOVE } from '../logic/joystick'
 import { DEFAULT_LOOK } from '../data/characterParts'
 import { useFishingStore } from '../stores/fishingStore'
@@ -134,14 +136,11 @@ export const FOOT_Y = -(PLAYER_BODY.halfHeight + PLAYER_BODY.radius)
  */
 const GROUND_BALL = 0.35
 const GROUND_PROBE = 0.15
-/** 카메라 거리·높이·방향(플레이어 기준 오프셋)이 따라가는 빠르기. 수평 위치는 플레이어에 바로 붙는다 */
-const CAMERA_SMOOTH = 5
 /** 수리 연출 카메라로 넘어가고 돌아오는 빠르기 */
 const CUTSCENE_CAMERA_SMOOTH = 2.5
 
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
-const cameraTarget = new Vector3()
 const grip = new Vector3()
 const lookTarget = new Vector3()
 const cutLook = new Vector3()
@@ -180,17 +179,15 @@ export function Player() {
   /** 마지막으로 움직인 시각 (가까이 당겼을 때 카메라 쪽으로 돌아서기용) */
   const movedAt = useRef(0)
   /**
-   * 카메라: 플레이어 기준 오프셋(거리·높이·방향)과 시선 높이, 따라가는 발 높이만 부드럽게 바꾼다.
+   * 카메라: 거리·낮춤·발 높이(점프)·어깨 비킴만 부드럽게 바꾼다 (logic/cameraFollow). 방향(yaw·pitch)은 매 프레임 바로 쓴다.
    * 위치 전체를 늦게 따라가면 가까이 당긴 채 카메라 쪽으로 걸을 때 카메라가 몸을 뚫는다
    */
-  const cam = useRef({ offset: new Vector3(), lookY: 0, feetY: 0, ready: false })
+  const cam = useRef<CameraFollow | null>(null)
   /** 수리 연출 카메라 비율(0 = 보통 카메라, 1 = 연출 자리)과 마지막 연출 카메라 (끝난 뒤 부드럽게 돌아오도록 기억한다) */
   const cut = useRef<{ blend: number; camera: RepairPlan['camera'] | null }>({ blend: 0, camera: null })
   const look = useProgressStore((s) => s.look) ?? DEFAULT_LOOK
   /** 총을 겨눈 정도 (0 내림 ~ 1 겨눔) */
   const gunRaise = useRef(0)
-  /** 3인칭 조준 때 카메라를 오른쪽 어깨 너머로 비킨 거리 */
-  const shoulder = useRef(0)
   /** 먹고 있는 요리 (손에 든 음식과 "아구작 냠냠") */
   const eating = useSessionStore((s) => s.playerAction.eat)
   const food = useRef<Group>(null)
@@ -221,7 +218,7 @@ export function Player() {
     const p = rb.translation()
     const session = useSessionStore.getState()
     if (!canSavePlace(p.x, p.z, rb.isDynamic(), session.teleport !== null)) return null
-    return { x: p.x, z: p.z, facing: facing.current, yaw: yaw.current, pitch: pitch.current, zoom: session.zoom, resting: session.mode === 'rest' }
+    return { x: p.x, z: p.z, facing: facing.current, yaw: yaw.current, pitch: pitch.current, zoom: session.zoom, meadowZoom: session.meadowZoom, resting: session.mode === 'rest' }
   }
   // 탭을 숨기거나 닫을 때 바로 저장한다 (폰은 백그라운드 탭을 언제든 없앨 수 있다)
   useEffect(() => {
@@ -389,6 +386,11 @@ export function Player() {
     }
     playerRig.position.set(x, y, z)
 
+    // 2-1) 카메라 거리: 초원·무기를 들면 가까이 낮게 (logic/cameraFollow). 휠이 어느 줌을 바꿀지 알려 준다 (바뀔 때만)
+    const inMeadow = inMeadowView(x)
+    if (inMeadow !== session.inMeadow) session.setInMeadow(inMeadow)
+    const camView = cameraView({ inMeadow, mode, tool: session.tool, zoom: session.zoom, meadowZoom: session.meadowZoom, aiming: gunRig.aiming })
+
     // 3) 바라보는 방향: 낚시 중엔 물 쪽, 아니면 이동 방향
     const gunUp = mode === 'explore' && isGun(session.tool) && gunRig.gun === session.tool && (gunRig.aiming || performance.now() / 1000 - gunRig.firedAt < GUN_HOLD)
     // 1인칭 (V, 또는 조준경 총으로 조준하는 동안): 내 몸을 숨기고 카메라를 눈높이에, 몸은 보는 쪽을 본다
@@ -419,7 +421,7 @@ export function Player() {
     }
     // 가까이 당긴 채 멈춰 있으면 얼굴이 보이게 카메라 쪽으로 천천히 돌아선다 (카메라는 그대로)
     if (mode !== 'explore' || moveDir.lengthSq() > 0) movedAt.current = now
-    if (shouldFaceCamera(mode, session.zoom, now - movedAt.current, action)) {
+    if (shouldFaceCamera(mode, camView.distance, now - movedAt.current, action)) {
       facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
     }
     if (visual.current) {
@@ -445,7 +447,7 @@ export function Player() {
       // 5) 캐릭터 애니메이션: 팔 높이는 낚싯대 각도를 따라가고, 낚싯대는 손에 붙인다
       // 낚시 중이 아니면 서 있거나 걸을 때만 보인다 (앉기·감정 표현·점프 중엔 몸을 뚫고, 가까운 줌에선 화면을 가린다)
       // 배 위에서 큰 지도를 봐도 앉은 채로 낚싯대를 숨긴다. 도구 칸에서 다른 도구를 들면 그 도구만 보인다
-      const held = shownTool(boatAt ? 'boat' : mode, session.zoom, action, session.tool)
+      const held = shownTool(boatAt ? 'boat' : mode, camView.distance, action, session.tool)
       rod.current.visible = held === 'rod'
       if (knife.current) knife.current.visible = held === 'knife'
       if (gun.current) gun.current.visible = isGun(held)
@@ -500,26 +502,16 @@ export function Player() {
       return
     }
 
-    // 6) 3인칭 카메라: 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다.
-    //    수평 위치는 플레이어에 바로 붙이고, 오프셋(방향·거리·높이)·발 높이(점프)만 부드럽게 따라간다.
-    //    총으로 조준하면 가까이(1.9m) 당기고 오른쪽 어깨 너머로 비킨다 (은지 AIM_DIST·SHOULDER)
-    const aimCam = mode === 'explore' && gunRig.aiming && isGun(session.tool)
-    const distance = aimCam ? Math.min(session.zoom, AIM_VIEW.aimDistance) : session.zoom
-    const rig = cameraRig(distance, CHARACTER_BASE_HEIGHT * look.height)
-    const orbit = pitchedOffset(distance, rig.height, rig.lookAtY, pitch.current)
-    cameraTarget.set(sin * orbit.horizontal, orbit.height, cos * orbit.horizontal)
-    const c = cam.current
-    const k = c.ready ? 1 - Math.exp(-delta * CAMERA_SMOOTH) : 1
-    c.ready = true
-    c.offset.lerp(cameraTarget, k)
-    c.lookY += (rig.lookAtY - c.lookY) * k
-    c.feetY += (y + FOOT_Y - c.feetY) * k
-    camera.position.set(x + c.offset.x, c.feetY + c.offset.y, z + c.offset.z)
-    lookTarget.set(x, c.feetY + c.lookY, z)
-    shoulder.current += (Number(aimCam) * AIM_VIEW.shoulder - shoulder.current) * k
-    if (shoulder.current > 1e-3) {
-      const sx = cos * shoulder.current
-      const sz = -sin * shoulder.current
+    // 6) 3인칭 카메라: 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다. 초원·무기를 들면 가까이 낮게 (cameraView).
+    //    수평 위치는 플레이어에 바로 붙이고, 방향(마우스로 돌린 yaw·pitch)도 바로 쓴다. 거리·낮춤·발 높이(점프)·어깨만 부드럽게 따라간다.
+    //    총을 들면 오른쪽 어깨 너머로 비키고(조준점이 몸에 겹치지 않게), 조준하면 가까이(1.9m) 당긴다 (은지 AIM_DIST·SHOULDER)
+    const c = (cam.current = followCamera(cam.current, { distance: camView.distance, low: camView.low, feetY: y + FOOT_Y, shoulder: cameraShoulder(mode, session.tool) }, delta))
+    const orbit = orbitOffset(yaw.current, pitch.current, c.distance, c.low, CHARACTER_BASE_HEIGHT * look.height)
+    camera.position.set(x + orbit.x, c.feetY + orbit.y, z + orbit.z)
+    lookTarget.set(x, c.feetY + orbit.lookAtY, z)
+    if (c.shoulder > 1e-3) {
+      const sx = cos * c.shoulder
+      const sz = -sin * c.shoulder
       camera.position.set(camera.position.x + sx, camera.position.y, camera.position.z + sz)
       lookTarget.x += sx
       lookTarget.z += sz

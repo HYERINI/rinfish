@@ -1,12 +1,12 @@
 import { create } from 'zustand'
-import { CAMERA_ZOOM } from '../data/balance'
+import { CAMERA_ZOOM, NEAR_VIEW } from '../data/balance'
 import { isGun, type GunId } from '../data/guns'
 import type { MeadowDishId } from '../data/meadowItems'
 import type { VendorId } from '../data/meadowPrices'
 import type { ToolId } from '../data/tools'
 import type { DishId, ZoneId } from '../data/types'
 import type { BoatDir } from '../logic/boatRoute'
-import { nextZoom, pinchZoom } from '../logic/cameraZoom'
+import { MEADOW_ZOOM, nextZoom, pinchZoom } from '../logic/cameraZoom'
 import { isSameInteractable, type Interactable, type Mode } from '../logic/interaction'
 import { IDLE_ACTION, type PlayerAction } from '../logic/playerMotion'
 import type { ViewMode } from '../logic/view'
@@ -19,8 +19,13 @@ type SessionState = {
   notice: { id: number; text: string } | null
   /** 다음 프레임에 플레이어를 옮길 위치 [x, z] (쓰러진 뒤 진료소로) */
   teleport: [number, number] | null
-  /** 카메라 거리 (휠·두 손가락 줌). 저장하지 않는다 */
+  /** 섬 카메라 거리 (휠·두 손가락 줌). 서 있던 자리(Place)와 함께 저장한다 */
   zoom: number
+  /** 초원 카메라 거리. 섬과 따로 기억한다 (초원은 은지처럼 가까이서 본다) */
+  meadowZoom: number
+  /** 카메라가 초원 쪽에 있나 (휠이 어느 줌을 바꿀지). Player 가 바뀔 때만 고친다 */
+  inMeadow: boolean
+  setInMeadow: (inMeadow: boolean) => void
   /**
    * 플레이어 동작 상태 (감정 표현·점프). Player 가 매 프레임 nextAction 으로 갱신하고 캐릭터 모델은 이 값과 속도로만 그린다.
    * 나중에 여러 명이 같이 할 때 이 값을 주고받으면 다른 사람 캐릭터도 같은 코드로 그린다. 저장하지 않는다
@@ -93,6 +98,9 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   notice: null,
   teleport: null,
   zoom: CAMERA_ZOOM.initial,
+  meadowZoom: NEAR_VIEW.meadowInitial,
+  inMeadow: false,
+  setInMeadow: (inMeadow) => set({ inMeadow }),
   playerAction: IDLE_ACTION,
   cutscene: null,
   startCutscene: (zoneId) => set({ cutscene: { zoneId, startedAt: performance.now() / 1000 }, mode: 'cutscene', nearby: null }),
@@ -123,8 +131,10 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   // 배 타는 중엔 탐험으로 돌려도(로비 닫기 등) 도착할 때까지 배 모드를 지킨다
   // 상인 창이 아닌 모드로 가면 연 상인을 지운다
   setMode: (mode) => set((s) => ({ mode: s.boat && mode === 'explore' ? 'boat' : mode, ...(mode !== 'vendor' && s.vendor ? { vendor: null } : {}) })),
-  zoomBy: (deltaY) => set((s) => ({ zoom: nextZoom(s.zoom, deltaY) })),
-  pinchZoom: (prevSpan, span) => set((s) => ({ zoom: pinchZoom(s.zoom, prevSpan, span) })),
+  // 초원에선 초원 줌만, 섬에선 섬 줌만 바꾼다
+  zoomBy: (deltaY) => set((s) => (s.inMeadow ? { meadowZoom: nextZoom(s.meadowZoom, deltaY, MEADOW_ZOOM) } : { zoom: nextZoom(s.zoom, deltaY) })),
+  pinchZoom: (prevSpan, span) =>
+    set((s) => (s.inMeadow ? { meadowZoom: pinchZoom(s.meadowZoom, prevSpan, span, MEADOW_ZOOM) } : { zoom: pinchZoom(s.zoom, prevSpan, span) })),
   setNearby: (target) => set({ nearby: target }),
   clearNearby: (target) => {
     if (isSameInteractable(get().nearby, target)) set({ nearby: null })
@@ -133,5 +143,5 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   // 순간이동(쓰러져 진료소로 등)하면 타던 배에서 내린다
   requestTeleport: (pos) => set((s) => ({ teleport: pos, boat: null, mode: s.mode === 'boat' ? 'explore' : s.mode })),
   clearTeleport: () => set({ teleport: null }),
-  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', lastGun: 'pistol', stoveCook: null, vendor: null, hurtAt: null, view: 'third' }),
+  resetSession: () => set({ mode: 'explore', nearby: null, notice: null, teleport: null, zoom: CAMERA_ZOOM.initial, meadowZoom: NEAR_VIEW.meadowInitial, playerAction: IDLE_ACTION, cutscene: null, cooking: null, boat: null, tool: 'rod', lastGun: 'pistol', stoveCook: null, vendor: null, hurtAt: null, view: 'third' }),
 }))

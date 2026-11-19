@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { GUN_IDLE, finishReload, heatNow, pullTrigger, recoilOf, reloadProgress, spreadOf, startReload, swapGun } from './gun'
+import { AIM_VIEW } from '../data/guns'
+import { GUN_IDLE, cameraShoulder, finishReload, heatNow, pullTrigger, recoilOf, reloadProgress, spreadOf, startReload, swapGun } from './gun'
 
 describe('방아쇠 (은지 cool·heat)', () => {
   it('쏘면 다음 발까지 60/rpm 초, 그 전엔 busy', () => {
@@ -53,5 +54,17 @@ describe('장전', () => {
     expect(s.heat).toBe(0)
     expect(pullTrigger(s, 'sniper', 1.7, 5).kind).toBe('busy')
     expect(pullTrigger(s, 'sniper', 1.75, 5).kind).toBe('fire')
+  })
+})
+
+describe('3인칭 카메라 어깨 너머', () => {
+  it('총을 들고 돌아다니면 조준하지 않아도 오른쪽 어깨 너머로 비킨다 (조준점이 내 몸에 겹치지 않게)', () => {
+    expect(cameraShoulder('explore', 'pistol')).toBe(AIM_VIEW.shoulder)
+    expect(cameraShoulder('explore', 'sniper')).toBe(AIM_VIEW.shoulder)
+  })
+  it('총이 아니거나 돌아다니는 중이 아니면 가운데', () => {
+    expect(cameraShoulder('explore', 'knife')).toBe(0)
+    expect(cameraShoulder('explore', null)).toBe(0)
+    expect(cameraShoulder('fishing', 'pistol')).toBe(0)
   })
 })

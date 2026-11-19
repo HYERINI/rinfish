@@ -1,19 +1,19 @@
-import { CAMERA_ZOOM } from '../data/balance'
+import { CAMERA_ZOOM, NEAR_VIEW } from '../data/balance'
 import { START_SPOT } from '../data/meadow'
 import { MOUSE_LOOK } from '../data/settings'
 import type { ZoneId } from '../data/types'
 import { FENCE_Z } from '../data/zones'
 import { landAt } from './land'
 
-/** 다시 들어왔을 때 이어서 시작할 자리: 서 있던 곳·바라보던 방향·카메라·벤치에 앉아 있었는지 */
-export type Place = { x: number; z: number; facing: number; yaw: number; pitch: number; zoom: number; resting: boolean }
+/** 다시 들어왔을 때 이어서 시작할 자리: 서 있던 곳·바라보던 방향·카메라(섬·초원 줌 따로)·벤치에 앉아 있었는지 */
+export type Place = { x: number; z: number; facing: number; yaw: number; pitch: number; zoom: number; meadowZoom: number; resting: boolean }
 
 /** 처음 시작하는 자리 (초원 은지 집 마당) */
-export const START_PLACE: Place = { x: START_SPOT[0], z: START_SPOT[1], facing: Math.PI, yaw: 0, pitch: 0, zoom: CAMERA_ZOOM.initial, resting: false }
+export const START_PLACE: Place = { x: START_SPOT[0], z: START_SPOT[1], facing: Math.PI, yaw: 0, pitch: 0, zoom: CAMERA_ZOOM.initial, meadowZoom: NEAR_VIEW.meadowInitial, resting: false }
 
 /** 저장할 만큼 움직였나 (조금씩 움직일 때마다 저장하지 않게) */
 export function placeMoved(a: Place, b: Place): boolean {
-  return Math.hypot(a.x - b.x, a.z - b.z) > 0.3 || Math.abs(a.facing - b.facing) > 0.1 || Math.abs(a.yaw - b.yaw) > 0.05 || Math.abs(a.pitch - b.pitch) > 0.05 || Math.abs(a.zoom - b.zoom) > 0.2 || a.resting !== b.resting
+  return Math.hypot(a.x - b.x, a.z - b.z) > 0.3 || Math.abs(a.facing - b.facing) > 0.1 || Math.abs(a.yaw - b.yaw) > 0.05 || Math.abs(a.pitch - b.pitch) > 0.05 || Math.abs(a.zoom - b.zoom) > 0.2 || Math.abs(a.meadowZoom - b.meadowZoom) > 0.2 || a.resting !== b.resting
 }
 
 /**
@@ -39,6 +39,7 @@ export function normalizePlace(raw: unknown, unlocked: readonly ZoneId[]): Place
   // 섬 울타리 북쪽(잠긴 구역 쪽)은 한 곳이라도 열려 있어야 갈 수 있다 (열린 문으로 북쪽이 다 이어진다)
   if (land === 'island' && r.z < FENCE_Z && !unlocked.some((z) => z !== 'beach')) return START_PLACE
   const zoom = num(r.zoom) ? Math.min(CAMERA_ZOOM.max, Math.max(CAMERA_ZOOM.min, r.zoom)) : START_PLACE.zoom
+  const meadowZoom = num(r.meadowZoom) ? Math.min(NEAR_VIEW.meadowMax, Math.max(NEAR_VIEW.meadowMin, r.meadowZoom)) : START_PLACE.meadowZoom
   const pitch = num(r.pitch) ? Math.min(MOUSE_LOOK.maxPitch, Math.max(MOUSE_LOOK.minPitch, r.pitch)) : 0
   return {
     x: r.x,
@@ -47,6 +48,7 @@ export function normalizePlace(raw: unknown, unlocked: readonly ZoneId[]): Place
     yaw: num(r.yaw) ? r.yaw : 0,
     pitch,
     zoom,
+    meadowZoom,
     // 벤치는 섬에만 있다
     resting: land === 'island' && r.resting === true,
   }
