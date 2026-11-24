@@ -1,7 +1,12 @@
-# Three.js 게임 (스켈레톤)
+# 섬마을 🏝️
 
-React + TypeScript + Vite + Three.js(React Three Fiber) 기반 게임 프로젝트의 **뼈대**입니다.
-게임 테마는 아직 정해지지 않았으며, 지금은 회전하는 상자 하나가 있는 임시 씬만 들어 있습니다.
+https://seommaeul.vercel.app
+
+낚시섬에서 낚시하고, 배를 타고 바다 건너 초원 마을(은지 맵)로 가서 요리·사냥·사격을 하며 친구들과 같이 사는 3D 섬 생활 게임.
+React + TypeScript + Vite + Three.js(React Three Fiber) · rapier · zustand. 같이 하기는 Cloudflare Durable Object 방 서버(`server/`).
+
+- 배포: `main` 에 올리면 Vercel 이 자동 배포한다. 옛 주소 `rinfish.vercel.app` 은 새 주소로 넘어간다 (쿼리 그대로)
+- 저장은 브라우저 localStorage 라서 주소별로 따로다 (옛 주소 저장본은 새 주소로 오지 않는다)
 
 ## 실행 방법
 
@@ -52,10 +57,10 @@ src/
 
 ## 허브 로비 연결 (game-entry-contract v3)
 
-팀 허브 로비는 낚시섬을 iframe 이나 import 없이 **주소로** 연다: `https://rinfish.vercel.app/?hub_return=<복귀 주소>&hub_name=<이름>&hub_room=<방 코드>`.
+팀 허브 로비는 섬마을을 iframe 이나 import 없이 **주소로** 연다: `https://seommaeul.vercel.app/?hub_return=<복귀 주소>&hub_name=<이름>&hub_room=<방 코드>`.
 
-- 등록 정보: `id: rinfish`, `title: 낚시섬`, `url: https://rinfish.vercel.app/`
+- 등록 정보: `id: rinfish` (그대로), `title: 섬마을`, `url: https://seommaeul.vercel.app/`. 옛 주소로 등록돼 있어도 넘어가긴 하지만 허브 쪽 등록을 새 이름·주소로 바꾼다
 - `hub_return`: http(s) 일 때만 받아 이번 탭(sessionStorage)에 기억한다. 첫 화면과 ESC 메뉴에 「🏠 허브 로비로」가 생기고, 누르면 방 연결을 닫고 그 주소로 **고치지 않고** 이동한다. 없으면 버튼도 없다.
 - `hub_name`: 닉네임 칸을 미리 채운다 (10자로 자름). 표시용 힌트일 뿐이고 서버가 다시 검사한다.
-- `hub_room`: 형식(6자, `23456789abcdefghjkmnpqrstuvwxyz`)이 맞으면 「👥 허브 방 친구들과 같이 하기」 버튼이 생긴다. 낚시섬 방 `hub-<코드>` 로 들어가고, 없으면 만든다. 이 방의 암호는 코드에서 만들므로 비밀이 아니다.
+- `hub_room`: 형식(6자, `23456789abcdefghjkmnpqrstuvwxyz`)이 맞으면 「👥 허브 방 친구들과 같이 하기」 버튼이 생긴다. 섬마을 방 `hub-<코드>` 로 들어가고, 없으면 만든다. 이 방의 암호는 코드에서 만들므로 비밀이 아니다.
 - 읽는 곳: `src/App.tsx` → `logic/hubParams.ts`. 확인: `node tools/hub-entry-check.mjs http://localhost:5190` (서버·Vite 준비는 스크립트 머리말).
