@@ -62,7 +62,7 @@ export function Lobby({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) {
 
   return (
     <div style={{ ...panelBox, width: 'min(400px, 92vw)' }}>
-      <h2 style={{ margin: '0 0 12px', fontSize: 22 }}>🎣 낚시섬</h2>
+      <h2 style={{ margin: '0 0 12px', fontSize: 22 }}>🏝️ 섬마을</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
         {hub?.room && (
           <button style={{ ...button, fontSize: 18, padding: '10px 14px', background: '#81c784' }} disabled={busy} onClick={() => joinHub(hub.room!)}>

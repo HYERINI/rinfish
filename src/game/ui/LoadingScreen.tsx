@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useProgress } from '@react-three/drei'
 import { useTouchUi } from '../input/touchDevice'
+import { HORIZON, LoadingScenery, SCENERY_KEYFRAMES } from './LoadingScenery'
 
-/** 다 불러온 뒤에도 물고기 떼를 잠깐은 보여 준다 (너무 빨리 깜빡이지 않게) */
+/** 다 불러온 뒤에도 풍경·물고기 떼를 잠깐은 보여 준다 (너무 빨리 깜빡이지 않게) */
 const MIN_SHOW_MS = 1500
 /** 불러올 게 하나도 안 잡히면 이 시간 뒤엔 그냥 닫는다 */
 const NOTHING_TO_LOAD_MS = 6000
@@ -25,18 +26,22 @@ const FISH_COLORS = [
 const TIPS: { text: string; touch?: string }[] = [
   { text: '찌가 크게 잠길 때 클릭하면 챔질!', touch: '찌가 크게 잠길 때 챔질 버튼을 누르세요!' },
   { text: '텐션이 빨개지면 손을 떼세요' },
-  { text: 'Shift 달리기 · Space 점프 · 1~5 감정 표현', touch: '스틱을 끝까지 밀면 달려요 · 점프·표현 버튼도 눌러 보세요' },
+  { text: 'Shift 달리기 · Space 점프 · T 감정 표현', touch: '스틱을 끝까지 밀면 달려요 · 점프·표현 버튼도 눌러 보세요' },
   { text: 'Shift+휠이나 = 키로 얼굴까지 확대돼요', touch: '두 손가락으로 벌리면 얼굴까지 확대돼요' },
   { text: '희귀한 물고기는 멀리 던질수록 잘 문다' },
   { text: '동굴 깊은 곳엔 전설의 물고기가…' },
   { text: '개멸치뼈인식을 잡으면 낚싯바늘이 더 무겁다' },
+  { text: '선착장에서 배를 타면 바다 건너 초원 마을로 가요' },
+  { text: '배가 고프면 F 로 먹어요. 밤엔 은지 집 침대에서 자요', touch: '배가 고프면 먹기 버튼을 눌러요. 밤엔 은지 집 침대에서 자요' },
+  { text: '초원 들판의 동물을 잡으면 고기와 뼈를 얻어요' },
 ]
 
 type SwimFish = { top: number; size: number; duration: number; delay: number; flip: boolean; colors: string[] }
 
 function makeSchool(count: number): SwimFish[] {
   return Array.from({ length: count }, (_, i) => ({
-    top: 4 + Math.random() * 88,
+    // 물고기는 수평선 아래 바다에서만
+    top: HORIZON + 6 + Math.random() * (90 - HORIZON),
     size: 28 + Math.random() * 70,
     duration: 7 + Math.random() * 10,
     delay: -Math.random() * 16,
@@ -79,7 +84,8 @@ export function LoadingScreen() {
 
   return (
     <div style={{ ...screen, opacity: closing ? 0 : 1, pointerEvents: closing ? 'none' : 'auto' }}>
-      <style>{KEYFRAMES}</style>
+      <style>{KEYFRAMES + SCENERY_KEYFRAMES}</style>
+      <LoadingScenery />
       {school.map((f, i) => (
         <div
           key={i}
@@ -110,9 +116,9 @@ export function LoadingScreen() {
 
       <div style={center}>
         <div style={{ fontSize: 'clamp(48px, 12vw, 96px)', fontWeight: 900, letterSpacing: 4, textShadow: '0 4px 0 #01579b, 0 8px 24px rgba(0,0,0,0.35)' }}>
-          낚시섬
+          섬마을
         </div>
-        <div style={{ fontSize: 16, opacity: 0.9, marginTop: 4 }}>물고기들이 섬으로 헤엄쳐 오는 중…</div>
+        <div style={{ fontSize: 16, opacity: 0.9, marginTop: 4 }}>섬과 마을 사이로 배가 오가는 중…</div>
         <div style={barOuter}>
           <div style={{ ...barInner, width: `${percent}%` }} />
         </div>
@@ -159,7 +165,8 @@ const screen: CSSProperties = {
   inset: 0,
   zIndex: 2000,
   overflow: 'hidden',
-  background: 'linear-gradient(#4fc3f7 0%, #0288d1 55%, #01579b 100%)',
+  // 수평선(HORIZON) 위는 하늘, 아래는 바다
+  background: `linear-gradient(#81d4fa 0%, #e1f5fe ${HORIZON}%, #4fc3f7 ${HORIZON}%, #0288d1 70%, #01579b 100%)`,
   color: '#fff',
   transition: `opacity ${FADE_MS}ms ease`,
   userSelect: 'none',
@@ -175,7 +182,8 @@ const bubble: CSSProperties = {
 
 const center: CSSProperties = {
   position: 'absolute',
-  top: '50%',
+  // 수평선 풍경을 가리지 않게 가운데보다 아래
+  top: `${(HORIZON + 100) / 2 + 8}%`,
   left: '50%',
   transform: 'translate(-50%, -50%)',
   textAlign: 'center',
