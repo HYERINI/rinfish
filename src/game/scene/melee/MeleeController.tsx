@@ -33,8 +33,8 @@ export function MeleeController() {
   useFrame(({ clock }) => {
     const now = clock.elapsedTime
     const session = useSessionStore.getState()
-    // 총을 들었으면 누른 것은 GunController 가 가져간다
-    const press = isGun(session.tool) ? null : takeAttackPress()
+    // 총을 들었으면 누른 것은 GunController 가, 곡괭이를 들었으면 MineController 가 가져간다
+    const press = isGun(session.tool) || session.tool === 'pickaxe' ? null : takeAttackPress()
     if (press && canSwing(session.mode, session.playerAction, playerGround.grounded)) {
       const kind = meleeFor(session.tool, press === 'secondary')
       const next = kind && startSwing(meleeRig, kind, now)

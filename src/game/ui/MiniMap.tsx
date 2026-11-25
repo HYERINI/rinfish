@@ -1,5 +1,6 @@
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { MEADOW_DOCK, MEADOW_RECT, areaToWorld, type Rect } from '../data/meadow'
+import { MINE_ENTRANCE } from '../data/mine'
 import { ISLAND_RADIUS, ZONES } from '../data/zones'
 import { MAP_BOUNDS, MAP_PX_PER_M, fitBigMap, mapPixel, miniMapPoint } from '../logic/mapView'
 import { remoteRig } from '../net/remoteRig'
@@ -81,6 +82,22 @@ function arrow(g: CanvasRenderingContext2D, x: number, y: number, angle: number,
   g.restore()
 }
 
+/** 광산 입구 표시: 어두운 동그라미에 곡괭이. 지도가 돌아도 똑바로 서 있게 정적 지도가 아니라 매번 위에 그린다 */
+function mineMark(g: CanvasRenderingContext2D, x: number, y: number, size: number) {
+  g.fillStyle = '#4e4a45'
+  g.strokeStyle = '#ffd23f'
+  g.lineWidth = Math.max(1.5, size * 0.18)
+  g.beginPath()
+  g.arc(x, y, size, 0, Math.PI * 2)
+  g.fill()
+  g.stroke()
+  g.font = `${Math.round(size * 1.25)}px sans-serif`
+  g.textAlign = 'center'
+  g.textBaseline = 'middle'
+  g.fillStyle = '#fff'
+  g.fillText('⛏', x, y + size * 0.08)
+}
+
 /** 같이 하는 사람들 마지막 위치 [x, z] */
 function peers(): [number, number][] {
   const out: [number, number][] = []
@@ -135,6 +152,15 @@ export function MiniMap() {
         const [px, py] = mapPixel(x, z)
         g.drawImage(map, -px, -py)
         g.restore()
+        // 광산 입구: 미니맵 밖이면 그쪽 가장자리에 작게 붙여 방향을 알려 준다
+        {
+          const [sx, sy] = miniMapPoint(MINE_ENTRANCE.mound[0] - x, MINE_ENTRANCE.mound[1] - z, playerRig.yaw, k)
+          const d = Math.hypot(sx, sy)
+          const edge = r - 22
+          const far = d > edge
+          const f = far ? edge / d : 1
+          mineMark(g, r + sx * f, r + sy * f, far ? 15 : 20)
+        }
         for (const [qx, qz] of peers()) {
           const [sx, sy] = miniMapPoint(qx - x, qz - z, playerRig.yaw, k)
           if (Math.hypot(sx, sy) > r - 4) continue
@@ -154,6 +180,7 @@ export function MiniMap() {
         g.clearRect(0, 0, L.width, L.height)
         g.drawImage(map, f.ox, f.oy, (map.width / MAP_PX_PER_M) * f.scale, (map.height / MAP_PX_PER_M) * f.scale)
         const at = (wx: number, wz: number): [number, number] => [f.ox + (wx - MAP_BOUNDS.x0) * f.scale, f.oy + (wz - MAP_BOUNDS.z0) * f.scale]
+        mineMark(g, ...at(MINE_ENTRANCE.mound[0], MINE_ENTRANCE.mound[1]), 17)
         for (const [qx, qz] of peers()) {
           const [sx, sy] = at(qx, qz)
           g.fillStyle = '#ffeb3b'

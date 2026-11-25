@@ -8,12 +8,13 @@ describe('휠로 무기 바꾸기', () => {
     expect(wheelTool('pistol', 1)).toBe('rifle')
   })
   it('끝에서 처음으로 돈다', () => {
-    expect(wheelTool('sniper', 1)).toBe('rod')
-    expect(wheelTool('rod', -1)).toBe('sniper')
+    expect(wheelTool('sniper', 1)).toBe('pickaxe')
+    expect(wheelTool('pickaxe', 1)).toBe('rod')
+    expect(wheelTool('rod', -1)).toBe('pickaxe')
   })
   it('빈손이면 아래로는 첫 칸, 위로는 마지막 칸', () => {
     expect(wheelTool(null, 1)).toBe('rod')
-    expect(wheelTool(null, -1)).toBe('sniper')
+    expect(wheelTool(null, -1)).toBe('pickaxe')
   })
 })
 

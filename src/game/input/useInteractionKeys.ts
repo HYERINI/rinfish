@@ -3,6 +3,7 @@ import { isCookingSkipKey, resolveKeyAction } from '../logic/interaction'
 import { harvest, toggleDoor } from '../../meadow/meadowActions'
 import { toggleRangeGame } from '../../meadow/rangeActions'
 import { pickLoot } from '../hunt/huntActions'
+import { enterMine, leaveMine, requestPick } from '../mine/mineActions'
 import { pressReload } from './pointer'
 import { finishCooking } from '../scene/cooking/finishCooking'
 import { startSleep, wake } from '../scene/day/dayActions'
@@ -85,6 +86,15 @@ export function runKeyAction(code: string): boolean {
       break
     case 'pickLoot':
       pickLoot(action.key)
+      break
+    case 'enterMine':
+      enterMine()
+      break
+    case 'leaveMine':
+      leaveMine()
+      break
+    case 'mineOre':
+      requestPick(action.index)
       break
     case 'eatBest':
       eatBestNow()

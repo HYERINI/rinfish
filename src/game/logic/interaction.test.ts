@@ -23,6 +23,12 @@ describe('isSameInteractable', () => {
 })
 
 describe('resolveKeyAction', () => {
+  it('광산: 입구·나가는 자리·광맥 앞에서 E', () => {
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'mineEntrance' })).toEqual({ type: 'enterMine' })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'mineExit' })).toEqual({ type: 'leaveMine' })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'ore', index: 3 })).toEqual({ type: 'mineOre', index: 3 })
+    expect(resolveKeyAction('KeyE', 'bag', { kind: 'mineEntrance' })).toEqual({ type: 'none' })
+  })
   it('침대에서 E 로 잠자기', () => {
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'bed' })).toEqual({ type: 'sleep' })
   })
@@ -137,13 +143,14 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('Escape', 'emote', null)).toEqual({ type: 'closePanel' })
   })
 
-  it('탐험 중 숫자 키는 도구 칸 (1 낚싯대 · 2 주먹 · 3 칼 · 4~7 총), 빈 칸은 무시. X 는 넣기', () => {
+  it('탐험 중 숫자 키는 도구 칸 (1 낚싯대 · 2 주먹 · 3 칼 · 4~7 총 · 8 곡괭이), 빈 칸은 무시. X 는 넣기', () => {
     expect(resolveKeyAction('Digit1', 'explore', null)).toEqual({ type: 'equip', tool: 'rod' })
     expect(resolveKeyAction('Digit2', 'explore', null)).toEqual({ type: 'equip', tool: 'fists' })
     expect(resolveKeyAction('Digit3', 'explore', null)).toEqual({ type: 'equip', tool: 'knife' })
     expect(resolveKeyAction('Digit4', 'explore', null)).toEqual({ type: 'equip', tool: 'pistol' })
     expect(resolveKeyAction('Digit7', 'explore', null)).toEqual({ type: 'equip', tool: 'sniper' })
-    expect(resolveKeyAction('Digit8', 'explore', null)).toEqual({ type: 'none' })
+    expect(resolveKeyAction('Digit8', 'explore', null)).toEqual({ type: 'equip', tool: 'pickaxe' })
+    expect(resolveKeyAction('Digit9', 'explore', null)).toEqual({ type: 'none' })
     expect(resolveKeyAction('Digit0', 'explore', null)).toEqual({ type: 'none' })
     expect(resolveKeyAction('KeyX', 'explore', null)).toEqual({ type: 'equip', tool: null })
     expect(resolveKeyAction('KeyR', 'explore', null)).toEqual({ type: 'reload' })

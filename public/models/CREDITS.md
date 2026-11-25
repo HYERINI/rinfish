@@ -41,7 +41,7 @@
 
 ## Kenney (CC0 1.0)
 
-- 출처: https://kenney.nl — Food Kit, Furniture Kit, Nature Kit, Mini Characters, Holiday Kit, City Kit (Commercial), Fantasy Town Kit, Survival Kit, Mini Market, Pirate Kit
+- 출처: https://kenney.nl — Food Kit, Furniture Kit, Nature Kit, Mini Characters, Holiday Kit, City Kit (Commercial), Fantasy Town Kit, Survival Kit, Mini Market, Pirate Kit, Space Kit
 - 라이선스: Creative Commons Zero (CC0). 출처 표기 의무는 없지만 기록해 둔다 (각 팩 zip 의 License.txt 에서 "Creative Commons Zero, CC0" 확인, 2026-10-22)
 - 위치: `public/models/kenney/<팩>/`. glb 는 같은 폴더의 `Textures/colormap.png` 를 상대 경로로 읽는다
 
@@ -51,6 +51,9 @@
 | city-commercial/ | City Kit (Commercial) | detail-parasol-a.glb | 벤치 옆 파라솔 탁자 |
 | fantasy-town/ | Fantasy Town Kit | stall-green.glb | 장비 상점 노점 |
 | survival/ | Survival Kit | barrel, box-large, box-open, bucket, signpost-single, fish, fish-large (.glb) | 장비 상점·판매함 소품 |
+| survival/ | Survival Kit | tool-pickaxe, rock-a·b·c, structure, fence-doorway, chest, resource-stone-large (.glb, 2026-11-25 에 kenney.nl 에서 받은 zip. 텍스처는 위와 같은 colormap.png) | 광산: 곡괭이, 입구 바위·문틀, 안쪽 버팀목·광맥 바위·소품 |
+| space/ | Space Kit | rock_crystals, rock_crystalsLargeA·B, rock (.glb, 텍스처 없음. 2026-11-25 에 kenney.nl 에서 받은 zip, License.txt 에서 CC0 확인) | 광산 광맥 (결정 박힌 바위)·다 캔 바위. 색은 scene/mine/Mine.tsx 에서 광석마다 바꾼다 |
+| nature/ | Nature Kit | stone_tallG.glb (2026-11-25 에 받은 zip) | 광산 안 바위 기둥 |
 | mini-market/ | Mini Market | freezer.glb | 판매함 아이스박스 |
 | pirate/ | Pirate Kit | crate.glb | 판매함 생선 상자 |
 | nature/ | Nature Kit | tree_palm·palmBend·palmShort·oak·default·fat·pineRoundA, flower_redA·yellowA·purpleA·yellowB, mushroom_red·tanGroup, plant_bush·bushLarge·bushDetailed (.glb, 텍스처 없음) | 섬 바닥 꾸미기 (나무·꽃·버섯·덤불). 색은 decorAssets.ts 에서 섬 풀빛에 맞춰 바꾼다 |

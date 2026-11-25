@@ -136,7 +136,7 @@ export function Hud() {
           {mouseLook && !locked && <div style={lookHint}>클릭하면 마우스로 시점 회전 · ESC 해제</div>}
           {!touchUi && (
             <div style={{ position: 'absolute', bottom: 8, left: 16, right: 16, textAlign: 'center', opacity: 0.7, fontSize: 12 }}>
-              WASD 이동 · Shift 달리기 · Space 점프 · 1~7 도구 · X 넣기 · {tool === 'fists' ? '클릭 주먹 · ' : tool === 'knife' ? '클릭 베기 · 오른쪽 클릭 찌르기 · ' : isGun(tool) ? '클릭 쏘기 · 오른쪽 클릭 조준 · R 장전 · ' : ''}V 시점 · I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 무기 바꾸기 · Shift+휠·-/= 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
+              WASD 이동 · Shift 달리기 · Space 점프 · 1~8 도구 · X 넣기 · {tool === 'pickaxe' ? '클릭 곡괭이질 · ' : tool === 'fists' ? '클릭 주먹 · ' : tool === 'knife' ? '클릭 베기 · 오른쪽 클릭 찌르기 · ' : isGun(tool) ? '클릭 쏘기 · 오른쪽 클릭 조준 · R 장전 · ' : ''}V 시점 · I 가방 · F 먹기 · T 꾹 감정 표현 · Tab 지도 · 휠 무기 바꾸기 · Shift+휠·-/= 확대 · M 음악 · {mouseLook ? (locked ? '마우스로 시점 회전 · ESC 메뉴' : '클릭 후 마우스로 시점 회전') : '드래그로 카메라 회전'}
             </div>
           )}
         </>

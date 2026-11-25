@@ -85,6 +85,6 @@ export const MEADOW_DOORS = ['거실 문', '사격장 문', '주방 문', '현�
  */
 export const MEADOW_VENDORS: { id: VendorId; name: string; greet: string; at: [number, number]; npc: [number, number]; look: string }[] = [
   { id: 'butcher', name: '정육점', greet: '고기와 요리를 삽니다', at: [46, 11.5], npc: [46, 12.4], look: 'grandpa' },
-  { id: 'general', name: '잡화점', greet: '탄약을 팝니다 · 뼈·비계는 삽니다', at: [52, 11.5], npc: [52, 12.4], look: 'lady' },
+  { id: 'general', name: '잡화점', greet: '탄약을 팝니다 · 뼈·비계·광석은 삽니다', at: [52, 11.5], npc: [52, 12.4], look: 'lady' },
   { id: 'grocer', name: '농산물 가게', greet: '달걀·호박·버섯을 사고팝니다', at: [58, 11.5], npc: [58, 12.4], look: 'rangerMale' },
 ]

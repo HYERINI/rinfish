@@ -1,5 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { MEADOW_RECT, toMeadowLocal } from '../game/data/meadow'
+import { isUnderground } from '../game/data/mine'
 import { lootList } from '../game/hunt/animalRig'
 import type { Interactable } from '../game/logic/interaction'
 import { nearestLoot } from '../game/logic/loot'
@@ -25,11 +26,12 @@ export function MeadowInteractions() {
     stepStoveCook(performance.now() / 1000)
     const session = useSessionStore.getState()
     if (session.mode !== 'explore') return
-    const { x, z } = playerRig.position
+    const { x, y, z } = playerRig.position
     // 섬에선 찾지 않는다 (내가 잡아 둔 게 있으면 지운다)
     const [lx, lz] = toMeadowLocal(x, z)
     const loot = nearestLoot(lootList(), x, z, netNow())
-    const found: Interactable | null = loot ? { kind: 'loot', key: loot.key, item: loot.item } : x > MEADOW_RECT.x0 - 2 ? nearestSpot(lx, lz, meadowSpots(), usable) : null
+    // 광산 안(땅속)에선 머리 위 지상의 버섯·전리품을 잡지 않는다
+    const found: Interactable | null = isUnderground(y) ? null : loot ? { kind: 'loot', key: loot.key, item: loot.item } : x > MEADOW_RECT.x0 - 2 ? nearestSpot(lx, lz, meadowSpots(), usable) : null
     const current = session.nearby
     const next = meadowNearbyUpdate(current, found)
     if (next === 'clear') {

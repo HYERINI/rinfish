@@ -55,8 +55,8 @@ function ExploreControls() {
       <span style={{ fontSize: 11 }}>가방</span>
     </TapButton>
   )
-  // 주먹을 들면 휘두르기 (누르는 순간 바로). 세로 화면은 가방 줄에
-  const attack = tool === 'fists' && (
+  // 주먹·곡괭이를 들면 휘두르기 (누르는 순간 바로). 세로 화면은 가방 줄에
+  const attack = (tool === 'fists' || tool === 'pickaxe') && (
     <button
       className="tc-btn tc-small"
       aria-label="휘두르기"
@@ -65,7 +65,7 @@ function ExploreControls() {
         pressAttack('primary')
       }}
     >
-      <span style={{ fontSize: 22, lineHeight: 1 }}>✊</span>
+      <span style={{ fontSize: 22, lineHeight: 1 }}>{tool === 'pickaxe' ? '⛏️' : '✊'}</span>
       <span style={{ fontSize: 11 }}>치기</span>
     </button>
   )

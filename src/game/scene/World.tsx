@@ -9,6 +9,8 @@ import { Animals } from './animals/Animals'
 import { HerdRunner } from './animals/HerdRunner'
 import { LootItems } from './animals/LootItems'
 import { MeleeController } from './melee/MeleeController'
+import { Mine } from './mine/Mine'
+import { MineController } from './mine/MineController'
 import { GunController } from './guns/GunController'
 import { GunEffects } from './guns/GunEffects'
 import { FirstPersonView } from './guns/FirstPersonView'
@@ -75,6 +77,8 @@ export function World() {
       </Suspense>
       <LootItems />
       <MeleeController />
+      <Mine />
+      <MineController />
       <GunController />
       <GunEffects />
       <DayCycle />

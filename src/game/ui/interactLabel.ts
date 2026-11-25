@@ -1,9 +1,10 @@
 import { MEADOW_DOORS, MEADOW_VENDORS } from '../data/meadow'
 import { MARKET } from '../data/market'
 import { ITEMS } from '../data/meadowItems'
+import { ORE_NODES } from '../data/mine'
 import type { Interactable } from '../logic/interaction'
 
-const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock' | 'pickup' | 'door' | 'vendor' | 'loot'>, string> = {
+const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock' | 'pickup' | 'door' | 'vendor' | 'loot' | 'ore'>, string> = {
   fishingSpot: '낚시하기',
   sellBox: '물고기 팔기',
   gearShop: '장비 상점',
@@ -14,6 +15,8 @@ const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock' | 'pickup'
   bed: '🛏️ 잠자기',
   stove: '🍳 요리하기 (요리법 보기)',
   rack: '🔫 무기 고르기',
+  mineEntrance: '⛏️ 광산 들어가기',
+  mineExit: '🪜 밖으로 나가기',
 }
 
 const GATE_LABEL: Record<string, string> = {
@@ -32,6 +35,10 @@ export function interactLabel(target: Interactable): string {
   if (target.kind === 'door') return `🚪 ${MEADOW_DOORS[target.index] ?? '문'} 여닫기`
   if (target.kind === 'pickup') return `${ITEMS[target.item].icon} ${ITEMS[target.item].name} 따기`
   if (target.kind === 'loot') return `${ITEMS[target.item].icon} ${ITEMS[target.item].name} 줍기`
+  if (target.kind === 'ore') {
+    const ore = ORE_NODES[target.index]?.ore
+    return ore ? `⛏️ ${ITEMS[ore].name} 캐기` : '⛏️ 캐기'
+  }
   if (target.kind === 'dock') return target.dir === 'toIsland' ? '⛵ 배 타기 (섬으로)' : '⛵ 배 타기 (초원으로)'
   return LABEL[target.kind]
 }

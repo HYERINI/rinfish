@@ -17,8 +17,8 @@ type SessionState = {
   nearby: Interactable | null
   /** 화면 위쪽에 잠깐 띄우는 알림. id가 바뀌면 새 알림 */
   notice: { id: number; text: string } | null
-  /** 다음 프레임에 플레이어를 옮길 위치 [x, z] (쓰러진 뒤 진료소로) */
-  teleport: [number, number] | null
+  /** 다음 프레임에 플레이어를 옮길 위치 [x, z] (쓰러진 뒤 진료소로) 또는 [x, z, y] (광산 안: 몸 가운데 높이. 없으면 지상 1) */
+  teleport: [number, number] | [number, number, number] | null
   /** 섬 카메라 거리 (휠·두 손가락 줌). 서 있던 자리(Place)와 함께 저장한다 */
   zoom: number
   /** 초원 카메라 거리. 섬과 따로 기억한다 (초원은 은지처럼 가까이서 본다) */
@@ -83,7 +83,7 @@ type SessionState = {
   /** 영역을 벗어날 때 호출. 다른 영역에 이미 들어가 있으면 지우지 않는다 */
   clearNearby: (target: Interactable) => void
   notify: (text: string) => void
-  requestTeleport: (pos: [number, number]) => void
+  requestTeleport: (pos: [number, number] | [number, number, number]) => void
   clearTeleport: () => void
   resetSession: () => void
 }

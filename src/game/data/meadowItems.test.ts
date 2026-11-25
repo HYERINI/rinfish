@@ -1,12 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import * as eunji from '../../meadow/vendor/items.js'
-import { DROPS, ITEMS, ITEM_IDS, MEADOW_DISH_IDS, RAW_ITEM_IDS, RECIPES, rollDrops } from './meadowItems'
+import { DROPS, ITEMS, ITEM_IDS, MEADOW_DISH_IDS, ORE_IDS, RAW_ITEM_IDS, RECIPES, isOre, rollDrops } from './meadowItems'
 
 describe('은지 아이템 TS 복사본', () => {
   it('25종 물건(재료 12 + 요리 13)의 이름·아이콘·태그·포만감이 은지 items.js 와 같다 (순서까지)', () => {
-    expect(ITEM_IDS).toEqual(Object.keys(eunji.ITEMS))
-    expect(ITEM_IDS).toHaveLength(25)
-    for (const id of ITEM_IDS) expect(ITEMS[id]).toEqual(eunji.ITEMS[id])
+    // 광석 5종은 은지 사전 뒤에 붙는다
+    const eunjiIds = ITEM_IDS.filter((id) => !isOre(id))
+    expect(eunjiIds).toEqual(Object.keys(eunji.ITEMS))
+    expect(eunjiIds).toHaveLength(25)
+    for (const id of eunjiIds) expect(ITEMS[id]).toEqual(eunji.ITEMS[id])
+  })
+  it('광석 5종은 사전 맨 끝에 있고 먹을 수 없다 (포만감·태그 없음)', () => {
+    expect(ITEM_IDS.slice(25)).toEqual(ORE_IDS)
+    for (const id of ORE_IDS) {
+      expect(ITEMS[id].sate).toBeUndefined()
+      expect(ITEMS[id].tags).toEqual([])
+    }
   })
   it('배합법 13가지가 같다', () => {
     expect(RECIPES).toEqual(eunji.RECIPES)
@@ -29,7 +38,7 @@ describe('전리품 (은지 DROPS)', () => {
 
 describe('RAW_ITEM_IDS', () => {
   it('요리가 아닌 재료 전부 (사전 순서). 전리품 DROPS 는 모두 그 안에 있다', () => {
-    expect(RAW_ITEM_IDS).toEqual(['beef', 'pork', 'boar', 'venison', 'rabbit', 'foxmeat', 'chicken', 'egg', 'bone', 'fat', 'pumpkin', 'mushroom'])
+    expect(RAW_ITEM_IDS).toEqual(['beef', 'pork', 'boar', 'venison', 'rabbit', 'foxmeat', 'chicken', 'egg', 'bone', 'fat', 'pumpkin', 'mushroom', ...ORE_IDS])
     for (const list of Object.values(DROPS)) for (const d of list) expect(RAW_ITEM_IDS).toContain(d.id)
   })
 })

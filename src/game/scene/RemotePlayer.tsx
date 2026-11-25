@@ -19,6 +19,7 @@ import { FOOT_Y } from './Player'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 import { GunModel } from './tools/GunModel'
 import { KnifeModel } from './tools/KnifeModel'
+import { PickaxeModel } from './tools/PickaxeModel'
 
 const LINE_POINTS = 16
 // 매 프레임 new 하지 않도록 재사용
@@ -38,6 +39,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
   const rod = useRef<Group>(null)
   const knife = useRef<Group>(null)
   const gun = useRef<Group>(null)
+  const pickaxe = useRef<Group>(null)
   /** 남이 든 총 (바뀔 때만 React 상태를 바꾼다) */
   const [gunId, setGunId] = useState<GunId | null>(null)
   const boatRef = useRef<Group>(null)
@@ -93,6 +95,11 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
       knife.current.position.copy(rod.current.position)
       knife.current.rotation.x = s.rod
     }
+    if (pickaxe.current) {
+      pickaxe.current.visible = held === 'pickaxe'
+      pickaxe.current.position.copy(rod.current.position)
+      pickaxe.current.rotation.x = s.rod
+    }
     const nextGun = isGun(s.tool) ? s.tool : null
     if (nextGun !== gunId) setGunId(nextGun)
     if (gun.current) {
@@ -136,6 +143,9 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
           </group>
           <group ref={knife} visible={false}>
             <KnifeModel />
+          </group>
+          <group ref={pickaxe} visible={false}>
+            <PickaxeModel />
           </group>
           {gunId && (
             <group ref={gun} visible={false}>

@@ -1,5 +1,5 @@
 import type { GunId } from './guns'
-import { ITEMS, hasTag, type ItemId, type RawItemId } from './meadowItems'
+import { ITEMS, hasTag, isOre, type ItemId, type RawItemId } from './meadowItems'
 
 /**
  * 마을 상인 가격 (코인). 은지 "원" 값의 약 2배: 고기 ≈ 흔한 물고기 하위 값, 요리 ≈ 간식. 나중에 맞추기 쉽게 숫자는 여기에만 둔다.
@@ -18,6 +18,12 @@ export const SELL_PRICE: Record<RawItemId, number> = {
   egg: 4,
   pumpkin: 6,
   mushroom: 4,
+  // 광석: 돌은 흔해서 싸고, 금은 탄약 한 묶음 값에 가깝게
+  stone: 3,
+  copper: 10,
+  iron: 16,
+  silver: 30,
+  gold: 55,
 }
 
 /** 요리 파는 값: 포만감 × 6 + 10 (22~46) */
@@ -49,9 +55,9 @@ export function sellPrice(id: ItemId): number {
 export type VendorId = 'butcher' | 'general' | 'grocer'
 export const VENDOR_IDS: VendorId[] = ['butcher', 'general', 'grocer']
 
-/** 누가 무엇을 사고(buys) 파는지(sells). 은지 VENDORS 그대로: 정육점 고기·요리 삼 / 잡화점 뼈·비계 삼 (탄약은 AMMO_PACKS) / 농산물 사고팜 */
+/** 누가 무엇을 사고(buys) 파는지(sells). 은지 VENDORS 그대로: 정육점 고기·요리 삼 / 잡화점 뼈·비계·광석 삼 (탄약은 AMMO_PACKS) / 농산물 사고팜 */
 export const VENDOR_TRADE: Record<VendorId, { buys: (id: ItemId) => boolean; sells: ItemId[] }> = {
   butcher: { buys: (id) => hasTag(id, 'meat') || hasTag(id, 'dish'), sells: [] },
-  general: { buys: (id) => id === 'bone' || id === 'fat', sells: [] },
+  general: { buys: (id) => id === 'bone' || id === 'fat' || isOre(id), sells: [] },
   grocer: { buys: (id) => id === 'egg' || id === 'pumpkin' || id === 'mushroom', sells: ['egg', 'pumpkin', 'mushroom'] },
 }

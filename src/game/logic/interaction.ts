@@ -60,6 +60,11 @@ export type Interactable =
   | { kind: 'loot'; key: number; item: RawItemId }
   /** 사격장 무기 선반 */
   | { kind: 'rack' }
+  /** 광산 입구 (지상의 빛나는 자리) · 광산 안 나가는 자리 */
+  | { kind: 'mineEntrance' }
+  | { kind: 'mineExit' }
+  /** 광맥 (index: ORE_NODES 순서) */
+  | { kind: 'ore'; index: number }
 
 export function isSameInteractable(a: Interactable | null, b: Interactable): boolean {
   if (!a || a.kind !== b.kind) return false
@@ -70,6 +75,7 @@ export function isSameInteractable(a: Interactable | null, b: Interactable): boo
   if (a.kind === 'door' && b.kind === 'door') return a.index === b.index
   if (a.kind === 'vendor' && b.kind === 'vendor') return a.id === b.id
   if (a.kind === 'loot' && b.kind === 'loot') return a.key === b.key
+  if (a.kind === 'ore' && b.kind === 'ore') return a.index === b.index
   return true
 }
 
@@ -105,6 +111,11 @@ export type KeyAction =
   | { type: 'openVendor'; id: VendorId }
   /** 전리품 줍기 */
   | { type: 'pickLoot'; key: number }
+  /** 광산 들어가기 / 나가기 */
+  | { type: 'enterMine' }
+  | { type: 'leaveMine' }
+  /** 광맥 캐기 (곡괭이를 들고 한 번 내려친다) */
+  | { type: 'mineOre'; index: number }
 
 /** 요리 연출을 건너뛰는 키 (E·Space·Enter·ESC). 수리 연출은 건너뛰지 않는다 */
 export function isCookingSkipKey(code: string): boolean {
@@ -179,6 +190,12 @@ export function resolveKeyAction(code: string, mode: Mode, nearby: Interactable 
         return { type: 'pickLoot', key: nearby.key }
       case 'rack':
         return { type: 'openMode', mode: 'rack' }
+      case 'mineEntrance':
+        return { type: 'enterMine' }
+      case 'mineExit':
+        return { type: 'leaveMine' }
+      case 'ore':
+        return { type: 'mineOre', index: nearby.index }
       case 'stove':
         // 가방의 요리법 탭이 열린다 (BagPanel 이 가스레인지 앞인지 본다)
         return { type: 'openMode', mode: 'bag' }

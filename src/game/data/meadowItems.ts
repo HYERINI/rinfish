@@ -5,7 +5,9 @@ import type { SpeciesId } from './animals'
  * 서버(3-3 전리품)와 같이 하기 메시지(먹는 요리)도 쓰므로 은지 JS 가 아닌 TS 데이터로 둔다
  */
 
-export type RawItemId = 'beef' | 'pork' | 'boar' | 'venison' | 'rabbit' | 'foxmeat' | 'chicken' | 'egg' | 'bone' | 'fat' | 'pumpkin' | 'mushroom'
+/** 광산에서 캐는 광석 (은지 게임에는 없다. 가방·상인은 은지 물건과 같이 다룬다) */
+export type OreId = 'stone' | 'copper' | 'iron' | 'silver' | 'gold'
+export type RawItemId = 'beef' | 'pork' | 'boar' | 'venison' | 'rabbit' | 'foxmeat' | 'chicken' | 'egg' | 'bone' | 'fat' | 'pumpkin' | 'mushroom' | OreId
 export type MeadowDishId =
   | 'roast'
   | 'skewer'
@@ -20,7 +22,7 @@ export type MeadowDishId =
   | 'mushroomfry'
   | 'friedegg'
   | 'omelet'
-/** 가방에 들어가는 은지 물건 25종 (재료 12 + 요리 13. 스펙의 "22종" 은 잘못 센 수) */
+/** 가방에 들어가는 물건: 은지 25종 (재료 12 + 요리 13. 스펙의 "22종" 은 잘못 센 수) + 광석 5종 */
 export type ItemId = RawItemId | MeadowDishId
 export type ItemTag = 'meat' | 'dish'
 
@@ -60,12 +62,21 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   mushroomfry: { name: '버섯 볶음', icon: '🍄', tags: ['dish'], sate: 3, desc: '버섯 세 개' },
   friedegg: { name: '달걀 프라이', icon: '🍳', tags: ['dish'], sate: 2, desc: '달걀 하나' },
   omelet: { name: '호박 오믈렛', icon: '🍳', tags: ['dish'], sate: 5, desc: '달걀 두 개와 호박' },
+  // 광석 (은지 사전 뒤에 붙인다. 광산에서 곡괭이로 캐고 잡화점에 판다)
+  stone: { name: '돌', icon: '🪨', tags: [], desc: '광산 어디에나 있다. 잡화점에 판다' },
+  copper: { name: '구리 광석', icon: '🟠', tags: [], desc: '광산에서 곡괭이로 캔다' },
+  iron: { name: '철광석', icon: '⚙️', tags: [], desc: '광산 안쪽 벽. 단단해서 오래 캔다' },
+  silver: { name: '은광석', icon: '⚪', tags: [], desc: '광산 깊은 곳에 드물게' },
+  gold: { name: '금광석', icon: '🟡', tags: [], desc: '광산 가장 안쪽. 가장 비싸다' },
 }
 
 /** 사전 순서 (가방·상점 카드 순서) */
 export const ITEM_IDS = Object.keys(ITEMS) as ItemId[]
 /** 요리가 아닌 재료 (사전 순서. 같이 하기 loot 받는 쪽 검사) */
 export const RAW_ITEM_IDS = ITEM_IDS.filter((id) => !ITEMS[id].tags.includes('dish')) as RawItemId[]
+/** 광석 (사전 순서) */
+export const ORE_IDS: OreId[] = ['stone', 'copper', 'iron', 'silver', 'gold']
+export const isOre = (id: string): id is OreId => (ORE_IDS as string[]).includes(id)
 export const MEADOW_DISH_IDS = ITEM_IDS.filter((id) => ITEMS[id].tags.includes('dish')) as MeadowDishId[]
 
 export const TAGS: Record<ItemTag, { name: string; icon: string }> = { meat: { name: '아무 고기', icon: '🥩' }, dish: { name: '요리', icon: '🍽️' } }

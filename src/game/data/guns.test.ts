@@ -27,11 +27,12 @@ describe('총 (은지 WEAPONS)', () => {
 })
 
 describe('도구 칸', () => {
-  it('1 낚싯대 · 2 주먹 · 3 칼 · 4 권총 · 5 소총 · 6 산탄총 · 7 저격총', () => {
-    expect(HOTBAR).toEqual(['rod', 'fists', 'knife', 'pistol', 'rifle', 'shotgun', 'sniper', null, null])
+  it('1 낚싯대 · 2 주먹 · 3 칼 · 4 권총 · 5 소총 · 6 산탄총 · 7 저격총 · 8 곡괭이', () => {
+    expect(HOTBAR).toEqual(['rod', 'fists', 'knife', 'pistol', 'rifle', 'shotgun', 'sniper', 'pickaxe', null])
   })
-  it('폰은 총을 한 칸만 (마지막에 든 총), 무기 바꾸기는 주먹 → 칼 → 총 4종 → 주먹', () => {
-    expect(touchHotbar('rifle')).toEqual(['rod', 'fists', 'knife', 'rifle'])
+  it('폰은 총을 한 칸만 (마지막에 든 총), 곡괭이는 맨 끝. 무기 바꾸기는 주먹 → 칼 → 총 4종 → 주먹 (곡괭이는 건너뛴다)', () => {
+    expect(touchHotbar('rifle')).toEqual(['rod', 'fists', 'knife', 'rifle', 'pickaxe'])
+    expect(nextWeapon('pickaxe')).toBe('fists')
     expect(nextWeapon('fists')).toBe('knife')
     expect(nextWeapon('knife')).toBe('pistol')
     expect(nextWeapon('sniper')).toBe('fists')

@@ -29,6 +29,9 @@ import type { FishingState } from '../logic/fishingSession'
 import { fishingLook, gunArm, swingArm } from '../logic/characterPose'
 import { swingProgress } from '../logic/melee'
 import { meleeRig } from '../hunt/meleeRig'
+import { MINE_ENTRANCE, isUnderground } from '../data/mine'
+import { pickProgress } from '../logic/mining'
+import { mineRig } from '../mine/mineRig'
 import { gunRig, takeKick } from '../guns/gunRig'
 import { cameraShoulder } from '../logic/gun'
 import { isGrounded, moveSpeed, nextAction, shouldFaceCamera, shownTool } from '../logic/playerMotion'
@@ -49,6 +52,7 @@ import { playerGround } from './playerGround'
 import { PlayerModel, type PlayerModelHandle } from './PlayerModel'
 import { GunModel } from './tools/GunModel'
 import { KnifeModel } from './tools/KnifeModel'
+import { PickaxeModel } from './tools/PickaxeModel'
 
 /** 다른 컴포넌트(낚싯줄·같이 하기 등)가 읽는 플레이어 정보. Player가 매 프레임 갱신한다 */
 export const playerRig = {
@@ -121,6 +125,8 @@ function rodAngle(fishing: FishingState | null, now: number): number {
 
 /** 휘두르는 동안 칼날을 앞으로 눕히는 각도 (동작 가운데에서 가장 크게) */
 const KNIFE_SWING_TILT = 1.1
+/** 곡괭이를 내려치는 동안 머리를 앞으로 눕히는 각도 */
+const PICK_SWING_TILT = 1.3
 /** 눈 높이 (키 대비, 은지 1.65 / 1.8) */
 const EYE_RATIO = 0.92
 /** 쏜 뒤 이만큼(초) 총을 겨눈 채 카메라 쪽을 본다 */
@@ -155,6 +161,8 @@ export function Player() {
   /** 손에 든 칼 (도구 칸 3), 총 (도구 칸 4~7) */
   const knife = useRef<Group>(null)
   const gun = useRef<Group>(null)
+  /** 손에 든 곡괭이 (도구 칸 8) */
+  const pickaxe = useRef<Group>(null)
   const tool = useSessionStore((s) => s.tool)
   const model = useRef<PlayerModelHandle>(null)
   const boatRef = useRef<Group>(null)
@@ -218,7 +226,9 @@ export function Player() {
     const p = rb.translation()
     const session = useSessionStore.getState()
     if (!canSavePlace(p.x, p.z, rb.isDynamic(), session.teleport !== null)) return null
-    return { x: p.x, z: p.z, facing: facing.current, yaw: yaw.current, pitch: pitch.current, zoom: session.zoom, meadowZoom: session.meadowZoom, resting: session.mode === 'rest' }
+    // 광산 안(땅속)은 자리에 높이가 없어 저장할 수 없다: 입구 앞을 저장한다 (다시 들어오면 입구 앞에서 시작)
+    const [px, pz] = isUnderground(p.y) ? MINE_ENTRANCE.out : [p.x, p.z]
+    return { x: px, z: pz, facing: facing.current, yaw: yaw.current, pitch: pitch.current, zoom: session.zoom, meadowZoom: session.meadowZoom, resting: session.mode === 'rest' }
   }
   // 탭을 숨기거나 닫을 때 바로 저장한다 (폰은 백그라운드 탭을 언제든 없앨 수 있다)
   useEffect(() => {
@@ -251,7 +261,8 @@ export function Player() {
     if (teleport && body.current) {
       // 배 타던 중이면(순간이동이 배를 끝낸다) 물리로 돌린 뒤 옮긴다
       if (body.current.bodyType() !== rapier.RigidBodyType.Dynamic) body.current.setBodyType(rapier.RigidBodyType.Dynamic, true)
-      body.current.setTranslation({ x: teleport[0], y: 1, z: teleport[1] }, true)
+      // 높이가 없으면 지상(1), 있으면 그 높이 (광산 안)
+      body.current.setTranslation({ x: teleport[0], y: teleport[2] ?? 1, z: teleport[1] }, true)
       body.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
       useSessionStore.getState().clearTeleport()
     }
@@ -413,6 +424,9 @@ export function Player() {
     } else if (mode === 'explore' && swingProgress(meleeRig.swing, now) >= 0) {
       // 휘두르는 동안엔 휘두른 쪽(그때 카메라가 보던 쪽)을 본다
       facing.current = meleeRig.yaw + Math.PI
+    } else if (mode === 'explore' && pickProgress(mineRig.swing, now) >= 0) {
+      // 곡괭이질하는 동안엔 광맥 쪽을 본다
+      facing.current = mineRig.facing
     } else if (gunUp || (firstView && mode === 'explore')) {
       // 총을 겨누는 동안(조준·막 쏨)엔 카메라가 보는 쪽 (총알이 나가는 쪽)
       facing.current = yaw.current + Math.PI
@@ -420,7 +434,9 @@ export function Player() {
       facing.current = Math.atan2(moveDir.x, moveDir.z)
     }
     // 가까이 당긴 채 멈춰 있으면 얼굴이 보이게 카메라 쪽으로 천천히 돌아선다 (카메라는 그대로)
-    if (mode !== 'explore' || moveDir.lengthSq() > 0) movedAt.current = now
+    // 곡괭이질하는 동안과 곡괭이를 들고 광맥 앞에 선 동안은 멈춘 것으로 치지 않는다 (칠 때마다 광맥 ↔ 카메라 쪽으로 돌아서지 않게)
+    const mining = pickProgress(mineRig.swing, now) >= 0 || (session.tool === 'pickaxe' && session.nearby?.kind === 'ore')
+    if (mode !== 'explore' || moveDir.lengthSq() > 0 || mining) movedAt.current = now
     if (shouldFaceCamera(mode, camView.distance, now - movedAt.current, action)) {
       facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
     }
@@ -451,6 +467,7 @@ export function Player() {
       rod.current.visible = held === 'rod'
       if (knife.current) knife.current.visible = held === 'knife'
       if (gun.current) gun.current.visible = isGun(held)
+      if (pickaxe.current) pickaxe.current.visible = held === 'pickaxe'
       playerRig.rodAngle = rod.current.rotation.x
       playerRig.rodShown = rod.current.visible
       const m = model.current
@@ -461,6 +478,9 @@ export function Player() {
         m.update(delta, now, fishingLook(fishing), action, speed, rod.current.rotation.x, seated, boatAt ? BOAT_SEAT_SHAPE : BENCH_SEAT_SHAPE)
         const swingAt = swingProgress(meleeRig.swing, now)
         if (swingAt >= 0 && meleeRig.swing) m.swing(swingArm(meleeRig.swing.kind, swingAt))
+        // 곡괭이질은 칼 베기 팔 동작을 (data/mine PICK 시간으로)
+        const pickAt = pickProgress(mineRig.swing, now)
+        if (pickAt >= 0) m.swing(swingArm('knife', pickAt))
         // 총을 겨누면 오른팔을 앞으로 든다 (총은 손에 붙어 함께 올라간다)
         gunRaise.current += (Number(gunUp && isGun(held)) - gunRaise.current) * (1 - Math.exp(-delta * GUN_RAISE_SPEED))
         if (gunRaise.current > 1e-3) m.swing(gunArm(gunRaise.current))
@@ -471,6 +491,11 @@ export function Player() {
         if (knife.current) {
           knife.current.position.copy(rod.current.position)
           knife.current.rotation.x = rod.current.rotation.x + (swingAt >= 0 ? KNIFE_SWING_TILT * Math.sin(Math.PI * swingAt) : 0)
+        }
+        // 곡괭이도 같은 손에. 내려치는 동안 머리를 앞으로 눕힌다
+        if (pickaxe.current) {
+          pickaxe.current.position.copy(rod.current.position)
+          pickaxe.current.rotation.x = rod.current.rotation.x + (pickAt >= 0 ? PICK_SWING_TILT * Math.sin(Math.PI * pickAt) : 0)
         }
         // 총도 같은 손에 (총열이 앞을 본다). 총구 자리를 쏘기(궤적·불꽃)에 알려 준다
         gunRig.muzzle = null
@@ -574,6 +599,9 @@ export function Player() {
         </group>
         <group ref={knife} visible={false}>
           <KnifeModel />
+        </group>
+        <group ref={pickaxe} visible={false}>
+          <PickaxeModel />
         </group>
         {isGun(tool) && (
           <group ref={gun} visible={false}>
