@@ -23,6 +23,7 @@ import { useNetStore } from './stores/netStore'
 import { ChatBox } from './ui/ChatBox'
 import { EmoteWheel } from './ui/EmoteWheel'
 import { RoomBadge } from './ui/RoomBadge'
+import { CloudBadge } from './ui/CloudBadge'
 import { MiniMap } from './ui/MiniMap'
 import { FishingOverlay } from './ui/FishingOverlay'
 import { GoalTracker } from './ui/GoalTracker'
@@ -125,6 +126,7 @@ export function Game({ onExit, hub }: GameProps) {
       <RangeHud />
       <Hotbar />
       <RoomBadge />
+      <CloudBadge />
       <MiniMap />
       <GoalTracker />
       <FishingOverlay />

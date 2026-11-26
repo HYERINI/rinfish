@@ -12,6 +12,8 @@ import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
 import { button, panelBox } from './styles'
 import { ROOM_SERVER } from '../net/serverUrl'
+import { cloud } from '../net/cloudBoot'
+import { CloudRestoreForm } from './CloudRestore'
 
 /** 자동 회전 속도 (라디안/초) */
 const SPIN_SPEED = 0.4
@@ -124,12 +126,18 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
   const saved = useProgressStore((s) => s.look)
   const [draft, setDraft] = useState<CharacterLook>(saved ?? LOOK_PRESETS[0].look)
   const [spinning, setSpinning] = useState(true)
+  const [restoring, setRestoring] = useState(false)
   const drag = useRef<PreviewDrag>({ pointer: null, x: 0, extra: 0 })
   const endDrag = (e: PointerEvent<HTMLDivElement>) => {
     if (drag.current.pointer === e.pointerId) drag.current.pointer = null
   }
   const set = (patch: Partial<CharacterLook>) => setDraft((d) => ({ ...d, ...patch }))
   // 처음 만든 뒤 방 서버가 있으면 혼자/같이 고르는 창으로
+  const restored = () => {
+    setRestoring(false)
+    // 받은 진행에 생김새가 있으면 꾸미기를 건너뛰고 시작 창(방 서버가 있으면) 또는 탐험으로
+    if (useProgressStore.getState().look) useSessionStore.getState().setMode(ROOM_SERVER ? 'lobby' : 'explore')
+  }
   const close = () => useSessionStore.getState().setMode(firstTime && ROOM_SERVER ? 'lobby' : 'explore')
   const done = () => {
     useProgressStore.getState().setLook(draft)
@@ -224,6 +232,12 @@ export function CharacterCreator({ firstTime }: { firstTime: boolean }) {
             <Choice active={false} onClick={() => set({ height: 1, body: DEFAULT_BODY })}>몸 부위 초기화</Choice>
           </div>
         </Row>
+
+        {firstTime && cloud && (restoring ? <CloudRestoreForm onDone={restored} /> : (
+          <button style={{ ...button, opacity: 0.85, marginTop: 12 }} onClick={() => setRestoring(true)}>
+            🔑 이미 하던 진행이 있어요 (코드로 이어 하기)
+          </button>
+        ))}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           {!firstTime && <button style={{ ...button, background: '#555', color: '#fff' }} onClick={close}>취소</button>}

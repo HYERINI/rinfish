@@ -24,7 +24,7 @@ export const cloud: CloudSave | null = ROOM_SERVER
       writeSave: (raw) => localStore()?.setItem(SAVE_KEY, raw),
       rehydrate: () => Promise.resolve(useProgressStore.persist.rehydrate()),
       flushLocal: flushProgressSave,
-      onStatus: (status) => useCloudStore.setState({ status }),
+      onStatus: (status) => useCloudStore.setState({ status, code: cloud?.code() ?? null }),
       notify: (text) => useSessionStore.getState().notify(text),
     })
   : null
