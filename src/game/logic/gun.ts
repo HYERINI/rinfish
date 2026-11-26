@@ -1,4 +1,5 @@
 import { AIM_VIEW, DRY_FIRE_PAUSE, GUNS, GUN_SWAP, HEAT, RECOIL, isGun, type GunId } from '../data/guns'
+import { NET } from '../data/net'
 
 /**
  * 총 쏘기 상태 (은지 WeaponSystem 의 cool·reloadT·heat). 시각은 초 (performance.now() 기준이라 게임을 다시 열어도 이어진다).
@@ -27,15 +28,27 @@ export function recoilOf(id: GunId, aiming: boolean, scoped: boolean): number {
 export type Trigger = { kind: 'fire' | 'empty' | 'busy'; state: GunState }
 
 /**
+ * 늦게 쏜 만큼 다음 발을 당겨 주는 한도(초). 방아쇠는 프레임마다 한 번만 보므로 쏠 수 있게 된 때보다 늘 조금 늦게 쏜다.
+ * 그 늦은 시간을 버리면 연사가 화면 fps 에 따라 느려진다 (소총 650rpm 이 60fps 에서 600rpm).
+ * 서버는 총 명중이 간격보다 NET.gunTimingSlack 까지 일찍 와도 받는다: 그 절반만 쓰고 나머지는 통신이 밀리는 몫으로 남긴다
+ */
+export const FIRE_CARRY_MAX = NET.gunTimingSlack / 2
+
+/**
  * 방아쇠. 아직 쏠 수 없거나(연사 간격·장전 중) → busy. 탄창이 비었으면 → empty (딸깍, 0.3초 쉰다. 장전은 부르는 쪽이).
- * 쏘면 다음 발까지 60/rpm 초, 연사 총은 열기가 오른다
+ * 쏘면 다음 발까지 60/rpm 초, 연사 총은 열기가 오른다.
+ * 이어 쏘는 중이면(늦은 시간이 간격보다 짧다) 다음 발은 지금이 아니라 쏠 수 있었던 때부터 센다 (FIRE_CARRY_MAX 까지).
+ * 한참 쉬었다 쏘면 지금부터 센다 (몰아 쏘지 않는다)
  */
 export function pullTrigger(s: GunState, id: GunId, now: number, rounds: number): Trigger {
   if (now < s.readyAt || s.reload) return { kind: 'busy', state: s }
   if (rounds <= 0) return { kind: 'empty', state: { ...s, readyAt: now + DRY_FIRE_PAUSE } }
   const g = GUNS[id]
   const heat = g.auto ? Math.min(1, heatNow(s, now) + HEAT.perShot) : heatNow(s, now)
-  return { kind: 'fire', state: { ...s, readyAt: now + 60 / g.rpm, heat, heatAt: now, firedAt: now } }
+  const interval = 60 / g.rpm
+  const late = now - s.readyAt
+  const carry = late < interval ? Math.min(late, FIRE_CARRY_MAX) : 0
+  return { kind: 'fire', state: { ...s, readyAt: now - carry + interval, heat, heatAt: now, firedAt: now } }
 }
 
 /** 장전 시작 (R 또는 빈 탄창). 이미 장전 중이거나 할 수 없으면(canReload false) null */
