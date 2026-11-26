@@ -16,7 +16,7 @@ import { GunEffects } from './guns/GunEffects'
 import { FirstPersonView } from './guns/FirstPersonView'
 import { Docks } from './boat/Docks'
 import { DayCycle } from './day/DayCycle'
-import { RenderProbe } from './debug/RenderProbe'
+import { PROBE, RenderProbe } from './debug/RenderProbe'
 import { FishingSpots } from './facilities/FishingSpots'
 import { preloadFacilityAssets } from './assets'
 import { Aquarium } from './facilities/Aquarium'
@@ -38,8 +38,6 @@ import { PlayTimeTicker } from './PlayTimeTicker'
 import { RepairCutscene } from './zones/RepairCutscene'
 import { ZoneGates } from './zones/ZoneGates'
 
-/** 그리기 측정을 붙일지: 개발 모드이거나, 배포된 주소 끝에 ?probe 를 붙였을 때 (예: .../?probe) */
-const PROBE = import.meta.env.DEV || new URLSearchParams(window.location.search).has('probe')
 
 preloadFacilityAssets()
 
