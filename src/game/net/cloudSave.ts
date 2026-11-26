@@ -176,7 +176,10 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
   async function start() {
     persist()
     deps.onStatus('syncing')
-    const server = await getSave(st.code)
+    // 확인하는 사이 코드가 바뀌면(switchTo) 옛 코드의 결과는 버리고, 올리기만 열어 둔다
+    const code = st.code
+    const server = await getSave(code)
+    if (st.code !== code) return finishStart()
     if (server === 'error') {
       deps.onStatus('pending')
       if (startTimer !== null) clearTimeout(startTimer)
@@ -189,6 +192,7 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     const step = startupStep(server, st.syncedRev)
     if (step.kind === 'adopt') {
       await adopt(server!)
+      if (st.code !== code) return finishStart()
       finishStart()
       return
     }
@@ -196,6 +200,7 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     persist()
     if (step.always || st.dirty) await push()
     else deps.onStatus('saved')
+    if (st.code !== code) return finishStart()
     finishStart()
   }
 

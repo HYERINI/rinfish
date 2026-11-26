@@ -325,3 +325,28 @@ describe('숨길 때 올리는 중', () => {
     expect(t.server.calls.at(-1)).toMatchObject({ method: 'PUT', keepalive: true })
   })
 })
+
+describe('시작 확인 중 코드 바꾸기', () => {
+  it('옛 코드의 확인이 늦게 와도 새 코드의 진행을 건드리지 않는다', async () => {
+    const t = setup()
+    let release!: () => void
+    t.server.fetch.mockImplementationOnce(
+      (async () => {
+        await new Promise<void>((r) => (release = r))
+        return new Response(JSON.stringify({ rev: 9, data: { state: { coins: 99 }, version: 5 }, savedAt: 0 }), { status: 200 })
+      }) as never,
+    )
+    const started = t.cloud.start()
+    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', other)
+    expect(await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA', other)).toBe(true)
+    release()
+    await started
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(t.cloud.code()).toBe('QX7K29PMH4TB8WNC5RDA')
+    expect(JSON.parse(t.getRaw()!).state.coins).toBe(8)
+    expect(JSON.parse(localStorage.getItem(CLOUD_KEY)!)).toEqual({ code: 'QX7K29PMH4TB8WNC5RDA', syncedRev: 4, dirty: false })
+    expect(t.server.calls.some((c) => c.method === 'PUT')).toBe(false)
+    expect(t.notices).toEqual([])
+  })
+})
