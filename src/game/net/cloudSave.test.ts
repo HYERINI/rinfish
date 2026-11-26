@@ -586,10 +586,28 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
     expect(t.notices).toEqual(['다른 곳에서 한 진행으로 바꿨어요'])
   })
 
+  it('다른 코드의 백업은 보이지도 되돌려지지도 않고, 그 코드로 돌아가면 다시 보인다', async () => {
+    const t = await overwritten()
+    const oldCode = t.cloud.code()
+    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+    expect(await t.cloud.switchTo(CODE2)).toBe(true)
+    expect(t.cloud.backup()).toBeNull()
+    expect(t.backups.at(-1)).toBeNull()
+    expect(await t.cloud.restoreBackup()).toBe(false)
+    expect(coinsOf(t.getRaw())).toBe(8)
+    expect(t.server.saves.get(`Bearer ${CODE2}`)!.rev).toBe(4)
+    expect(await t.cloud.switchTo(oldCode)).toBe(true)
+    expect(coinsOf(t.cloud.backup()!.raw)).toBe(2)
+    expect(coinsOf((t.backups.at(-1) as { raw: string }).raw)).toBe(2)
+  })
+
   it('망가진 백업은 없는 것으로 본다', () => {
     localStorage.setItem(BACKUP_KEY, '{망가짐')
     expect(setup().cloud.backup()).toBeNull()
     localStorage.setItem(BACKUP_KEY, JSON.stringify({ savedAt: 'x', raw: 3 }))
+    expect(setup().cloud.backup()).toBeNull()
+    // 어느 코드의 백업인지 없으면 되돌리지 않는다
+    localStorage.setItem(BACKUP_KEY, JSON.stringify({ savedAt: 1, raw: '{}' }))
     expect(setup().cloud.backup()).toBeNull()
   })
 })
@@ -624,9 +642,12 @@ describe('코드 바꾸기: 확인할 때 다시 읽기와 409', () => {
     t.setRaw(JSON.stringify({ state: { coins: 3 }, version: 5 }))
     t.cloud.markDirty()
     expect(await t.cloud.switchTo(CODE2)).toBe(true)
-    expect(coinsOf(t.cloud.backup()!.raw)).toBe(3)
     expect(t.cloud.code()).toBe(CODE2)
     expect(coinsOf(t.getRaw())).toBe(8)
+    // 백업은 옛 코드 것이라 지금 코드에서는 안 보인다
+    expect(t.cloud.backup()).toBeNull()
+    expect(JSON.parse(localStorage.getItem(BACKUP_KEY)!)).toMatchObject({ code: oldCode })
+    expect(coinsOf(JSON.parse(localStorage.getItem(BACKUP_KEY)!).raw)).toBe(3)
   })
 })
 

@@ -3,10 +3,10 @@ import { makeCode, normalizeCode } from '../logic/recoveryCode'
 
 /** 브라우저에 두는 서버 저장 정보: 복구 코드, 맞춘 번호, 안 올린 변경 있음, 결과를 모르는 쓰기 */
 export const CLOUD_KEY = 'seommaeul-cloud-v1'
-/** 서버 것으로 덮어쓰기 전 이 브라우저 사본 (한 칸, 새것이 이긴다) */
+/** 서버 것으로 덮어쓰기 전 이 브라우저 사본 (한 칸, 새것이 이긴다). 그 코드에서만 되돌린다 */
 export const BACKUP_KEY = 'seommaeul-cloud-backup-v1'
 export type CloudStatus = 'off' | 'syncing' | 'saved' | 'pending'
-export type CloudBackup = { savedAt: number; raw: string }
+export type CloudBackup = { code: string; savedAt: number; raw: string }
 
 export type CloudDeps = {
   /** https://…/save */
@@ -39,7 +39,7 @@ export type CloudSave = {
   /** 지금 진행을 지금 코드로 올려 두고, 코드를 바꿔 그 저장을 (확인하는 지금 다시 읽어) 받는다 */
   /** 시작 맞추기 전이거나, 올려 두지 못했거나, 그 저장을 다시 읽지 못했으면 false: 코드는 그대로 */
   switchTo(code: string): Promise<boolean>
-  /** 서버 것으로 덮어쓰기 전 백업 */
+  /** 서버 것으로 덮어쓰기 전 백업 (지금 코드 것만) */
   backup(): CloudBackup | null
   /** 백업을 사본으로 되돌리고 가장 새 변경으로 올린다. 백업이 없으면 false */
   restoreBackup(): Promise<boolean>
@@ -71,10 +71,11 @@ function readPersisted(storage: Storage | null): Persisted | null {
   }
 }
 
-function readBackup(storage: Storage | null): CloudBackup | null {
+/** 그 코드의 백업. 다른 코드 것을 되돌리면 그 코드의 진행을 덮으니 없는 것으로 본다 */
+function readBackup(storage: Storage | null, code: string): CloudBackup | null {
   try {
     const v = JSON.parse(storage?.getItem(BACKUP_KEY) ?? 'null') as unknown
-    return isRecord(v) && typeof v.savedAt === 'number' && typeof v.raw === 'string' ? { savedAt: v.savedAt, raw: v.raw } : null
+    return isRecord(v) && v.code === code && typeof v.savedAt === 'number' && typeof v.raw === 'string' ? { code, savedAt: v.savedAt, raw: v.raw } : null
   } catch {
     return null
   }
@@ -165,7 +166,7 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
       const next = JSON.stringify(save.data)
       const raw = keepLocal ? deps.readSave() : null
       if (raw && raw !== next) {
-        setBackup({ savedAt: deps.now(), raw })
+        setBackup({ code: st.code, savedAt: deps.now(), raw })
         backedUp = true
       }
       deps.writeSave(next)
@@ -352,12 +353,14 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
         st = { code, syncedRev: 0, dirty: false, pending: null }
         persist()
         await adopt(target, false)
+        // 메뉴의 되돌리기를 새 코드 것으로 (옛 코드 백업은 그 코드로 돌아오면 다시 보인다)
+        deps.onBackup?.(readBackup(deps.storage, code))
         return true
       }
     },
-    backup: () => readBackup(deps.storage),
+    backup: () => readBackup(deps.storage, st.code),
     async restoreBackup() {
-      const b = readBackup(deps.storage)
+      const b = readBackup(deps.storage, st.code)
       if (!b) return false
       clearTimer()
       applying = true

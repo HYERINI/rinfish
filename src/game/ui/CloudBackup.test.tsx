@@ -24,7 +24,7 @@ describe('copyCode', () => {
 describe('BackupRow (덮어쓰기 전 진행으로 되돌리기)', () => {
   let root: Root
   let host: HTMLDivElement
-  const backup = { savedAt: new Date(2026, 10, 26, 14, 5).getTime(), raw: JSON.stringify({ state: { coins: 42, dex: { a: {}, b: {} } }, version: 5 }) }
+  const backup = { code: 'ABCDEFGHJKMNPQRSTVWX', savedAt: new Date(2026, 10, 26, 14, 5).getTime(), raw: JSON.stringify({ state: { coins: 42, dex: { a: {}, b: {} } }, version: 5 }) }
   const click = (text: string) => act(() => [...host.querySelectorAll('button')].find((b) => b.textContent!.includes(text))!.click())
   beforeEach(() => {
     host = document.createElement('div')
