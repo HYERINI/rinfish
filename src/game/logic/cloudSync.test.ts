@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pushDelay, retryDelay, saveUrl, startupStep, summarize } from './cloudSync'
+import { GET_TIMEOUT_MS, PUT_TIMEOUT_MS, parsePutReply, parseServerSave, pushDelay, retryDelay, saveUrl, startupStep, summarize } from './cloudSync'
 
 describe('saveUrl', () => {
   it('웹소켓 주소를 http 저장 주소로', () => {
@@ -50,5 +50,41 @@ describe('summarize', () => {
   it('모양이 틀리면 null 이나 0', () => {
     expect(summarize(null)).toBeNull()
     expect(summarize({ state: {} })).toEqual({ coins: 0, dex: 0 })
+  })
+})
+
+describe('제한 시간', () => {
+  it('읽기 8초, 쓰기 10초', () => {
+    expect(GET_TIMEOUT_MS).toBe(8000)
+    expect(PUT_TIMEOUT_MS).toBe(10000)
+  })
+})
+
+describe('parseServerSave (서버 응답 검사)', () => {
+  it('정수 rev ≥ 1 과 객체 data 만 받는다', () => {
+    expect(parseServerSave({ rev: 3, data: { state: {} }, savedAt: 9 })).toEqual({ rev: 3, data: { state: {} }, savedAt: 9 })
+    expect(parseServerSave({ rev: 3, data: {}, savedAt: 9, writeId: 'w' })).toEqual({ rev: 3, data: {}, savedAt: 9, writeId: 'w' })
+  })
+  it('savedAt 이 없으면 0', () => {
+    expect(parseServerSave({ rev: 1, data: {} })).toEqual({ rev: 1, data: {}, savedAt: 0 })
+  })
+  it('모양이 틀리면 null', () => {
+    expect(parseServerSave(null)).toBeNull()
+    expect(parseServerSave({})).toBeNull()
+    expect(parseServerSave({ rev: 0, data: {} })).toBeNull()
+    expect(parseServerSave({ rev: 1.5, data: {} })).toBeNull()
+    expect(parseServerSave({ rev: '2', data: {} })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: null })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: [1] })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: {}, writeId: 5 })).toBeNull()
+  })
+})
+
+describe('parsePutReply', () => {
+  it('정수 rev 만', () => {
+    expect(parsePutReply({ rev: 4 })).toBe(4)
+    expect(parsePutReply({ rev: '4' })).toBeNull()
+    expect(parsePutReply({})).toBeNull()
+    expect(parsePutReply(null)).toBeNull()
   })
 })

@@ -6,17 +6,22 @@ import { useCloudStore } from '../stores/cloudStore'
 import { useNetStore } from '../stores/netStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { BackupRow } from './CloudBackup'
+import { copyCode } from './copyCode'
 import { button } from './styles'
 
 const input: CSSProperties = { width: '100%', padding: '10px 12px', fontSize: 16, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', pointerEvents: 'auto', letterSpacing: 1 }
 const note: CSSProperties = { margin: 0, fontSize: 13, opacity: 0.75 }
 
-/** ESC 메뉴: 내 복구 코드와 복사, 코드로 이어 하기. 서버 저장이 꺼져 있으면 없다 */
+/** ESC 메뉴: 내 복구 코드와 복사, 코드로 이어 하기, 덮어쓰기 전 진행으로 되돌리기. 서버 저장이 꺼져 있으면 없다 */
 export function CloudCodeSection() {
   const code = useCloudStore((s) => s.code)
+  const backup = useCloudStore((s) => s.backup)
+  // 같이 하기 방 안에서는 진행을 바꾸는 일(되돌리기)을 숨긴다 (생김새가 방과 어긋난다)
+  const online = useNetStore((s) => s.phase !== 'off')
   const [open, setOpen] = useState(false)
   if (!cloud || !code) return null
-  const copy = () => void navigator.clipboard?.writeText(formatCode(code)).then(() => useSessionStore.getState().notify('복구 코드를 복사했어요'))
+  const copy = () => void copyCode(formatCode(code), navigator.clipboard, (t) => useSessionStore.getState().notify(t))
   return (
     <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.15)', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <h3 style={{ margin: 0, fontSize: 15, opacity: 0.85 }}>☁️ 진행 저장</h3>
@@ -27,6 +32,7 @@ export function CloudCodeSection() {
         </button>
       </div>
       <p style={note}>브라우저를 지우거나 다른 기기에서 이어 하려면 이 코드가 필요해요. 남에게 보여 주지 마세요.</p>
+      {backup && !online && <BackupRow backup={backup} onRestore={() => cloud!.restoreBackup()} onClear={() => cloud!.clearBackup()} />}
       {open ? <CloudRestoreForm onDone={() => setOpen(false)} /> : (
         <button style={button} onClick={() => setOpen(true)}>
           🔑 코드로 이어 하기
@@ -60,12 +66,13 @@ export function CloudRestoreForm({ onDone }: { onDone: () => void }) {
   const confirm = async () => {
     if (!found) return
     setBusy(true)
-    const switched = await cloud!.switchTo(found.code, found.save)
+    // 확인하는 지금 그 저장을 다시 읽어 받는다 (미리보기 뒤 바뀌었을 수 있다)
+    const switched = await cloud!.switchTo(found.code)
     setBusy(false)
     if (!switched) {
-      // 지금 진행을 올리지 못했으면 바꾸지 않는다
+      // 서버와 아직 못 맞췄거나, 지금 진행을 올리지 못했거나, 그 저장을 다시 읽지 못했으면 바꾸지 않는다
       setFound(null)
-      return setError('지금 진행을 서버에 올리지 못해 바꾸지 못했어요. 잠시 뒤 다시 해 주세요')
+      return setError('지금은 바꾸지 못했어요. 서버 연결을 확인하고 잠시 뒤 다시 해 주세요')
     }
     useCloudStore.setState({ code: found.code })
     useSessionStore.getState().notify('그 진행으로 바꿨어요')

@@ -26,16 +26,17 @@ export const cloud: CloudSave | null = ROOM_SERVER
       flushLocal: flushProgressSave,
       onStatus: (status) => useCloudStore.setState({ status, code: cloud?.code() ?? null }),
       notify: (text) => useSessionStore.getState().notify(text),
+      onBackup: (backup) => useCloudStore.setState({ backup }),
     })
   : null
 
 let started = false
 
-/** 한 번만: 서버와 맞추기 시작. 로딩 화면은 끝나거나 3초가 지나면 닫힐 수 있다 */
+/** 한 번만: 서버와 맞추기 시작. 로딩 화면은 끝나거나 3초가 지나면 닫힐 수 있다. 이 탭이 게임 잠금을 잡은 뒤에만 부른다 */
 export function startCloud() {
   if (!cloud || started) return
   started = true
-  useCloudStore.setState({ ready: false, code: cloud.code() })
+  useCloudStore.setState({ ready: false, code: cloud.code(), backup: cloud.backup() })
   onProgressSaved(() => cloud.markDirty())
   const ready = () => useCloudStore.setState({ ready: true, code: cloud.code() })
   const wait = setTimeout(ready, STARTUP_WAIT_MS)
