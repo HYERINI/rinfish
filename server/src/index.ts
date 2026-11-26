@@ -1,14 +1,8 @@
 import type { Env } from './room'
-import { allowOrigin, bearerCode } from './saveRules'
+import { allowOrigin, bearerCode, contentTooLarge, saveObjectName } from './saveRules'
 
 export { Room } from './room'
 export { Save } from './save'
-
-/** 복구 코드 → Save 객체 이름. 코드 원문은 남기지 않는다. 허브 로그인 전환 때 이 함수를 허브 유저 ID 로 바꾼다 */
-async function saveObjectName(code: string): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(code))
-  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('')
-}
 
 function withCors(res: Response, origin: string | null): Response {
   const out = new Response(res.body, res)
@@ -26,6 +20,13 @@ function withCors(res: Response, origin: string | null): Response {
 async function save(request: Request, env: Env): Promise<Response> {
   const origin = allowOrigin(request.headers.get('Origin'))
   if (request.method === 'OPTIONS') return withCors(new Response(null, { status: 204 }), origin)
+  // 남용 막기: IP 마다 1분에 60번 (바인딩이 없는 곳에서는 건너뛴다)
+  if (env.SAVE_LIMIT) {
+    const { success } = await env.SAVE_LIMIT.limit({ key: request.headers.get('CF-Connecting-IP') ?? 'unknown' })
+    if (!success) return withCors(Response.json({}, { status: 429 }), origin)
+  }
+  // 큰 본문은 읽기 전에 거절한다 (길이를 속여도 Save 객체가 한도까지만 읽는다)
+  if (contentTooLarge(request.headers.get('Content-Length'))) return withCors(Response.json({}, { status: 413 }), origin)
   const code = bearerCode(request.headers.get('Authorization'))
   if (!code) return withCors(Response.json({}, { status: 401 }), origin)
   const stub = env.SAVE.get(env.SAVE.idFromName(await saveObjectName(code)))

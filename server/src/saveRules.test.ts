@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { SAVE_MAX_BYTES, allowOrigin, bearerCode, handleSave, type StoredSave } from './saveRules'
+import { SAVE_MAX_BYTES, allowOrigin, bearerCode, contentTooLarge, handleSave, readLimited, saveObjectName, type StoredSave } from './saveRules'
 
 const saved: StoredSave = { rev: 3, data: { state: { coins: 10 }, version: 5 }, savedAt: 100 }
 const put = (baseRev: number, data: unknown = { state: { coins: 20 }, version: 5 }) => JSON.stringify({ baseRev, data })
@@ -76,5 +76,58 @@ describe('bearerCode', () => {
     expect(bearerCode(null)).toBeNull()
     expect(bearerCode('Basic QX7K29PMH4TB8WNC5RDA')).toBeNull()
     expect(bearerCode('Bearer short')).toBeNull()
+  })
+})
+
+describe('쓰기 요청 ID (writeId)', () => {
+  const putId = (baseRev: number, writeId: unknown) => JSON.stringify({ baseRev, data: { state: { coins: 20 }, version: 5 }, writeId })
+  it('저장할 때 writeId 를 같이 보관하고 읽기·409 에 돌려준다', () => {
+    const r = handleSave('PUT', putId(3, 'w-1'), saved, 500)
+    expect(r.store).toEqual({ rev: 4, data: { state: { coins: 20 }, version: 5 }, savedAt: 500, writeId: 'w-1' })
+    expect(handleSave('GET', '', r.store!, 0).body).toMatchObject({ writeId: 'w-1' })
+    expect(handleSave('PUT', putId(3, 'w-2'), r.store!, 600)).toEqual({ status: 409, body: r.store })
+  })
+  it('writeId 없이도 받는다 (보관하지 않음)', () => {
+    expect(handleSave('PUT', put(3), saved, 500).store).not.toHaveProperty('writeId')
+  })
+  it('writeId 가 글자가 아니거나 64자보다 길면 400', () => {
+    expect(handleSave('PUT', putId(3, 5), saved, 0).status).toBe(400)
+    expect(handleSave('PUT', putId(3, 'x'.repeat(65)), saved, 0).status).toBe(400)
+    expect(handleSave('PUT', putId(3, 'x'.repeat(64)), saved, 0).status).toBe(200)
+  })
+})
+
+describe('saveObjectName', () => {
+  it('code: 뒤에 코드의 sha256 (허브 아이디는 나중에 hub:)', async () => {
+    const name = await saveObjectName('QX7K29PMH4TB8WNC5RDA')
+    expect(name).toMatch(/^code:[0-9a-f]{64}$/)
+    expect(name).not.toContain('QX7K')
+    expect(await saveObjectName('QX7K29PMH4TB8WNC5RDA')).toBe(name)
+  })
+})
+
+describe('크기 먼저 검사', () => {
+  it('Content-Length 가 한도보다 크면 true', () => {
+    expect(contentTooLarge(String(SAVE_MAX_BYTES + 1))).toBe(true)
+    expect(contentTooLarge(String(SAVE_MAX_BYTES))).toBe(false)
+    expect(contentTooLarge(null)).toBe(false)
+    expect(contentTooLarge('abc')).toBe(false)
+  })
+  it('본문은 한도+1 바이트까지만 읽고, 넘으면 null', async () => {
+    expect(await readLimited(new Response('안녕').body, SAVE_MAX_BYTES)).toBe('안녕')
+    expect(await readLimited(null, SAVE_MAX_BYTES)).toBe('')
+    expect(await readLimited(new Response('x'.repeat(11)).body, 10)).toBeNull()
+    expect(await readLimited(new Response('x'.repeat(10)).body, 10)).toBe('x'.repeat(10))
+  })
+  it('끝없는 본문도 한도에서 멈춘다', async () => {
+    let pulls = 0
+    const endless = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulls++
+        c.enqueue(new Uint8Array(1024))
+      },
+    })
+    expect(await readLimited(endless, 10 * 1024)).toBeNull()
+    expect(pulls).toBeLessThan(20)
   })
 })

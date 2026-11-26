@@ -12,7 +12,8 @@ import { handleMemberMsg, herdStepDt, judgeAnimalHit, judgeDied, judgeHello, jud
 type Attachment = { phase: 'hello' } | ({ phase: 'in' } & Member)
 
 import type { Save } from './save'
-export type Env = { ROOM: DurableObjectNamespace<Room>; SAVE: DurableObjectNamespace<Save> }
+/** SAVE_LIMIT: /save 호출 수 제한 (wrangler.toml [[ratelimits]]). 없는 환경도 있어 선택 */
+export type Env = { ROOM: DurableObjectNamespace<Room>; SAVE: DurableObjectNamespace<Save>; SAVE_LIMIT?: RateLimit }
 
 const toMember = (a: Extract<Attachment, { phase: 'in' }>): Member => memberFrom(a)
 
