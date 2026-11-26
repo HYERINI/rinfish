@@ -16,6 +16,7 @@ import { GunEffects } from './guns/GunEffects'
 import { FirstPersonView } from './guns/FirstPersonView'
 import { Docks } from './boat/Docks'
 import { DayCycle } from './day/DayCycle'
+import { RenderProbe } from './debug/RenderProbe'
 import { FishingSpots } from './facilities/FishingSpots'
 import { preloadFacilityAssets } from './assets'
 import { Aquarium } from './facilities/Aquarium'
@@ -82,6 +83,8 @@ export function World() {
       <GunController />
       <GunEffects />
       <DayCycle />
+      {/* 개발 모드에서만: 드로우 콜 수를 window.__render 에 적는다 (tools/gun-fx-check.mjs 가 읽는다) */}
+      {import.meta.env.DEV && <RenderProbe />}
     </>
   )
 }
