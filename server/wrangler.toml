@@ -9,3 +9,17 @@ class_name = "Room"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["Room"]
+
+[[durable_objects.bindings]]
+name = "SAVE"
+class_name = "Save"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Save"]
+
+# /save 남용 막기: IP 마다 1분에 60번
+[[ratelimits]]
+name = "SAVE_LIMIT"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }

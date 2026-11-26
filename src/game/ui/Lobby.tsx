@@ -7,6 +7,8 @@ import { lobbyErrors, readRoomParam, type LobbyField } from '../logic/roomKey'
 import { useNetStore, type NetError } from '../stores/netStore'
 import { useProgressStore } from '../stores/progressStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { cloud } from '../net/cloudBoot'
+import { CloudRestoreForm } from './CloudRestore'
 import { button, panelBox } from './styles'
 
 const ERROR_TEXT: Record<NetError, string> = {
@@ -33,6 +35,7 @@ const errorText: CSSProperties = { margin: 0, color: '#ff8a80', fontSize: 14 }
 export function Lobby({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) {
   const phase = useNetStore((s) => s.phase)
   const error = useNetStore((s) => s.error)
+  const [restoring, setRestoring] = useState(false)
   const [linkRoom] = useState(() => readRoomParam(window.location.search))
   const [tab, setTab] = useState<JoinMode>(linkRoom ? 'join' : 'create')
   const [room, setRoom] = useState(() => linkRoom || useNetStore.getState().lastRoom)
@@ -79,6 +82,14 @@ export function Lobby({ onExit, hub }: { onExit?: () => void; hub?: HubHint }) {
         >
           혼자 하기
         </button>
+        {cloud &&
+          (restoring ? (
+            <CloudRestoreForm onDone={() => setRestoring(false)} />
+          ) : (
+            <button style={{ ...button, opacity: 0.85 }} onClick={() => setRestoring(true)}>
+              🔑 코드로 이어 하기
+            </button>
+          ))}
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.25)', paddingTop: 12 }}>
           <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
             {(['create', 'join'] as const).map((t) => (

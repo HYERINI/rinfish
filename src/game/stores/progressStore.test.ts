@@ -6,7 +6,7 @@ import { EMPTY_AQUARIUM } from '../logic/aquarium'
 import { FIRST_MORNING } from '../logic/dayClock'
 import { NO_ITEMS } from '../logic/inventory'
 import { NO_SNACKS } from '../logic/snacks'
-import { INITIAL_PROGRESS, SAVE_KEY, flushProgressSave, useProgressStore } from './progressStore'
+import { INITIAL_PROGRESS, SAVE_KEY, flushProgressSave, onProgressSaved, useProgressStore } from './progressStore'
 
 const store = () => useProgressStore.getState()
 
@@ -546,5 +546,18 @@ describe('progressStore', () => {
     expect(store().ammo).toEqual({ pistol: 12, rifle: 7, shotgun: 6, sniper: 5 })
     expect(store().reserve).toEqual({ pistol: 48, rifle: 120, shotgun: 24, sniper: 2 })
     expect(store().rangeBest).toBe(88)
+  })
+})
+
+describe('onProgressSaved', () => {
+  it('사본에 쓸 때마다 알린다', () => {
+    const seen = vi.fn()
+    const off = onProgressSaved(seen)
+    useProgressStore.getState().addPlayTime(1)
+    expect(seen).toHaveBeenCalled()
+    off()
+    seen.mockClear()
+    useProgressStore.getState().addPlayTime(1)
+    expect(seen).not.toHaveBeenCalled()
   })
 })

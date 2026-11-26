@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useProgress } from '@react-three/drei'
 import { useTouchUi } from '../input/touchDevice'
+import { useCloudStore } from '../stores/cloudStore'
 import { HORIZON, LoadingScenery, SCENERY_KEYFRAMES } from './LoadingScenery'
 
 /** 다 불러온 뒤에도 풍경·물고기 떼를 잠깐은 보여 준다 (너무 빨리 깜빡이지 않게) */
@@ -62,7 +63,9 @@ export function LoadingScreen() {
 
   const [best, setBest] = useState(0)
   if (progress > best) setBest(progress)
-  const finished = total > 0 && !active && progress >= 100
+  // 서버 저장 맞추기도 기다린다 (최대 3초, cloudBoot)
+  const cloudReady = useCloudStore((s) => s.ready)
+  const finished = total > 0 && !active && progress >= 100 && cloudReady
 
   useEffect(() => {
     if (closing) return

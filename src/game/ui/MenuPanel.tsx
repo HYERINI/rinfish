@@ -6,6 +6,7 @@ import { useSessionStore } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { Panel } from './Panel'
 import { button } from './styles'
+import { CloudCodeSection } from './CloudRestore'
 
 export function MenuPanel({ onExit }: { onExit?: () => void }) {
   const setMode = useSessionStore((s) => s.setMode)
@@ -30,6 +31,7 @@ export function MenuPanel({ onExit }: { onExit?: () => void }) {
           </button>
         )}
       </div>
+      <CloudCodeSection />
       <SettingsSection />
     </Panel>
   )
