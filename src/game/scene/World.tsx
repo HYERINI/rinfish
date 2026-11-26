@@ -38,6 +38,9 @@ import { PlayTimeTicker } from './PlayTimeTicker'
 import { RepairCutscene } from './zones/RepairCutscene'
 import { ZoneGates } from './zones/ZoneGates'
 
+/** 그리기 측정을 붙일지: 개발 모드이거나, 배포된 주소 끝에 ?probe 를 붙였을 때 (예: .../?probe) */
+const PROBE = import.meta.env.DEV || new URLSearchParams(window.location.search).has('probe')
+
 preloadFacilityAssets()
 
 export function World() {
@@ -83,8 +86,8 @@ export function World() {
       <GunController />
       <GunEffects />
       <DayCycle />
-      {/* 개발 모드에서만: 드로우 콜 수를 window.__render 에 적는다 (tools/gun-fx-check.mjs 가 읽는다) */}
-      {import.meta.env.DEV && <RenderProbe />}
+      {/* 개발 모드이거나 주소에 ?probe 가 붙었을 때: 드로우 콜 수를 window.__render 에 적는다 (tools/gun-fx-check.mjs 가 읽는다) */}
+      {PROBE && <RenderProbe />}
     </>
   )
 }
