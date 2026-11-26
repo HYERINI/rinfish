@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { GET_TIMEOUT_MS, PUT_TIMEOUT_MS, parsePutReply, parseServerSave, pushDelay, retryDelay, saveUrl, startupStep, summarize } from './cloudSync'
 import { SAVE_VERSION } from './saveMigration'
+import { INITIAL_PROGRESS } from '../stores/progressStore'
 
 describe('saveUrl', () => {
   it('웹소켓 주소를 http 저장 주소로', () => {
@@ -62,11 +63,12 @@ describe('제한 시간', () => {
 })
 
 describe('parseServerSave (서버 응답 검사)', () => {
-  const data = { state: { coins: 1 }, version: 5 }
+  const core = { coins: 1, gear: { line: 0, reel: 0, rod: 0 }, inventory: [], dex: {} }
+  const data = { state: core, version: 5 }
   it('정수 rev ≥ 1 과 진행 모양(state 객체, 지원하는 version)인 data 만 받는다', () => {
     expect(parseServerSave({ rev: 3, data, savedAt: 9 })).toEqual({ rev: 3, data, savedAt: 9 })
     expect(parseServerSave({ rev: 3, data, savedAt: 9, writeId: 'w' })).toEqual({ rev: 3, data, savedAt: 9, writeId: 'w' })
-    expect(parseServerSave({ rev: 3, data: { state: {}, version: 1 } })).not.toBeNull()
+    expect(parseServerSave({ rev: 3, data: { state: core, version: 1 } })).not.toBeNull()
   })
   it('savedAt 이 없으면 0', () => {
     expect(parseServerSave({ rev: 1, data })).toEqual({ rev: 1, data, savedAt: 0 })
@@ -88,9 +90,24 @@ describe('parseServerSave (서버 응답 검사)', () => {
     expect(parseServerSave({ rev: 2, data: { state: {} } })).toBeNull()
     expect(parseServerSave({ rev: 2, data: { state: {}, version: 4.5 } })).toBeNull()
   })
+  it('핵심 필드(코인·장비·가방·도감)가 빠졌거나 타입이 틀리면 null', () => {
+    expect(parseServerSave({ rev: 2, data: { state: {}, version: 5 } })).toBeNull()
+    for (const k of Object.keys(core)) {
+      const { [k]: _, ...rest } = core as Record<string, unknown>
+      expect(parseServerSave({ rev: 2, data: { state: rest, version: 5 } })).toBeNull()
+    }
+    expect(parseServerSave({ rev: 2, data: { state: { ...core, coins: '5' }, version: 5 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: { ...core, coins: NaN }, version: 5 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: { ...core, gear: [] }, version: 5 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: { ...core, inventory: {} }, version: 5 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: { ...core, dex: null }, version: 5 } })).toBeNull()
+  })
+  it('진행 초기화로 만든 저장(모든 값이 초기값)은 받는다', () => {
+    expect(parseServerSave({ rev: 2, data: { state: INITIAL_PROGRESS, version: SAVE_VERSION } })).not.toBeNull()
+  })
   it('이 게임보다 새 버전의 저장은 받지 않는다 (옛 탭이 새 저장을 덮지 않게)', () => {
-    expect(parseServerSave({ rev: 2, data: { state: {}, version: SAVE_VERSION + 1 } })).toBeNull()
-    expect(parseServerSave({ rev: 2, data: { state: {}, version: SAVE_VERSION } })).not.toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: core, version: SAVE_VERSION + 1 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: core, version: SAVE_VERSION } })).not.toBeNull()
   })
 })
 

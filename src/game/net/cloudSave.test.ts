@@ -2,6 +2,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BACKUP_KEY, CLOUD_KEY, createCloudSave, type CloudDeps, type CloudStatus } from './cloudSave'
 
+/** 서버 저장 검사를 지나는 최소 진행 (핵심 필드) */
+const CORE = { gear: { line: 0, reel: 0, rod: 0 }, inventory: [], dex: {} }
+
 type Call = { method: string; auth: string; body: unknown; keepalive: boolean }
 
 type Stored = { rev: number; data: unknown; savedAt: number; writeId?: string }
@@ -60,7 +63,7 @@ function replyNext(server: ReturnType<typeof fakeServer>, status: number, body: 
 }
 
 function setup(server = fakeServer()) {
-  let raw: string | null = JSON.stringify({ state: { coins: 1 }, version: 5 })
+  let raw: string | null = JSON.stringify({ state: { ...CORE, coins: 1 }, version: 5 })
   const backups: unknown[] = []
   const statuses: CloudStatus[] = []
   const notices: string[] = []
@@ -96,14 +99,14 @@ describe('start', () => {
     expect(JSON.parse(localStorage.getItem(CLOUD_KEY)!)).toEqual({ code: t.cloud.code(), syncedRev: 1, dirty: false, pending: null })
     const put = t.server.calls.find((c) => c.method === 'PUT')!
     expect(put.auth).toBe(`Bearer ${t.cloud.code()}`)
-    expect(put.body).toEqual({ baseRev: 0, data: { state: { coins: 1 }, version: 5 }, writeId: expect.any(String) })
+    expect(put.body).toEqual({ baseRev: 0, data: { state: { ...CORE, coins: 1 }, version: 5 }, writeId: expect.any(String) })
     expect(t.statuses.at(-1)).toBe('saved')
   })
 
   it('서버가 더 최신이면 서버 것을 사본에 쓰고 다시 읽는다', async () => {
     const server = fakeServer()
     localStorage.setItem(CLOUD_KEY, JSON.stringify({ code: 'QX7K29PMH4TB8WNC5RDA', syncedRev: 1, dirty: false }))
-    server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', { rev: 3, data: { state: { coins: 99 }, version: 5 }, savedAt: 0 })
+    server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', { rev: 3, data: { state: { ...CORE, coins: 99 }, version: 5 }, savedAt: 0 })
     const t = setup(server)
     await t.cloud.start()
     expect(JSON.parse(t.getRaw()!).state.coins).toBe(99)
@@ -127,14 +130,14 @@ describe('플레이 중', () => {
   it('변경 뒤 3초 조용하면 맞춘 번호로 올린다', async () => {
     const t = setup()
     await t.cloud.start()
-    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 2 }, version: 5 }))
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(2900)
     expect(t.server.calls.filter((c) => c.method === 'PUT')).toHaveLength(1)
     await vi.advanceTimersByTimeAsync(200)
     const puts = t.server.calls.filter((c) => c.method === 'PUT')
     expect(puts).toHaveLength(2)
-    expect(puts[1].body).toEqual({ baseRev: 1, data: { state: { coins: 2 }, version: 5 }, writeId: expect.any(String) })
+    expect(puts[1].body).toEqual({ baseRev: 1, data: { state: { ...CORE, coins: 2 }, version: 5 }, writeId: expect.any(String) })
     expect(JSON.parse(localStorage.getItem(CLOUD_KEY)!)).toMatchObject({ syncedRev: 2, dirty: false })
   })
 
@@ -197,8 +200,8 @@ describe('플레이 중', () => {
     const t = setup()
     await t.cloud.start()
     const auth = `Bearer ${t.cloud.code()}`
-    t.server.saves.set(auth, { rev: 5, data: { state: { coins: 50 }, version: 5 }, savedAt: 0 })
-    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    t.server.saves.set(auth, { rev: 5, data: { state: { ...CORE, coins: 50 }, version: 5 }, savedAt: 0 })
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 2 }, version: 5 }))
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(3000)
     expect(JSON.parse(t.getRaw()!).state.coins).toBe(50)
@@ -237,7 +240,7 @@ describe('코드로 이어 하기', () => {
     await t.cloud.start()
     expect(await t.cloud.preview('abc')).toBe('bad')
     expect(await t.cloud.preview('QX7K-29PM-H4TB-8WNC-5RDA')).toBe('none')
-    t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 })
     expect(await t.cloud.preview('qx7k29pmh4tb8wnc5rda')).toMatchObject({ rev: 4 })
   })
 
@@ -245,9 +248,9 @@ describe('코드로 이어 하기', () => {
     const t = setup()
     await t.cloud.start()
     const oldCode = t.cloud.code()
-    t.setRaw(JSON.stringify({ state: { coins: 3 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 3 }, version: 5 }))
     t.cloud.markDirty()
-    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    const other = { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 }
     t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', other)
     await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA')
     expect((t.server.saves.get(`Bearer ${oldCode}`)!.data as { state: { coins: number } }).state.coins).toBe(3)
@@ -278,10 +281,10 @@ describe('코드 바꾸기 보호', () => {
     await t.cloud.start()
     const oldCode = t.cloud.code()
     const before = JSON.parse(localStorage.getItem(CLOUD_KEY)!)
-    t.setRaw(JSON.stringify({ state: { coins: 3 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 3 }, version: 5 }))
     t.cloud.markDirty()
     t.server.setDown(true)
-    t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 })
     expect(await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA')).toBe(false)
     expect(t.cloud.code()).toBe(oldCode)
     expect(JSON.parse(t.getRaw()!).state.coins).toBe(3)
@@ -295,9 +298,9 @@ describe('코드 바꾸기 보호', () => {
     const ctl = holdNextPut(t)
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(3000)
-    t.setRaw(JSON.stringify({ state: { coins: 7 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 7 }, version: 5 }))
     t.cloud.markDirty()
-    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    const other = { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 }
     t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', other) // 확인할 때 다시 읽는다
     const p = t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA')
     ctl.release()
@@ -318,7 +321,7 @@ describe('코드 바꾸기 보호', () => {
       write(r)
     }
     t.cloud.markDirty()
-    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    const other = { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 }
     t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', other) // 확인할 때 다시 읽는다
     expect(await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA')).toBe(true)
     expect(order.lastIndexOf('flush')).toBeLessThan(order.indexOf('write'))
@@ -375,12 +378,12 @@ describe('시작 확인 중 코드 바꾸기', () => {
     t.server.fetch.mockImplementationOnce(
       (async () => {
         await new Promise<void>((r) => (release = r))
-        return new Response(JSON.stringify({ rev: 9, data: { state: { coins: 99 }, version: 5 }, savedAt: 0 }), { status: 200 })
+        return new Response(JSON.stringify({ rev: 9, data: { state: { ...CORE, coins: 99 }, version: 5 }, savedAt: 0 }), { status: 200 })
       }) as never,
     )
     const started = t.cloud.start()
     const oldCode = t.cloud.code()
-    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    const other = { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 }
     t.server.saves.set('Bearer QX7K29PMH4TB8WNC5RDA', other)
     expect(await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA')).toBe(false)
     expect(t.cloud.code()).toBe(oldCode)
@@ -418,14 +421,14 @@ describe('쓰기 요청 ID (응답을 잃어도 제 쓰기를 알아본다)', ()
     const t = setup()
     await t.cloud.start()
     loseNextReply(t.server)
-    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 2 }, version: 5 }))
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(3000)
     const auth = `Bearer ${t.cloud.code()}`
     expect(t.server.saves.get(auth)!.rev).toBe(2) // 서버엔 들어갔다
     expect(persisted()).toMatchObject({ syncedRev: 1, dirty: true })
     // 응답을 모른 채 더 플레이
-    t.setRaw(JSON.stringify({ state: { coins: 7 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 7 }, version: 5 }))
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(20000)
     expect(coinsOf(t.getRaw())).toBe(7)
@@ -440,9 +443,9 @@ describe('쓰기 요청 ID (응답을 잃어도 제 쓰기를 알아본다)', ()
   it('시작할 때 서버 저장이 내 pending 쓰기면 받지 않고 이어서 올린다', async () => {
     const server = fakeServer()
     localStorage.setItem(CLOUD_KEY, JSON.stringify({ code: CODE2, syncedRev: 1, dirty: true, pending: { id: 'w-abc', baseRev: 1 } }))
-    server.saves.set(`Bearer ${CODE2}`, { rev: 2, data: { state: { coins: 1 }, version: 5 }, savedAt: 0, writeId: 'w-abc' })
+    server.saves.set(`Bearer ${CODE2}`, { rev: 2, data: { state: { ...CORE, coins: 1 }, version: 5 }, savedAt: 0, writeId: 'w-abc' })
     const t = setup(server)
-    t.setRaw(JSON.stringify({ state: { coins: 4 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 4 }, version: 5 }))
     await t.cloud.start()
     expect(t.rehydrate).not.toHaveBeenCalled()
     expect(coinsOf(t.getRaw())).toBe(4)
@@ -499,7 +502,7 @@ describe('늦게 온 시작 확인', () => {
   it('확인 중 플레이해서 바뀌었는데 서버가 더 최신이면, 백업하고 받은 뒤 안내한다', async () => {
     const server = fakeServer()
     localStorage.setItem(CLOUD_KEY, JSON.stringify({ code: CODE2, syncedRev: 1, dirty: false }))
-    server.saves.set(`Bearer ${CODE2}`, { rev: 3, data: { state: { coins: 99 }, version: 5 }, savedAt: 0 })
+    server.saves.set(`Bearer ${CODE2}`, { rev: 3, data: { state: { ...CORE, coins: 99 }, version: 5 }, savedAt: 0 })
     const t = setup(server)
     let release!: () => void
     t.server.fetch.mockImplementationOnce(
@@ -509,7 +512,7 @@ describe('늦게 온 시작 확인', () => {
       }) as never,
     )
     const started = t.cloud.start()
-    t.setRaw(JSON.stringify({ state: { coins: 5 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 5 }, version: 5 }))
     t.cloud.markDirty()
     release()
     await started
@@ -521,7 +524,7 @@ describe('늦게 온 시작 확인', () => {
   it('안 올린 변경(dirty)을 들고 시작했는데 서버가 더 최신이어도 백업한다', async () => {
     const server = fakeServer()
     localStorage.setItem(CLOUD_KEY, JSON.stringify({ code: CODE2, syncedRev: 1, dirty: true }))
-    server.saves.set(`Bearer ${CODE2}`, { rev: 3, data: { state: { coins: 99 }, version: 5 }, savedAt: 0 })
+    server.saves.set(`Bearer ${CODE2}`, { rev: 3, data: { state: { ...CORE, coins: 99 }, version: 5 }, savedAt: 0 })
     const t = setup(server)
     await t.cloud.start()
     expect(coinsOf(t.getRaw())).toBe(99)
@@ -531,7 +534,7 @@ describe('늦게 온 시작 확인', () => {
   it('바뀐 게 없으면 백업도 안내도 없이 받는다', async () => {
     const server = fakeServer()
     localStorage.setItem(CLOUD_KEY, JSON.stringify({ code: CODE2, syncedRev: 1, dirty: false }))
-    server.saves.set(`Bearer ${CODE2}`, { rev: 3, data: { state: { coins: 99 }, version: 5 }, savedAt: 0 })
+    server.saves.set(`Bearer ${CODE2}`, { rev: 3, data: { state: { ...CORE, coins: 99 }, version: 5 }, savedAt: 0 })
     const t = setup(server)
     await t.cloud.start()
     expect(coinsOf(t.getRaw())).toBe(99)
@@ -544,8 +547,8 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
   async function overwritten() {
     const t = setup()
     await t.cloud.start()
-    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { coins: 50 }, version: 5 }, savedAt: 0 })
-    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { ...CORE, coins: 50 }, version: 5 }, savedAt: 0 })
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 2 }, version: 5 }))
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(3000)
     return t
@@ -579,7 +582,7 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
   it('사본이 서버 것과 같으면 백업하지 않고 짧게 안내한다', async () => {
     const t = setup()
     await t.cloud.start()
-    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { coins: 1 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { ...CORE, coins: 1 }, version: 5 }, savedAt: 0 })
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(3000)
     expect(t.cloud.backup()).toBeNull()
@@ -589,7 +592,7 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
   it('다른 코드의 백업은 보이지도 되돌려지지도 않고, 그 코드로 돌아가면 다시 보인다', async () => {
     const t = await overwritten()
     const oldCode = t.cloud.code()
-    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 })
     expect(await t.cloud.switchTo(CODE2)).toBe(true)
     expect(t.cloud.backup()).toBeNull()
     expect(t.backups.at(-1)).toBeNull()
@@ -604,8 +607,8 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
   it('백업을 쓰지 못하면(저장 공간 부족) 덮어쓰지 않고 이 브라우저 진행을 지킨다', async () => {
     const t = setup()
     await t.cloud.start()
-    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { coins: 50 }, version: 5 }, savedAt: 0 })
-    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { ...CORE, coins: 50 }, version: 5 }, savedAt: 0 })
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 2 }, version: 5 }))
     const setItem = Storage.prototype.setItem
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, k: string, v: string) {
       if (k === BACKUP_KEY) throw new DOMException('full', 'QuotaExceededError')
@@ -624,7 +627,7 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
       await vi.advanceTimersByTimeAsync(3000)
       expect(t.notices).toHaveLength(1)
       // 코드 바꾸기도 지금 진행을 못 올렸으니 바꾸지 않는다
-      t.server.saves.set(`Bearer ${CODE2}`, { rev: 1, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+      t.server.saves.set(`Bearer ${CODE2}`, { rev: 1, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 })
       const oldCode = t.cloud.code()
       expect(await t.cloud.switchTo(CODE2)).toBe(false)
       expect(t.cloud.code()).toBe(oldCode)
@@ -649,9 +652,9 @@ describe('코드 바꾸기: 확인할 때 다시 읽기와 409', () => {
   it('미리보기 뒤 대상 저장이 바뀌었으면 새 것을 받는다', async () => {
     const t = setup()
     await t.cloud.start()
-    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 })
     expect(await t.cloud.preview(CODE2)).toMatchObject({ rev: 4 })
-    t.server.saves.set(`Bearer ${CODE2}`, { rev: 5, data: { state: { coins: 9 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set(`Bearer ${CODE2}`, { rev: 5, data: { state: { ...CORE, coins: 9 }, version: 5 }, savedAt: 0 })
     expect(await t.cloud.switchTo(CODE2)).toBe(true)
     expect(coinsOf(t.getRaw())).toBe(9)
     expect(persisted()).toMatchObject({ code: CODE2, syncedRev: 5 })
@@ -670,9 +673,9 @@ describe('코드 바꾸기: 확인할 때 다시 읽기와 409', () => {
     const t = setup()
     await t.cloud.start()
     const oldCode = t.cloud.code()
-    t.server.saves.set(`Bearer ${oldCode}`, { rev: 5, data: { state: { coins: 50 }, version: 5 }, savedAt: 0 })
-    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
-    t.setRaw(JSON.stringify({ state: { coins: 3 }, version: 5 }))
+    t.server.saves.set(`Bearer ${oldCode}`, { rev: 5, data: { state: { ...CORE, coins: 50 }, version: 5 }, savedAt: 0 })
+    t.server.saves.set(`Bearer ${CODE2}`, { rev: 4, data: { state: { ...CORE, coins: 8 }, version: 5 }, savedAt: 0 })
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 3 }, version: 5 }))
     t.cloud.markDirty()
     expect(await t.cloud.switchTo(CODE2)).toBe(true)
     expect(t.cloud.code()).toBe(CODE2)
@@ -698,7 +701,7 @@ describe('서버 응답 검사', () => {
     const t = setup()
     await t.cloud.start()
     replyNext(t.server, 409, {})
-    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    t.setRaw(JSON.stringify({ state: { ...CORE, coins: 2 }, version: 5 }))
     t.cloud.markDirty()
     await vi.advanceTimersByTimeAsync(3000)
     expect(coinsOf(t.getRaw())).toBe(2)

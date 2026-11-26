@@ -56,9 +56,16 @@ export function summarize(data: unknown): { coins: number; dex: number } | null 
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
-/** 진행 저장본 모양: state 객체와 이 게임이 읽을 수 있는 version (더 새 버전을 받으면 옛 탭이 모르는 필드를 버리고 덮는다) */
-const isProgressSave = (d: unknown): d is Record<string, unknown> =>
-  isRecord(d) && isRecord(d.state) && Number.isInteger(d.version) && (d.version as number) >= 0 && (d.version as number) <= SAVE_VERSION
+/**
+ * 진행 저장본 모양: 이 게임이 읽을 수 있는 version 과, 처음부터 있던 핵심 필드(코인·장비·가방·도감)의 기본 타입.
+ * 더 새 버전을 받으면 옛 탭이 모르는 필드를 버리고 덮는다. 진행 초기화도 모든 필드를 초기값으로 채우므로,
+ * 핵심 필드가 빠진 저장은 망가진 것이다 (받으면 이 브라우저 사본을 덮고, 불러올 때 기본값으로 바뀐다)
+ */
+function isProgressSave(d: unknown): d is Record<string, unknown> {
+  if (!isRecord(d) || !Number.isInteger(d.version) || (d.version as number) < 0 || (d.version as number) > SAVE_VERSION) return false
+  const s = d.state
+  return isRecord(s) && Number.isFinite(s.coins) && isRecord(s.gear) && Array.isArray(s.inventory) && isRecord(s.dex)
+}
 
 /** 서버가 준 저장본(읽기 200, 쓰기 409)을 쓰기 전에 검사한다. 모양이 틀리면 null */
 export function parseServerSave(v: unknown): ServerSave | null {
