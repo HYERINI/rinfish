@@ -1,5 +1,6 @@
 import { Game } from './game/Game'
 import { readHubEntry } from './game/logic/hubParams'
+import { startCloud } from './game/net/cloudBoot'
 
 /** 이번 탭 저장소. 막혀 있으면(사생활 보호 등) 없이 간다 */
 function tabStorage(): Storage | null {
@@ -12,6 +13,9 @@ function tabStorage(): Storage | null {
 
 // 팀 허브 로비는 이 페이지로 이동시키며 hub_return·hub_name·hub_room 을 붙인다 (game-entry-contract v3)
 const hub = readHubEntry(window.location.search, tabStorage())
+
+// 진행을 서버와 맞추기 시작한다 (방 서버가 없으면 아무것도 안 한다)
+startCloud()
 
 export default function App() {
   return (

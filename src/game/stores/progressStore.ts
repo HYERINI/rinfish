@@ -315,7 +315,24 @@ function readSelectedBait(v: unknown): BaitId | null {
 
 /** 쏠 때 줄어든 탄은 이만큼(ms) 안에 한 번만 저장한다 (다른 저장·탭 숨김·닫기 때는 바로) */
 const AMMO_SAVE_DELAY = 1000
-const saves = deferrableStorage<ProgressData & ProgressActions>(createJSONStorage<ProgressData & ProgressActions>(() => localStorage), AMMO_SAVE_DELAY)
+/** 사본(localStorage)에 쓸 때마다 부를 것 (서버 저장이 "안 올린 변경" 을 표시한다) */
+const savedListeners = new Set<() => void>()
+export function onProgressSaved(listener: () => void): () => void {
+  savedListeners.add(listener)
+  return () => savedListeners.delete(listener)
+}
+const local = createJSONStorage<ProgressData & ProgressActions>(() => localStorage)
+const saves = deferrableStorage<ProgressData & ProgressActions>(
+  local && {
+    ...local,
+    setItem: (name, value) => {
+      const r = local.setItem(name, value)
+      savedListeners.forEach((f) => f())
+      return r
+    },
+  },
+  AMMO_SAVE_DELAY,
+)
 
 /** 미룬 저장(쏜 탄)을 지금 쓴다 */
 export function flushProgressSave() {
