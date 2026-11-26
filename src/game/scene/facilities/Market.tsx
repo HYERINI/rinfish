@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { MARKET } from '../../data/market'
 import { FACILITY } from '../../data/zones'
@@ -44,9 +44,9 @@ export function Market() {
       ))}
       {/* 간판: public/signs/market.png 가 있으면 그 그림, 없으면 글씨 간판 */}
       <ShopSign image={MARKET.signImage} text={MARKET.name} emblem={MARKET.signEmblem} size={MARKET.signSize} position={[0, 3.05, 0.2]} rotationX={-0.12} />
-      <Html center position={[0, 3.85, -0.4]} zIndexRange={[100, 0]} style={sign}>
+      <IslandHtml center position={[0, 3.85, -0.4]} zIndexRange={[100, 0]} style={sign}>
         🍲 {MARKET.name}
-      </Html>
+      </IslandHtml>
       <OwnerTag />
       <InteractionZone position={[0, 1, 0]} halfSize={[3.2, 1.5, 2.6]} target={{ kind: 'market' }} />
     </group>
@@ -61,9 +61,9 @@ function OwnerTag() {
   const show = useSessionStore((s) => s.nearby?.kind === 'market' || s.cooking !== null)
   if (!show) return null
   return (
-    <Html center position={[0, 2.05, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
+    <IslandHtml center position={[0, 2.05, -0.9]} zIndexRange={[100, 0]} style={nameTag}>
       {MARKET.owner}
-    </Html>
+    </IslandHtml>
   )
 }
 

@@ -7,10 +7,10 @@ export type Rect = { x0: number; x1: number; z0: number; z1: number }
 export type EunjiArea = { minX: number; maxX: number; minZ: number; maxZ: number }
 
 /**
- * 초원(은지 맵)을 놓는 자리. 은지 좌표를 180° 돌리고 동쪽으로 200m 옮긴다:
- * 세계 (x, z) = (200 - x_은지, -z_은지). 그러면 은지 지도에서 보던 방향(위 = 동물 들판, 왼쪽 = 마을) 그대로다
+ * 초원(은지 맵)을 놓는 자리. 은지 좌표를 180° 돌리고 동쪽으로 172m 옮긴다:
+ * 세계 (x, z) = (172 - x_은지, -z_은지). 초원 서쪽 해안(은지 x 82)이 섬 쪽 x 90 에 온다. 그러면 은지 지도에서 보던 방향(위 = 동물 들판, 왼쪽 = 마을) 그대로다
  */
-export const MEADOW_OFFSET_X = 200
+export const MEADOW_OFFSET_X = 172
 export const MEADOW_POS: [number, number, number] = [MEADOW_OFFSET_X, 0, 0]
 export const MEADOW_YAW = Math.PI
 
@@ -25,8 +25,8 @@ export function areaToWorld(a: EunjiArea): Rect {
 
 const inset = (r: Rect, d: number): Rect => ({ x0: r.x0 + d, x1: r.x1 - d, z0: r.z0 + d, z1: r.z1 - d })
 
-/** 초원 땅 전체 (은지 GROUND x -90..110, z -90..110) */
-export const MEADOW_RECT: Rect = areaToWorld({ minX: -90, maxX: 110, minZ: -90, maxZ: 110 })
+/** 초원 땅 전체 (은지 GROUND x -25..82, z -33..67. 원본 -90..110 에서 줄였다. 서버도 이 파일을 읽어서 vendor 를 가져오지 않고 값을 적는다. 같은지 테스트) */
+export const MEADOW_RECT: Rect = areaToWorld({ minX: -25, maxX: 82, minZ: -33, maxZ: 67 })
 /** 걸을 수 있는 초원 (가장자리 1m 안쪽, 섬의 29m 원과 같은 여유) */
 export const MEADOW_LAND: Rect = inset(MEADOW_RECT, 1)
 /** 섬에서 걸을 수 있는 원의 반지름 */

@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { CuboidCollider, RigidBody } from '@react-three/rapier'
 import { BackSide, Color } from 'three'
 import type { TankTypeId } from '../../data/types'
@@ -63,10 +63,10 @@ export function Aquarium() {
         <AquariumVisitors count={visitors} size={level.size} />
       </group>
 
-      <Html center position={[0, STAND + h + 0.6, 0]} zIndexRange={[100, 0]} style={sign}>
+      <IslandHtml center position={[0, STAND + h + 0.6, 0]} zIndexRange={[100, 0]} style={sign}>
         🐠 어항 Lv{aquarium.level + 1} · {type.name}
         {hungry && ' · 배고파요!'}
-      </Html>
+      </IslandHtml>
       <InteractionZone position={[0, 1, 0]} halfSize={[w / 2 + 1.6, 1.5, d / 2 + 1.6]} target={{ kind: 'aquarium' }} />
     </group>
   )

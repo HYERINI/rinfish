@@ -1,4 +1,5 @@
-import { Html, useGLTF, useTexture } from '@react-three/drei'
+import { useGLTF, useTexture } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef } from 'react'
 import { AnimationMixer, Quaternion, SRGBColorSpace, Vector3, type AnimationAction, type Group, type Object3D, type Texture } from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
@@ -259,9 +260,9 @@ export const Worker = forwardRef<WorkerHandle, { look: CharacterLook; gear: Work
           )}
         </group>
       </group>
-      <Html position={[0, 2.25, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+      <IslandHtml position={[0, 2.25, 0]} center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
         <div ref={bubble} style={bubbleStyle} />
-      </Html>
+      </IslandHtml>
     </group>
   )
 })

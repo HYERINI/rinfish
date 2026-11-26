@@ -1,4 +1,4 @@
-import { Html } from '@react-three/drei'
+import { IslandHtml } from '../PlaceHtml'
 import { useFrame } from '@react-three/fiber'
 import { Suspense, useRef } from 'react'
 import { Vector3, type Group, type Mesh, type MeshStandardMaterial } from 'three'
@@ -117,9 +117,9 @@ export function CookingStation() {
         </mesh>
       </group>
       <group ref={bangAt}>
-        <Html center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
+        <IslandHtml center zIndexRange={[100, 0]} style={{ pointerEvents: 'none' }}>
           <div ref={bang} style={bangStyle} />
-        </Html>
+        </IslandHtml>
       </group>
     </group>
   )

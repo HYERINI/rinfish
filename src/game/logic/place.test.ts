@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CAMERA_ZOOM, NEAR_VIEW } from '../data/balance'
-import { canSavePlace, normalizePlace, placeMoved, START_PLACE } from './place'
+import { canSavePlace, migratePlaceV1, normalizePlace, placeMoved, START_PLACE } from './place'
 
 describe('normalizePlace', () => {
   it('정상 저장본은 그대로 쓴다', () => {
@@ -28,7 +28,7 @@ describe('normalizePlace', () => {
     expect(p.resting).toBe(false)
   })
   it('처음 자리는 초원 은지 집 마당', () => {
-    expect([START_PLACE.x, START_PLACE.z]).toEqual([188, -12])
+    expect([START_PLACE.x, START_PLACE.z]).toEqual([160, -12])
   })
   it('초원 위 자리도 이어서 쓴다. 울타리 규칙은 섬에서만', () => {
     expect(normalizePlace({ x: 150, z: 0 }, []).x).toBe(150)
@@ -61,5 +61,18 @@ describe('canSavePlace', () => {
   })
   it('순간이동(쓰러져 진료소로)을 기다리는 동안엔 저장하지 않는다', () => {
     expect(canSavePlace(0, 15, true, true)).toBe(false)
+  })
+})
+
+describe('migratePlaceV1', () => {
+  it('초원 자리는 초원을 옮긴 만큼(200 → 172) 같이 옮겨서 은지 맵의 같은 곳에 둔다', () => {
+    // 예전 은지 집 마당 (은지 12, 12) = 세계 (188, -12) → 지금 (160, -12)
+    expect(migratePlaceV1({ ...START_PLACE, x: 188, z: -12 })).toMatchObject({ x: 160, z: -12 })
+  })
+
+  it('섬 자리·깨진 저장본은 그대로 둔다 (검증은 normalizePlace)', () => {
+    expect(migratePlaceV1({ ...START_PLACE, x: 3, z: 20 })).toMatchObject({ x: 3, z: 20 })
+    expect(migratePlaceV1(null)).toBe(null)
+    expect(migratePlaceV1({ x: 'a' })).toEqual({ x: 'a' })
   })
 })

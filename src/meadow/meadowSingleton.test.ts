@@ -131,10 +131,10 @@ describe('문', () => {
     expect(doors[0].angle).toBeCloseTo(Math.PI / 2)
     for (let i = 0; i < 60; i++) doors[0].update(1 / 30)
     expect(doors[0].angle).toBeCloseTo(0)
-    // 거실 문(은지 x 5, z -0.5~0.5 → 세계 x 195): 닫히면 얇은 판이 세계 z 축을 따라, 열리면 x 축을 따라
+    // 거실 문(은지 x 5, z -0.5~0.5 → 세계 x 167): 닫히면 얇은 판이 세계 z 축을 따라, 열리면 x 축을 따라
     const closed = doorCuboid(0, false)!
     const open = doorCuboid(0, true)!
-    expect(closed.center[0]).toBeCloseTo(195)
+    expect(closed.center[0]).toBeCloseTo(167)
     expect(closed.half[2]).toBeCloseTo(0.5)
     expect(open.half[0]).toBeCloseTo(0.5)
     expect(doorCuboid(9, true)).toBeNull()

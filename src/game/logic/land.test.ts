@@ -11,6 +11,7 @@ describe('landAt', () => {
     expect(landAt(87, 5)).toBeNull()
     expect(landAt(60, 0)).toBeNull()
     expect(landAt(290, 0)).toBeNull()
+    expect(landAt(200, 0)).toBeNull()
   })
   it('경계 부동소수점 오차는 땅으로 본다', () => {
     expect(landAt(91 - 1e-9, 0)).toBe('meadow')
@@ -29,7 +30,7 @@ describe('clampToLand', () => {
   })
   it('초원 가장자리에서 붙잡는다', () => {
     expect(clampToLand({ x: 100, z: 0 }, { x: 89, z: 0 })).toEqual({ x: 91, z: 0 })
-    expect(clampToLand({ x: 150, z: 88 }, { x: 150, z: 95 })).toEqual({ x: 150, z: 89 })
+    expect(clampToLand({ x: 150, z: 31 }, { x: 150, z: 40 })).toEqual({ x: 150, z: 32 })
   })
   it('선착장 끝에서 붙잡고, 선착장과 초원 사이는 오간다', () => {
     expect(clampToLand({ x: 85, z: -2 }, { x: 83, z: -2 })).toEqual({ x: 84.5, z: -2 })

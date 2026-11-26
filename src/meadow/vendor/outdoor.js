@@ -6,7 +6,8 @@ import { TOWN } from './town.js';
 // 집 밖: 잔디 땅, 울타리(마당), 나무·바위·풀. Kenney Nature Kit (CC0) 사용.
 // 좌표는 집(침실 x -5~5, 거실 5~15, 사격장 15~27, 주방 z -13~-5)을 둘러싸게 잡는다.
 
-export const GROUND = { minX: -90, maxX: 110, minZ: -90, maxZ: 110 };            // 땅 전체 (플레이어 이동 한계)
+// rinfish: 은지 원본은 x -90~110, z -90~110. 집·마당·광장·동물 들판 둘레 15m 만 남기고 줄였다 (빈 들판이 너무 넓어서)
+export const GROUND = { minX: -25, maxX: 82, minZ: -33, maxZ: 67 };            // 땅 전체 (플레이어 이동 한계)
 export const YARD = { id: 'yard', name: '마당', outdoor: true, minX: -10, maxX: 32.5, minZ: -17.5, maxZ: 22.5 }; // 울타리 안
 export const WILD = { id: 'wild', name: '들판 (울타리 밖)', outdoor: true, ...GROUND };
 export const GATE = { minX: 12.5, maxX: 15 };          // +z 쪽 울타리의 빈 칸 (문 x 12.5~13.5 와 같은 줄)
@@ -125,9 +126,10 @@ export function buildOutdoor({ group, colliders, shootables, wallMeshes, house }
   // 울타리 밖: 동물 들판은 듬성듬성, 나머지는 숲처럼
   const outer = { minX: GROUND.minX + 8, maxX: GROUND.maxX - 8, minZ: GROUND.minZ + 8, maxZ: GROUND.maxZ - 8 };
   const keep = [Y, TOWN]; // 마당과 광장(33단계)에는 숲을 심지 않는다
-  for (let i = 0; i < 110; i++) { const p = pick(outer, { gap: 3.5, keepOut: [...keep, ANIMAL_ZONE] }); if (p) tree(p); }
+  // rinfish: 땅을 줄인 만큼 숲 나무 110 → 40, 바위 18 → 10
+  for (let i = 0; i < 40; i++) { const p = pick(outer, { gap: 3.5, keepOut: [...keep, ANIMAL_ZONE] }); if (p) tree(p); }
   for (let i = 0; i < 8; i++) { const p = pick(ANIMAL_ZONE, { gap: 6 }); if (p) tree(p); }
-  for (let i = 0; i < 18; i++) { const p = pick(outer, { gap: 2, keepOut: keep }); if (p) rock(p); }
+  for (let i = 0; i < 10; i++) { const p = pick(outer, { gap: 2, keepOut: keep }); if (p) rock(p); }
   // 그루터기·통나무·버섯 (작은 장식, 충돌 없음)
   for (let i = 0; i < 6; i++) { const p = pick(outer, { gap: 1.5, keepOut: keep }); if (p) jobs.push(kit.place(i % 2 ? 'log' : 'stump_round', p.x, p.z, { y: SINK, rotY: R() * 6.28, collide: false })); }
   // 채집물: E 로 따면 숨겼다가 respawn 초 뒤 다시 보인다 (main.js 가 처리)
@@ -152,7 +154,8 @@ export function buildOutdoor({ group, colliders, shootables, wallMeshes, house }
     }
     return out;
   };
-  const near = { minX: -40, maxX: 62, minZ: -40, maxZ: 70 }; // 풀은 집 주변에만 (멀리는 어차피 안개에 가린다)
+  // rinfish: 줄인 땅 밖(바다)에 풀이 나지 않게 땅 안쪽으로 자른다
+  const near = { minX: Math.max(-40, GROUND.minX + 1), maxX: 62, minZ: Math.max(-40, GROUND.minZ + 1), maxZ: Math.min(70, GROUND.maxZ - 1) }; // 풀은 집 주변에만 (멀리는 어차피 안개에 가린다)
   jobs.push(kit.scatter('grass', spots(260, near, [TOWN]), { y: SINK }));
   jobs.push(kit.scatter('grass_large', spots(140, near, [TOWN]), { y: SINK }));
   jobs.push(kit.scatter('flower_redA', spots(60, near, [TOWN]), { y: SINK }));
