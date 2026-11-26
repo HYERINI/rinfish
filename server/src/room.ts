@@ -11,7 +11,8 @@ import { handleMemberMsg, herdStepDt, judgeAnimalHit, judgeDied, judgeHello, jud
 /** 웹소켓 붙임 정보: 아직 hello 전이거나, 들어온 사람 */
 type Attachment = { phase: 'hello' } | ({ phase: 'in' } & Member)
 
-export type Env = { ROOM: DurableObjectNamespace<Room> }
+import type { Save } from './save'
+export type Env = { ROOM: DurableObjectNamespace<Room>; SAVE: DurableObjectNamespace<Save> }
 
 const toMember = (a: Extract<Attachment, { phase: 'in' }>): Member => memberFrom(a)
 
