@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { GET_TIMEOUT_MS, PUT_TIMEOUT_MS, parsePutReply, parseServerSave, pushDelay, retryDelay, saveUrl, startupStep, summarize } from './cloudSync'
+import { SAVE_VERSION } from './saveMigration'
 
 describe('saveUrl', () => {
   it('웹소켓 주소를 http 저장 주소로', () => {
@@ -61,22 +62,35 @@ describe('제한 시간', () => {
 })
 
 describe('parseServerSave (서버 응답 검사)', () => {
-  it('정수 rev ≥ 1 과 객체 data 만 받는다', () => {
-    expect(parseServerSave({ rev: 3, data: { state: {} }, savedAt: 9 })).toEqual({ rev: 3, data: { state: {} }, savedAt: 9 })
-    expect(parseServerSave({ rev: 3, data: {}, savedAt: 9, writeId: 'w' })).toEqual({ rev: 3, data: {}, savedAt: 9, writeId: 'w' })
+  const data = { state: { coins: 1 }, version: 5 }
+  it('정수 rev ≥ 1 과 진행 모양(state 객체, 지원하는 version)인 data 만 받는다', () => {
+    expect(parseServerSave({ rev: 3, data, savedAt: 9 })).toEqual({ rev: 3, data, savedAt: 9 })
+    expect(parseServerSave({ rev: 3, data, savedAt: 9, writeId: 'w' })).toEqual({ rev: 3, data, savedAt: 9, writeId: 'w' })
+    expect(parseServerSave({ rev: 3, data: { state: {}, version: 1 } })).not.toBeNull()
   })
   it('savedAt 이 없으면 0', () => {
-    expect(parseServerSave({ rev: 1, data: {} })).toEqual({ rev: 1, data: {}, savedAt: 0 })
+    expect(parseServerSave({ rev: 1, data })).toEqual({ rev: 1, data, savedAt: 0 })
   })
   it('모양이 틀리면 null', () => {
     expect(parseServerSave(null)).toBeNull()
     expect(parseServerSave({})).toBeNull()
-    expect(parseServerSave({ rev: 0, data: {} })).toBeNull()
-    expect(parseServerSave({ rev: 1.5, data: {} })).toBeNull()
-    expect(parseServerSave({ rev: '2', data: {} })).toBeNull()
+    expect(parseServerSave({ rev: 0, data })).toBeNull()
+    expect(parseServerSave({ rev: 1.5, data })).toBeNull()
+    expect(parseServerSave({ rev: '2', data })).toBeNull()
     expect(parseServerSave({ rev: 2, data: null })).toBeNull()
     expect(parseServerSave({ rev: 2, data: [1] })).toBeNull()
-    expect(parseServerSave({ rev: 2, data: {}, writeId: 5 })).toBeNull()
+    expect(parseServerSave({ rev: 2, data, writeId: 5 })).toBeNull()
+  })
+  it('진행 모양이 아니면 null (빈 객체, state 없음, version 없음·소수)', () => {
+    expect(parseServerSave({ rev: 2, data: {} })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { version: 5 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: [], version: 5 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: {} } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: {}, version: 4.5 } })).toBeNull()
+  })
+  it('이 게임보다 새 버전의 저장은 받지 않는다 (옛 탭이 새 저장을 덮지 않게)', () => {
+    expect(parseServerSave({ rev: 2, data: { state: {}, version: SAVE_VERSION + 1 } })).toBeNull()
+    expect(parseServerSave({ rev: 2, data: { state: {}, version: SAVE_VERSION } })).not.toBeNull()
   })
 })
 

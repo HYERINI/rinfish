@@ -1,5 +1,7 @@
 /** 서버 저장 판단 (순수). 설계: docs/superpowers/specs/2026-11-26-server-save-design.md */
 
+import { SAVE_VERSION } from './saveMigration'
+
 /** 서버에 있는 저장 (rev = 저장 번호, writeId = 그 저장을 만든 쓰기 요청 ID) */
 export type ServerSave = { rev: number; data: unknown; savedAt: number; writeId?: string }
 /** 시작할 때 할 일: 서버 것 받기, 또는 baseRev 로 올리기 (always 가 아니면 안 올린 변경이 있을 때만) */
@@ -54,9 +56,13 @@ export function summarize(data: unknown): { coins: number; dex: number } | null 
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
+/** 진행 저장본 모양: state 객체와 이 게임이 읽을 수 있는 version (더 새 버전을 받으면 옛 탭이 모르는 필드를 버리고 덮는다) */
+const isProgressSave = (d: unknown): d is Record<string, unknown> =>
+  isRecord(d) && isRecord(d.state) && Number.isInteger(d.version) && (d.version as number) >= 0 && (d.version as number) <= SAVE_VERSION
+
 /** 서버가 준 저장본(읽기 200, 쓰기 409)을 쓰기 전에 검사한다. 모양이 틀리면 null */
 export function parseServerSave(v: unknown): ServerSave | null {
-  if (!isRecord(v) || !Number.isInteger(v.rev) || (v.rev as number) < 1 || !isRecord(v.data)) return null
+  if (!isRecord(v) || !Number.isInteger(v.rev) || (v.rev as number) < 1 || !isProgressSave(v.data)) return null
   if (v.writeId !== undefined && typeof v.writeId !== 'string') return null
   return { rev: v.rev as number, data: v.data, savedAt: typeof v.savedAt === 'number' ? v.savedAt : 0, ...(v.writeId !== undefined && { writeId: v.writeId as string }) }
 }

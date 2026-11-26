@@ -6,6 +6,9 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 /** 옛 단계 번호를 지금 단계 번호로. 표에 없는 값은 그대로 둬서 저장본 검증(merge)이 걸러 내게 한다 */
 const remap = (level: unknown, table: number[]) => (Number.isInteger(level) && table[level as number] !== undefined ? table[level as number] : level)
 
+/** 지금 진행 저장본 버전 (progressStore persist version). 올리면 migrateSave 도 함께 본다 */
+export const SAVE_VERSION = 5
+
 /**
  * 옛 저장본을 지금 모양으로. version 1(장비·어항 5단계) → 2(10단계): 같은 성능 자리로 단계 번호를 옮긴다
  */

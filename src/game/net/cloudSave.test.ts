@@ -601,6 +601,39 @@ describe('덮어쓰기 전 진행으로 되돌리기', () => {
     expect(coinsOf((t.backups.at(-1) as { raw: string }).raw)).toBe(2)
   })
 
+  it('백업을 쓰지 못하면(저장 공간 부족) 덮어쓰지 않고 이 브라우저 진행을 지킨다', async () => {
+    const t = setup()
+    await t.cloud.start()
+    t.server.saves.set(`Bearer ${t.cloud.code()}`, { rev: 5, data: { state: { coins: 50 }, version: 5 }, savedAt: 0 })
+    t.setRaw(JSON.stringify({ state: { coins: 2 }, version: 5 }))
+    const setItem = Storage.prototype.setItem
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, k: string, v: string) {
+      if (k === BACKUP_KEY) throw new DOMException('full', 'QuotaExceededError')
+      return setItem.call(this, k, v)
+    })
+    try {
+      t.cloud.markDirty()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(coinsOf(t.getRaw())).toBe(2)
+      expect(t.cloud.backup()).toBeNull()
+      expect(persisted().dirty).toBe(true)
+      expect(t.statuses.at(-1)).toBe('pending')
+      expect(t.notices).toEqual(['저장 공간이 부족해 다른 곳에서 한 진행을 받지 못했어요. 이 브라우저 진행은 그대로예요'])
+      // 다시 충돌해도 안내는 한 번만
+      t.cloud.markDirty()
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(t.notices).toHaveLength(1)
+      // 코드 바꾸기도 지금 진행을 못 올렸으니 바꾸지 않는다
+      t.server.saves.set(`Bearer ${CODE2}`, { rev: 1, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 })
+      const oldCode = t.cloud.code()
+      expect(await t.cloud.switchTo(CODE2)).toBe(false)
+      expect(t.cloud.code()).toBe(oldCode)
+      expect(coinsOf(t.getRaw())).toBe(2)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('망가진 백업은 없는 것으로 본다', () => {
     localStorage.setItem(BACKUP_KEY, '{망가짐')
     expect(setup().cloud.backup()).toBeNull()

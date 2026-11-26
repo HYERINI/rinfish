@@ -35,7 +35,7 @@ import { FULL_STOCK, buyFromVendor, readStock, sellToVendor, type ClockSource, t
 import type { VendorId } from '../data/meadowPrices'
 import { buyGearUpgrade, sellPrice } from '../logic/economy'
 import { makeId } from '../logic/id'
-import { migrateSave } from '../logic/saveMigration'
+import { SAVE_VERSION, migrateSave } from '../logic/saveMigration'
 import { unlockZone as unlockZoneRule } from '../logic/zoneUnlock'
 import { FIRST_MORNING, readClock, type Clock } from '../logic/dayClock'
 import { FRESH_SURVIVAL, faintPenalty, spendStamina, type Survival } from '../logic/stamina'
@@ -615,7 +615,7 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
       name: SAVE_KEY,
       // 2: 장비·어항이 5단계 → 10단계. 3: 배고픔(survival.hunger)·혼자 시계(clock) 추가. 4: 은지 가방(items)·문(doors)·농산물 하루 수량(stock) 추가.
       // 5: 탄창(ammo)·예비 탄약(reserve)·사격장 최고 점수(rangeBest) 추가 (3~5 는 필드만 늘어 옮길 것 없다)
-      version: 5,
+      version: SAVE_VERSION,
       migrate: (persisted, version) => migrateSave(persisted, version) as ProgressData & ProgressActions,
       storage: saves.storage,
       // 저장본의 각 필드를 검증해서, 틀린 값은 기본값을 쓰고 지금은 없는 물고기는 버린다

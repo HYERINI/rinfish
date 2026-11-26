@@ -52,6 +52,9 @@ type Persisted = { code: string; syncedRev: number; dirty: boolean; pending: Pen
 
 const CONFLICT = '다른 곳에서 한 진행으로 바꿨어요'
 const CONFLICT_BACKUP = `${CONFLICT}. 이전 진행은 메뉴에서 되돌릴 수 있어요`
+const NO_ROOM = '저장 공간이 부족해 다른 곳에서 한 진행을 받지 못했어요. 이 브라우저 진행은 그대로예요'
+/** 받기 결과: 백업하고 받음 / 그냥 받음 / 백업을 못 써서 받지 않음 (이 브라우저 진행을 지킨다) */
+type Adopted = 'backup' | 'plain' | 'blocked'
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 
@@ -98,6 +101,8 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
   let applying = false
   /** 너무 큼(413) 안내는 한 번만 */
   let tooBigNoticed = false
+  /** 백업 못 씀 안내는 한 번만 */
+  let noRoomNoticed = false
 
   const persist = () => {
     try {
@@ -145,18 +150,21 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     }
   }
 
-  const setBackup = (b: CloudBackup | null) => {
+  /** 백업 쓰기·지우기. 쓰지 못했으면(저장소 없음·공간 부족) false */
+  const setBackup = (b: CloudBackup | null): boolean => {
     try {
-      if (b) deps.storage?.setItem(BACKUP_KEY, JSON.stringify(b))
-      else deps.storage?.removeItem(BACKUP_KEY)
+      if (!deps.storage) return false
+      if (b) deps.storage.setItem(BACKUP_KEY, JSON.stringify(b))
+      else deps.storage.removeItem(BACKUP_KEY)
     } catch {
-      // 저장소를 못 쓰면 백업도 없다
+      return false
     }
     deps.onBackup?.(b)
+    return true
   }
 
-  /** 서버 것을 받는다. keepLocal: 안 올린 진행이 있어 지금 사본을 먼저 백업한다. 백업했으면 true */
-  async function adopt(save: ServerSave, keepLocal: boolean): Promise<boolean> {
+  /** 서버 것을 받는다. keepLocal: 안 올린 진행이 있어 지금 사본을 먼저 백업한다. 백업을 못 쓰면 받지 않는다 */
+  async function adopt(save: ServerSave, keepLocal: boolean): Promise<Adopted> {
     clearTimer()
     applying = true
     let backedUp = false
@@ -166,7 +174,15 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
       const next = JSON.stringify(save.data)
       const raw = keepLocal ? deps.readSave() : null
       if (raw && raw !== next) {
-        setBackup({ code: st.code, savedAt: deps.now(), raw })
+        if (!setBackup({ code: st.code, savedAt: deps.now(), raw })) {
+          // 백업 없이 덮으면 이 진행이 사라진다: 받지 않고 안 올린 변경으로 남긴다 (다음 변경 때 다시 시도)
+          st = { ...st, dirty: true, pending: null }
+          persist()
+          if (!noRoomNoticed) deps.notify(NO_ROOM)
+          noRoomNoticed = true
+          deps.onStatus('pending')
+          return 'blocked'
+        }
         backedUp = true
       }
       deps.writeSave(next)
@@ -178,7 +194,7 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     firstDirtyAt = null
     persist()
     deps.onStatus('saved')
-    return backedUp
+    return backedUp ? 'backup' : 'plain'
   }
 
   function push(keepalive = false): Promise<boolean> {
@@ -215,10 +231,12 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
             persist()
             failures = 0
             again = true
+            ok = true
           } else {
-            deps.notify((await adopt(server, true)) ? CONFLICT_BACKUP : CONFLICT)
+            const r = await adopt(server, true)
+            if (r !== 'blocked') deps.notify(r === 'backup' ? CONFLICT_BACKUP : CONFLICT)
+            ok = r !== 'blocked'
           }
-          ok = true
         } else if (res.status === 401) {
           // 저장된 코드가 깨졌다: 새 코드로 처음부터 올린다
           st = { code: makeCode(), syncedRev: 0, dirty: true, pending: null }
@@ -293,7 +311,7 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     const step = startupStep(server, st.syncedRev)
     if (step.kind === 'adopt') {
       // 안 올린 진행이 있으면(이전에 남은 변경, 또는 확인하는 사이 플레이) 백업한 뒤 받는다
-      if (await adopt(server!, st.dirty || writeSeq !== seq)) deps.notify(CONFLICT_BACKUP)
+      if ((await adopt(server!, st.dirty || writeSeq !== seq)) === 'backup') deps.notify(CONFLICT_BACKUP)
       return finishStart()
     }
     // 서버에 없거나 서버가 더 낡았으면 꼭 올린다. 실패해도 다시 시도하도록 안 올린 변경으로 표시해 둔다
