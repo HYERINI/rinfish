@@ -216,3 +216,112 @@ describe('코드로 이어 하기', () => {
     expect(JSON.parse(localStorage.getItem(CLOUD_KEY)!)).toEqual({ code: 'QX7K29PMH4TB8WNC5RDA', syncedRev: 4, dirty: false })
   })
 })
+
+/** 첫 번째 PUT 응답을 손으로 풀어 줄 때까지 붙잡아 둔다 */
+function holdNextPut(t: ReturnType<typeof setup>) {
+  const ctl = { release: () => {} }
+  t.server.fetch.mockImplementationOnce(
+    (async (_url: string, init: RequestInit) => {
+      await new Promise<void>((r) => (ctl.release = r))
+      // 서버에도 반영해 둔다 (응답만 늦은 것)
+      const body = JSON.parse(init.body as string)
+      t.server.saves.set((init.headers as Record<string, string>).Authorization, { rev: 2, data: body.data, savedAt: 0 })
+      return new Response(JSON.stringify({ rev: 2 }), { status: 200 })
+    }) as never,
+  )
+  return ctl
+}
+
+describe('코드 바꾸기 보호', () => {
+  it('올리지 못하면 false 이고 아무것도 바꾸지 않는다', async () => {
+    const t = setup()
+    await t.cloud.start()
+    const oldCode = t.cloud.code()
+    const before = JSON.parse(localStorage.getItem(CLOUD_KEY)!)
+    t.setRaw(JSON.stringify({ state: { coins: 3 }, version: 5 }))
+    t.cloud.markDirty()
+    t.server.setDown(true)
+    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    expect(await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA', other)).toBe(false)
+    expect(t.cloud.code()).toBe(oldCode)
+    expect(JSON.parse(t.getRaw()!).state.coins).toBe(3)
+    expect(JSON.parse(localStorage.getItem(CLOUD_KEY)!)).toMatchObject({ code: oldCode, syncedRev: before.syncedRev })
+  })
+
+  it('올리는 중 바뀐 것도 옛 코드로 올린 뒤에 바꾼다', async () => {
+    const t = setup()
+    await t.cloud.start()
+    const oldCode = t.cloud.code()
+    const ctl = holdNextPut(t)
+    t.cloud.markDirty()
+    await vi.advanceTimersByTimeAsync(3000)
+    t.setRaw(JSON.stringify({ state: { coins: 7 }, version: 5 }))
+    t.cloud.markDirty()
+    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    const p = t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA', other)
+    ctl.release()
+    expect(await p).toBe(true)
+    expect(t.deps.flushLocal).toHaveBeenCalled()
+    expect((t.server.saves.get(`Bearer ${oldCode}`)!.data as { state: { coins: number } }).state.coins).toBe(7)
+    expect(t.cloud.code()).toBe('QX7K29PMH4TB8WNC5RDA')
+  })
+
+  it('받기 전에 사본 저장을 먼저 쓰고, 바꾼 뒤에는 더 올리지 않는다', async () => {
+    const t = setup()
+    await t.cloud.start()
+    const order: string[] = []
+    ;(t.deps.flushLocal as ReturnType<typeof vi.fn>).mockImplementation(() => order.push('flush'))
+    const write = t.deps.writeSave
+    t.deps.writeSave = (r) => {
+      order.push('write')
+      write(r)
+    }
+    t.cloud.markDirty()
+    const other = { rev: 4, data: { state: { coins: 8 }, version: 5 }, savedAt: 0 }
+    expect(await t.cloud.switchTo('QX7K29PMH4TB8WNC5RDA', other)).toBe(true)
+    expect(order.lastIndexOf('flush')).toBeLessThan(order.indexOf('write'))
+    const putsBefore = t.server.calls.filter((c) => c.method === 'PUT').length
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(t.server.calls.filter((c) => c.method === 'PUT')).toHaveLength(putsBefore)
+    expect(t.server.calls.some((c) => c.method === 'PUT' && c.auth === 'Bearer QX7K29PMH4TB8WNC5RDA')).toBe(false)
+  })
+})
+
+describe('시작과 올리기 겹침', () => {
+  it('시작 확인 중 바뀌어도 확인이 끝나기 전에는 올리지 않는다', async () => {
+    const t = setup()
+    let release!: () => void
+    t.server.fetch.mockImplementationOnce(
+      (async () => {
+        await new Promise<void>((r) => (release = r))
+        return new Response('{}', { status: 404 })
+      }) as never,
+    )
+    const started = t.cloud.start()
+    t.cloud.markDirty()
+    await vi.advanceTimersByTimeAsync(10000)
+    expect(t.server.calls.filter((c) => c.method === 'PUT')).toHaveLength(0)
+    release()
+    await started
+    await vi.advanceTimersByTimeAsync(10000)
+    const puts = t.server.calls.filter((c) => c.method === 'PUT')
+    expect(puts).toHaveLength(1)
+    expect(puts[0].body).toMatchObject({ baseRev: 0 })
+    expect(t.notices).toEqual([])
+  })
+})
+
+describe('숨길 때 올리는 중', () => {
+  it('올리는 중에 숨기면 끝난 뒤 남은 변경을 keepalive 로 올린다', async () => {
+    const t = setup()
+    await t.cloud.start()
+    const ctl = holdNextPut(t)
+    t.cloud.markDirty()
+    await vi.advanceTimersByTimeAsync(3000)
+    t.cloud.markDirty()
+    t.cloud.hide()
+    ctl.release()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(t.server.calls.at(-1)).toMatchObject({ method: 'PUT', keepalive: true })
+  })
+})

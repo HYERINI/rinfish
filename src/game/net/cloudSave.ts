@@ -32,7 +32,8 @@ export type CloudSave = {
   /** 코드로 이어 하기: 확인 창에 보일 그 코드의 저장 */
   preview(input: string): Promise<'bad' | 'none' | 'error' | ServerSave>
   /** 지금 진행을 지금 코드로 올려 두고, 코드를 바꿔 그 저장을 받는다 */
-  switchTo(code: string, save: ServerSave): Promise<void>
+  /** 올려 두지 못했으면 false: 아무것도 바꾸지 않는다 */
+  switchTo(code: string, save: ServerSave): Promise<boolean>
 }
 
 type Persisted = { code: string; syncedRev: number; dirty: boolean }
@@ -56,7 +57,10 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
   let firstDirtyAt: number | null = null
   let lastChangeAt = 0
   let timer: ReturnType<typeof setTimeout> | null = null
-  let inflight: Promise<void> | null = null
+  let inflight: Promise<boolean> | null = null
+  /** 시작 때 서버와 맞추는 일이 끝났다 (그 전에는 올리기를 잡지 않는다) */
+  let ready = false
+  let startTimer: ReturnType<typeof setTimeout> | null = null
   let failures = 0
   /** 서버 것을 받는 중 (그 사이 persist 저장은 변경으로 치지 않는다) */
   let applying = false
@@ -79,7 +83,10 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
   }
   const schedule = (ms: number) => {
     clearTimer()
-    timer = setTimeout(() => void push(), ms)
+    timer = setTimeout(() => {
+      timer = null
+      if (st.dirty) void push()
+    }, ms)
   }
 
   async function getSave(code: string): Promise<ServerSave | null | 'error'> {
@@ -94,8 +101,11 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
   }
 
   async function adopt(save: ServerSave) {
+    clearTimer()
     applying = true
     try {
+      // 미뤄 둔 사본 저장이 받은 것을 덮어쓰지 않게 먼저 쓴다
+      deps.flushLocal()
       deps.writeSave(JSON.stringify(save.data))
       await deps.rehydrate()
     } finally {
@@ -107,15 +117,16 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     deps.onStatus('saved')
   }
 
-  function push(keepalive = false): Promise<void> {
+  function push(keepalive = false): Promise<boolean> {
     clearTimer()
     if (inflight) return inflight
     const raw = deps.readSave()
-    if (!raw) return Promise.resolve()
+    if (!raw) return Promise.resolve(false)
     const seq = writeSeq
     const code = st.code
     deps.onStatus('syncing')
     inflight = (async () => {
+      let ok = false
       try {
         const res = await request(code, { method: 'PUT', body: JSON.stringify({ baseRev: st.syncedRev, data: JSON.parse(raw) }), keepalive })
         if (res.status === 409) {
@@ -140,6 +151,7 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
           persist()
           deps.onStatus('saved')
           if (changed) schedule(pushDelay(firstDirtyAt ?? deps.now(), lastChangeAt, deps.now()))
+          ok = true
         }
       } catch {
         deps.onStatus('pending')
@@ -147,8 +159,18 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
       } finally {
         inflight = null
       }
+      return ok
     })()
     return inflight
+  }
+
+  /** 맞추기가 끝났다: 그 사이 바뀐 게 남았으면 이제 올리기를 잡는다 */
+  function finishStart() {
+    ready = true
+    if (st.dirty && !inflight && timer === null) {
+      const now = deps.now()
+      schedule(pushDelay(firstDirtyAt ?? now, lastChangeAt, now))
+    }
   }
 
   async function start() {
@@ -157,16 +179,24 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
     const server = await getSave(st.code)
     if (server === 'error') {
       deps.onStatus('pending')
-      clearTimer()
-      timer = setTimeout(() => void start(), STARTUP_RETRY_MS)
+      if (startTimer !== null) clearTimeout(startTimer)
+      startTimer = setTimeout(() => {
+        startTimer = null
+        void start()
+      }, STARTUP_RETRY_MS)
       return
     }
     const step = startupStep(server, st.syncedRev)
-    if (step.kind === 'adopt') return adopt(server!)
+    if (step.kind === 'adopt') {
+      await adopt(server!)
+      finishStart()
+      return
+    }
     st = { ...st, syncedRev: step.baseRev }
     persist()
-    if (step.always || st.dirty) return push()
-    deps.onStatus('saved')
+    if (step.always || st.dirty) await push()
+    else deps.onStatus('saved')
+    finishStart()
   }
 
   return {
@@ -182,11 +212,13 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
         persist()
       }
       deps.onStatus('pending')
-      if (!inflight) schedule(pushDelay(firstDirtyAt, lastChangeAt, now))
+      if (ready && !inflight) schedule(pushDelay(firstDirtyAt, lastChangeAt, now))
     },
     hide() {
       deps.flushLocal()
-      if (st.dirty) void push(true)
+      if (!ready) return
+      if (inflight) void inflight.then(() => st.dirty && push(true))
+      else if (st.dirty) void push(true)
     },
     code: () => st.code,
     async preview(input) {
@@ -196,11 +228,17 @@ export function createCloudSave(deps: CloudDeps): CloudSave {
       return save === null ? 'none' : save
     },
     async switchTo(code, save) {
-      if (st.dirty) await push()
-      await inflight
+      deps.flushLocal()
+      // 지금 코드로 다 올려 둔 뒤에만 바꾼다 (올리는 도중 바뀐 것까지)
+      for (;;) {
+        if (inflight) await inflight
+        if (!st.dirty || !deps.readSave()) break
+        if (!(await push())) return false
+      }
       st = { code, syncedRev: 0, dirty: false }
       persist()
       await adopt(save)
+      return true
     },
   }
 }
