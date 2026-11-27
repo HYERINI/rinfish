@@ -9,6 +9,7 @@ import { GEAR } from '../data/gear'
 import { GUNS, MAX_RESERVE, type GunId } from '../data/guns'
 import { findSpecies } from '../data/fish'
 import { MEADOW_DOORS } from '../data/meadow'
+import { MINE_WALLS } from '../data/mine'
 import { ITEM_IDS, getRecipe, type ItemId, type MeadowDishId } from '../data/meadowItems'
 import type { Buff, CharacterLook, DishId, FishInstance, GearLevels, GearSlot, TankTypeId, ZoneId } from '../data/types'
 import { ZONES } from '../data/zones'
@@ -84,6 +85,10 @@ type ProgressData = {
   reserve: Rounds
   /** 사격장 연습 게임 최고 점수 */
   rangeBest: number
+  /** 광산에서 다 캔 광맥 수 (쌓인다. 금 간 벽이 나타나는 기준) */
+  oreMined: number
+  /** 무너뜨린 금 간 벽 (MINE_WALLS 순서). 열린 굴은 다음에 와도 열려 있다 */
+  mineWalls: boolean[]
 }
 
 
@@ -155,6 +160,10 @@ type ProgressActions = {
   buyAmmo: (id: GunId, packs: number) => boolean
   /** 사격장 최고 점수. 더 높을 때만 바꾸고 true */
   recordRangeScore: (score: number) => boolean
+  /** 광맥 하나를 다 캤다. 지금까지 캔 수를 돌려준다 */
+  countOreMined: () => number
+  /** 금 간 벽을 무너뜨렸다 (index: MINE_WALLS 순서) */
+  openMineWall: (index: number) => void
 }
 
 export const INITIAL_PROGRESS: ProgressData = {
@@ -178,6 +187,8 @@ export const INITIAL_PROGRESS: ProgressData = {
   ammo: FULL_MAGS,
   reserve: START_ROUNDS,
   rangeBest: 0,
+  oreMined: 0,
+  mineWalls: MINE_WALLS.map(() => false),
 }
 
 // --- 저장본 검증: 타입이 틀린 값은 버리고 초기값을 쓴다 ---
@@ -266,6 +277,12 @@ function readAquarium(v: unknown, fallback: AquariumState): AquariumState {
     lastFedAt: readNonNegative(v.lastFedAt, fallback.lastFedAt),
     pendingIncome: readNonNegative(v.pendingIncome, fallback.pendingIncome),
   }
+}
+
+/** 켜고 끄는 값 목록 (길이는 fallback 그대로: 나중에 벽이 늘어도 옛 저장본은 앞의 것만 읽는다). 틀린 칸은 fallback */
+function readFlags(v: unknown, fallback: boolean[]): boolean[] {
+  if (!Array.isArray(v)) return fallback
+  return fallback.map((f, i) => (typeof v[i] === 'boolean' ? v[i] : f))
 }
 
 function readCount(v: unknown, fallback: number): number {
@@ -597,6 +614,14 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
         return true
       },
 
+      countOreMined: () => {
+        const oreMined = get().oreMined + 1
+        set({ oreMined })
+        return oreMined
+      },
+
+      openMineWall: (index) => set((s) => (index >= 0 && index < s.mineWalls.length ? { mineWalls: s.mineWalls.map((o, i) => (i === index ? true : o)) } : {})),
+
       setDoorOpen: (index, open) => set((s) => (index >= 0 && index < s.doors.length ? { doors: s.doors.map((o, i) => (i === index ? open : o)) } : {})),
 
       unlockZone: (id) => {
@@ -643,6 +668,8 @@ export const useProgressStore = create<ProgressData & ProgressActions>()(
           ammo: readRounds(saved.ammo, current.ammo, (id) => GUNS[id].mag),
           reserve: readRounds(saved.reserve, current.reserve, () => MAX_RESERVE),
           rangeBest: readCount(saved.rangeBest, current.rangeBest),
+          oreMined: readCount(saved.oreMined, current.oreMined),
+          mineWalls: readFlags(saved.mineWalls, current.mineWalls),
         }
       },
     },

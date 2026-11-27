@@ -4,7 +4,7 @@ import { ITEMS } from '../data/meadowItems'
 import { ORE_NODES } from '../data/mine'
 import type { Interactable } from '../logic/interaction'
 
-const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock' | 'pickup' | 'door' | 'vendor' | 'loot' | 'ore'>, string> = {
+const LABEL: Record<Exclude<Interactable['kind'], 'zoneGate' | 'dock' | 'pickup' | 'door' | 'vendor' | 'loot' | 'ore' | 'mineWall'>, string> = {
   fishingSpot: '낚시하기',
   sellBox: '물고기 팔기',
   gearShop: '장비 상점',
@@ -39,6 +39,7 @@ export function interactLabel(target: Interactable): string {
     const ore = ORE_NODES[target.index]?.ore
     return ore ? `⛏️ ${ITEMS[ore].name} 캐기` : '⛏️ 캐기'
   }
+  if (target.kind === 'mineWall') return '⛏️ 금 간 벽 부수기'
   if (target.kind === 'dock') return target.dir === 'toIsland' ? '⛵ 배 타기 (섬으로)' : '⛵ 배 타기 (초원으로)'
   return LABEL[target.kind]
 }

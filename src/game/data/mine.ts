@@ -17,6 +17,18 @@ export const MINE_ENTRANCE = {
 /** 광산 안 (바닥 사각형과 바닥 높이·천장 높이) */
 export const MINE = { x0: 96, x1: 124, z0: -40, z1: -16, floorY: -30, height: 4.5 }
 
+/** 깊은 굴: 금 간 벽 너머 두 번째 방 (바닥·천장 높이는 MINE 과 같다). 첫 방 동쪽 벽(두께 1m, x 124~125) 너머 */
+export const MINE_DEEP = { x0: 125, x1: 143, z0: -36, z1: -18 }
+
+/**
+ * 금 간 벽 (캘수록 광산이 넓어진다): 광맥을 need 번 다 캐면 벽에 금이 가고, 곡괭이로 hits 번 치면 무너져 통로가 열린다. 한 번 열면 저장한다.
+ * x: 벽 가운데, z: 통로 가운데, width: 통로 폭(m). 지금은 첫 방 동쪽 벽에 하나 (깊은 굴로)
+ */
+export const MINE_WALLS: { x: number; z: number; width: number; need: number; hits: number }[] = [{ x: 124.5, z: -27, width: 4, need: 8, hits: 6 }]
+
+/** 금 간 벽에 곡괭이가 닿는 거리 (m, 벽면까지) */
+export const WALL_REACH = 2.6
+
 /** 광산 안에서 E "밖으로 나가기" 빛나는 자리와, 들어왔을 때 서는 자리 */
 export const MINE_EXIT = { spot: [98.5, -18.5] as [number, number], arrive: [101.2, -21.2] as [number, number] }
 
@@ -40,8 +52,8 @@ export const ORES: Record<OreId, { hits: number; respawn: number; n: number; col
   gold: { hits: 6, respawn: 210, n: 1, color: '#ffd23f' },
 }
 
-/** 광맥 자리 (세계 x, z). 벽을 따라 둔다. 안쪽(북동쪽)으로 갈수록 귀한 광석 */
-export const ORE_NODES: { ore: OreId; x: number; z: number }[] = [
+/** 광맥 자리 (세계 x, z). 벽을 따라 둔다. 안쪽(북동쪽)으로 갈수록 귀한 광석. deep: 깊은 굴에 있다 (벽을 뚫어야 닿는다) */
+export const ORE_NODES: { ore: OreId; x: number; z: number; deep?: true }[] = [
   { ore: 'stone', x: 104, z: -17.6 },
   { ore: 'stone', x: 111, z: -17.6 },
   { ore: 'stone', x: 97.6, z: -27 },
@@ -54,6 +66,13 @@ export const ORE_NODES: { ore: OreId; x: number; z: number }[] = [
   { ore: 'iron', x: 119, z: -33.6 },
   { ore: 'silver', x: 122.4, z: -31 },
   { ore: 'gold', x: 122.4, z: -38 },
+  // 깊은 굴: 귀한 광석이 많다
+  { ore: 'iron', x: 129, z: -19.6, deep: true },
+  { ore: 'silver', x: 136, z: -19.6, deep: true },
+  { ore: 'gold', x: 141.4, z: -23, deep: true },
+  { ore: 'gold', x: 141.4, z: -31, deep: true },
+  { ore: 'silver', x: 135, z: -34.4, deep: true },
+  { ore: 'iron', x: 128.5, z: -34.4, deep: true },
 ]
 
 /** 광맥 바위의 충돌 반지름(m). 바위는 사람 키만 하다 (scene/mine/Mine.tsx ORE_HEIGHT) */

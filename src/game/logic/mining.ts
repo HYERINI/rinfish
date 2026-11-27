@@ -47,15 +47,55 @@ export function regrowOres(states: readonly OreNodeState[], spots: readonly OreS
   return states.map((s, i) => (s.respawnAt !== null && now >= s.respawnAt ? { left: ORES[spots[i].ore].hits, respawnAt: null } : s))
 }
 
-/** 곡괭이질: 시작한 때(초), 노린 광맥(없으면 헛손질), 맞는 순간 판정을 했나 */
-export type PickSwing = { startedAt: number; target: number | null; hitDone: boolean }
+/** 금 간 벽 자리 (data/mine MINE_WALLS): 벽면이 x 에 서 있고 z 를 가운데로 width 만큼 */
+export type WallSpot = { x: number; z: number; width: number }
+
+/** (x, z) 에서 금 간 벽 면까지 거리와 그쪽 방향 */
+function toWall(x: number, z: number, w: WallSpot): { d: number; ox: number; oz: number } {
+  const half = w.width / 2
+  const ox = w.x - x
+  const oz = Math.min(w.z + half, Math.max(w.z - half, z)) - z
+  return { d: Math.hypot(ox, oz), ox, oz }
+}
+
+/**
+ * (x, z) 에서 닿는(reach) 칠 수 있는 금 간 벽 중 가장 가까운 것의 번호. 없으면 null.
+ * hittable: 벽마다 지금 칠 수 있나 (금이 갔고 아직 안 무너졌다). facing 을 주면 앞쪽 반원에 있는 것만
+ */
+export function nearestWall(x: number, z: number, walls: readonly WallSpot[], hittable: readonly boolean[], reach: number, facing?: { dx: number; dz: number }): number | null {
+  let best: number | null = null
+  let bestD = Infinity
+  walls.forEach((w, i) => {
+    if (!hittable[i]) return
+    const { d, ox, oz } = toWall(x, z, w)
+    if (d > reach || d >= bestD) return
+    if (facing && d > 1e-6 && (ox * facing.dx + oz * facing.dz) / d < 0) return
+    best = i
+    bestD = d
+  })
+  return best
+}
+
+/** 금 간 벽까지 거리 (맞는 순간 아직 닿나 볼 때) */
+export function wallDistance(x: number, z: number, w: WallSpot): number {
+  return toWall(x, z, w).d
+}
+
+/** 벽 상태: 멀쩡함 → 금이 감 (광맥을 need 번 캤다) → 무너짐 (열렸다) */
+export type WallStage = 'solid' | 'cracked' | 'open'
+export function wallStage(oreMined: number, need: number, opened: boolean): WallStage {
+  return opened ? 'open' : oreMined >= need ? 'cracked' : 'solid'
+}
+
+/** 곡괭이질: 시작한 때(초), 노린 광맥·금 간 벽(둘 다 없으면 헛손질), 맞는 순간 판정을 했나 */
+export type PickSwing = { startedAt: number; target: number | null; wall: number | null; hitDone: boolean }
 export type PickState = { swing: PickSwing | null; readyAt: number }
 export const PICK_IDLE: PickState = { swing: null, readyAt: -Infinity }
 
-/** 곡괭이질 시작. 아직 다음 것을 할 수 없으면 null */
-export function startPick(s: PickState, target: number | null, now: number): PickState | null {
+/** 곡괭이질 시작 (wall: 금 간 벽을 노린다). 아직 다음 것을 할 수 없으면 null */
+export function startPick(s: PickState, target: number | null, now: number, wall: number | null = null): PickState | null {
   if (now < s.readyAt) return null
-  return { swing: { startedAt: now, target, hitDone: false }, readyAt: now + PICK.cool }
+  return { swing: { startedAt: now, target, wall, hitDone: false }, readyAt: now + PICK.cool }
 }
 
 /** 동작 진행도 0..1 (끝났거나 휘두르는 중이 아니면 -1) */

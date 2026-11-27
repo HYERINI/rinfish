@@ -529,6 +529,33 @@ describe('progressStore', () => {
     expect([store().coins, store().reserve.sniper]).toEqual([50, 25])
   })
 
+  it('광산: 다 캔 광맥 수를 세고, 무너뜨린 벽을 기억한다', () => {
+    expect(store().oreMined).toBe(0)
+    expect(store().countOreMined()).toBe(1)
+    expect(store().countOreMined()).toBe(2)
+    expect(store().mineWalls).toEqual([false])
+    store().openMineWall(0)
+    expect(store().mineWalls).toEqual([true])
+    // 없는 벽 번호는 무시한다
+    store().openMineWall(5)
+    expect(store().mineWalls).toEqual([true])
+  })
+
+  it('광산 값이 없는 예전 저장본은 0·닫힘, 깨진 값은 기본값, 맞는 값은 그대로', async () => {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { coins: 3 }, version: 5 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().oreMined).toBe(0)
+    expect(store().mineWalls).toEqual([false])
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { oreMined: -2, mineWalls: 'yes' }, version: 5 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().oreMined).toBe(0)
+    expect(store().mineWalls).toEqual([false])
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ state: { oreMined: 14, mineWalls: [true, true, 'x'] }, version: 5 }))
+    await useProgressStore.persist.rehydrate()
+    expect(store().oreMined).toBe(14)
+    expect(store().mineWalls).toEqual([true])
+  })
+
   it('사격장 최고 점수는 더 높을 때만 바뀐다', () => {
     expect(store().recordRangeScore(30)).toBe(true)
     expect(store().recordRangeScore(12)).toBe(false)

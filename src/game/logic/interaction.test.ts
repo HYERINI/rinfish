@@ -27,6 +27,7 @@ describe('resolveKeyAction', () => {
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'mineEntrance' })).toEqual({ type: 'enterMine' })
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'mineExit' })).toEqual({ type: 'leaveMine' })
     expect(resolveKeyAction('KeyE', 'explore', { kind: 'ore', index: 3 })).toEqual({ type: 'mineOre', index: 3 })
+    expect(resolveKeyAction('KeyE', 'explore', { kind: 'mineWall', index: 0 })).toEqual({ type: 'breakWall', index: 0 })
     expect(resolveKeyAction('KeyE', 'bag', { kind: 'mineEntrance' })).toEqual({ type: 'none' })
   })
   it('침대에서 E 로 잠자기', () => {

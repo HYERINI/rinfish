@@ -480,7 +480,7 @@ export function Player() {
     }
     // 가까이 당긴 채 멈춰 있으면 얼굴이 보이게 카메라 쪽으로 천천히 돌아선다 (카메라는 그대로)
     // 곡괭이질하는 동안과 곡괭이를 들고 광맥 앞에 선 동안은 멈춘 것으로 치지 않는다 (칠 때마다 광맥 ↔ 카메라 쪽으로 돌아서지 않게)
-    const mining = pickProgress(mineRig.swing, now) >= 0 || (session.tool === 'pickaxe' && session.nearby?.kind === 'ore')
+    const mining = pickProgress(mineRig.swing, now) >= 0 || (session.tool === 'pickaxe' && (session.nearby?.kind === 'ore' || session.nearby?.kind === 'mineWall'))
     if (mode !== 'explore' || moveDir.lengthSq() > 0 || mining) movedAt.current = now
     if (shouldFaceCamera(mode, camView.distance, now - movedAt.current, action)) {
       facing.current += shortestAngleDelta(facing.current, yaw.current) * (1 - Math.exp(-delta * CAMERA_ZOOM.faceTurnSpeed))
