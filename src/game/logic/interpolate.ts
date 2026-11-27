@@ -17,12 +17,26 @@ export function pushSample(buf: Sample[], sample: Sample, max: number): Sample[]
 
 const at = (s: Sample): Sampled => ({ x: s.s.p[0], y: s.s.p[1], z: s.s.p[2], f: s.s.f, v: s.s.v, s: s.s })
 
-/** 시각 t 의 모습. 버퍼 앞보다 이르면 첫 값, 뒤보다 늦으면 마지막 값 (앞질러 짐작하지 않는다) */
-export function sampleAt(buf: Sample[], t: number): Sampled | null {
+/**
+ * 시각 t 의 모습. 버퍼 앞보다 이르면 첫 값, 뒤보다 늦으면 마지막 값.
+ * ahead(초)를 주면 뒤보다 늦을 때 마지막 두 값의 빠르기로 그만큼까지 앞질러 그린다 (state 가 조금 늦게 와도 멈칫하지 않게).
+ * 멈춰 있거나(v 0) 두 값이 너무 벌어졌으면(시간 NET.interpGapMax, 거리 NET.snapDistance) 앞지르지 않는다
+ */
+export function sampleAt(buf: Sample[], t: number, ahead = 0): Sampled | null {
   if (buf.length === 0) return null
   if (t <= buf[0].at) return at(buf[0])
   const last = buf[buf.length - 1]
-  if (t >= last.at) return at(last)
+  if (t >= last.at) {
+    const prev = buf[buf.length - 2]
+    const over = Math.min(t - last.at, ahead)
+    if (!prev || !(over > 0) || !(last.s.v > 0)) return at(last)
+    const gap = last.at - prev.at
+    const [px, py, pz] = prev.s.p
+    const [lx, ly, lz] = last.s.p
+    if (!(gap > 0) || gap > NET.interpGapMax || Math.hypot(lx - px, ly - py, lz - pz) > NET.snapDistance) return at(last)
+    const k = over / gap
+    return { ...at(last), x: lx + (lx - px) * k, y: ly + (ly - py) * k, z: lz + (lz - pz) * k }
+  }
   let i = 0
   while (buf[i + 1].at <= t) i++
   const a = buf[i]

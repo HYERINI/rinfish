@@ -39,15 +39,22 @@ describe('handleMemberMsg', () => {
   const s: NetState = { p: [0, 1, 0], f: 0, v: 0, rest: false, fish: null, rod: 0.5, rodOn: true, bob: null, act: { emote: null, emoteAge: 30, airAge: null, landedAge: 30, eat: null, eatAge: 30 } }
   const me: Member = memberFrom({ id: 'm1', nick: '혜린', look: DEFAULT_LOOK, joinedAt: 0, s: null, stateWin: NEW_WINDOW, lastChat: -Infinity, lastProfile: -Infinity })
 
-  it('state 는 저장하고 내 id 를 붙여 나눠 준다. 초당 10번 넘으면 버린다', () => {
+  it('state 는 저장하고 내 id 를 붙여 나눠 준다. 초당 30번 넘으면 버린다 (화면은 많아야 초당 20번 보낸다)', () => {
     let m = me
-    for (let i = 0; i < 10; i++) {
-      const r = handleMemberMsg(m, { type: 'state', s }, 1 + i * 0.05)
+    for (let i = 0; i < 30; i++) {
+      const r = handleMemberMsg(m, { type: 'state', s }, 1 + i * 0.02)
       expect(r.out).toEqual({ type: 'state', id: 'm1', s })
       m = r.member
     }
     expect(m.s).toEqual(s)
-    expect(handleMemberMsg(m, { type: 'state', s }, 1.6).out).toBeNull()
+    expect(handleMemberMsg(m, { type: 'state', s }, 1.7).out).toBeNull()
+    // 1초 창이 지나면 다시 받는다
+    expect(handleMemberMsg(m, { type: 'state', s }, 2.1).out).not.toBeNull()
+  })
+  it('ping 은 남에게 나눠 주지 않는다 (room.ts 가 보낸 사람에게만 pong)', () => {
+    const r = handleMemberMsg(me, { type: 'ping', t: 1234 }, 3)
+    expect(r.out).toBeNull()
+    expect(r.member).toBe(me)
   })
   it('chat 은 1초에 한 번', () => {
     const r = handleMemberMsg(me, { type: 'chat', text: '안녕' }, 3)

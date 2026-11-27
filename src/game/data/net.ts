@@ -9,13 +9,31 @@ export const NET = {
   password: [4, 32] as [number, number],
   nick: [1, 10] as [number, number],
   chatLength: 60,
-  /** 내 모습 보내기: 바뀐 게 있으면 초당 최대 이만큼, 없으면 이 초마다 한 번 */
-  sendHz: 5,
+  /**
+   * 내 모습 보내기: 바뀐 게 있으면 초당 최대 sendHz 번, 없으면 idleSendEvery 초마다 한 번.
+   * sendHz 는 옛 서버(state 초당 10번까지)도 받는 빠르기. 서버가 ping 에 답하면(새 서버) fastSendHz 로 올린다
+   */
+  sendHz: 8,
+  fastSendHz: 20,
   idleSendEvery: 2,
+  /** 든 도구가 바뀌면 이만큼(초)만 지나도 바로 보낸다 (옛 서버 state 창 1/10 초) */
+  toolSendGap: 0.1,
+  /** 왕복 시간 재기: 이 간격(초)으로 ping 을 보낸다 */
+  pingEvery: 2,
   /** 모습에 싣는 체력 단위 (이름표 체력 막대. 회복 중 모습을 덜 보낸다) */
   hpStep: 5,
-  /** 다른 사람은 이만큼(초) 늦은 시점을 그린다 (받은 state 두 개 사이를 잇는다) */
+  /**
+   * 다른 사람·동물은 조금 늦은 시점을 그린다 (받은 state 두 개 사이를 잇는다). interpDelay: 가장 늦을 때(초), 동물은 늘 이 값.
+   * 사람은 그 사람 state 가 오는 간격에 맞춘다: 간격 + interpPad, interpMin 보다 작지 않게 (net/remoteRig).
+   * interpShift: 늦는 시간을 바꾸는 빠르기 (초당 초. 한꺼번에 바꾸면 움직임이 튄다), interpGapMax: 이보다 긴 간격은 멈춰 있던 것으로 보고 세지 않는다,
+   * extrapolateMax: state 가 늦게 오면 마지막 빠르기로 이만큼(초)까지 앞질러 그린다 (그 뒤엔 멈춘다)
+   */
   interpDelay: 0.25,
+  interpMin: 0.06,
+  interpPad: 0.02,
+  interpShift: 0.15,
+  interpGapMax: 0.5,
+  extrapolateMax: 0.1,
   /** 사람마다 쌓아 두는 state 수 */
   bufferSize: 8,
   /** 두 state 가 이보다(m) 멀면 이어 그리지 않고 바로 옮긴다 (진료소로 순간이동 등) */
@@ -32,7 +50,7 @@ export const NET = {
   /** 내가 채팅을 보낼 수 있는 간격(초) */
   chatEvery: 1,
   /** 서버 속도 제한: state 초당 횟수, chat·profile 최소 간격(초) */
-  serverStatePerSecond: 10,
+  serverStatePerSecond: 30,
   serverChatEvery: 1,
   serverProfileEvery: 5,
   /** 서버 속도 제한: 잠 투표(sleep) 초당 횟수 */

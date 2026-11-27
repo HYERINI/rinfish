@@ -11,6 +11,7 @@ import { allowEvery } from '../logic/rateLimit'
 import { cleanText, normalizeNick, normalizeRoomName, passHashFor, roomIdFor, textLength } from '../logic/roomKey'
 import { connectSocket, type Connection, type Connector } from '../net/connection'
 import { forgetRemote, netNow, receiveState, selfBubble, showBubble } from '../net/remoteRig'
+import { receivePong } from '../net/netStats'
 import { roomUrl } from '../net/serverUrl'
 import { useDayStore } from './dayStore'
 import { useFishingStore } from './fishingStore'
@@ -52,6 +53,8 @@ type NetStore = {
   sendShot: (o: Vec3, d: Vec3, w: GunId) => void
   /** 쓰러졌다 (by: 마지막으로 나를 맞힌 사람). 같이 하는 중에만 */
   sendDied: (by?: string) => void
+  /** 왕복 시간 재기 (net/netStats). 같이 하는 중에만 */
+  sendPing: () => void
   /** 테스트에서 가짜 연결로 바꾼다 */
   _setConnector: (c: Connector) => void
 }
@@ -168,6 +171,9 @@ export const useNetStore = create<NetStore>()(
             return
           case 'shot':
             if (get().peers[m.id]) receiveShot(m.o, m.d, m.w)
+            return
+          case 'pong':
+            receivePong(m.t / 1000, now)
             return
           case 'kill': {
             // 모두에게: "A 님이 B 님을 쓰러뜨렸어요" (채팅 기록에도). 쓰러진 사람은 자기 화면에 따로 알림이 뜬다
@@ -314,6 +320,10 @@ export const useNetStore = create<NetStore>()(
 
         sendDied(by) {
           if (get().phase === 'online') conn?.send(by ? { type: 'died', by } : { type: 'died' })
+        },
+
+        sendPing() {
+          if (get().phase === 'online') conn?.send({ type: 'ping', t: Math.round(netNow() * 1000) })
         },
 
         _setConnector(c) {
