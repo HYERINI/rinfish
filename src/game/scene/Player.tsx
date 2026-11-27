@@ -5,6 +5,8 @@ import { Vector3, type Group, type Object3D, type PerspectiveCamera } from 'thre
 import { CAMERA_ZOOM, MOVE, PLAYER_BODY } from '../data/balance'
 import { AIM_VIEW, isGun } from '../data/guns'
 import { aimFov, isFirstPerson } from '../logic/view'
+import { firstAimRay, solveFirst, solveThird, thirdAimRay } from '../logic/aimAnchor'
+import { aimPoint } from './guns/aimPoint'
 import { CHARACTER_BASE_HEIGHT } from '../data/characters'
 import { COOK_SCENE } from '../data/cooking'
 import { REPAIR_PLANS, type RepairPlan } from '../data/repair'
@@ -22,7 +24,7 @@ import { isSprintHeld, takeActionPresses } from '../input/usePlayerActionKeys'
 import { takeDrag } from '../input/pointer'
 import { isPointerLocked } from '../input/pointerLock'
 import { MOUSE_LOOK } from '../data/settings'
-import { applyMouseLook } from '../logic/mouseLook'
+import { applyMouseLook, clampPitch } from '../logic/mouseLook'
 import { useSettingsStore } from '../stores/settingsStore'
 import { castPowerFromHold } from '../logic/cast'
 import type { FishingState } from '../logic/fishingSession'
@@ -145,6 +147,14 @@ const GROUND_PROBE = 0.15
 /** 수리 연출 카메라로 넘어가고 돌아오는 빠르기 */
 const CUTSCENE_CAMERA_SMOOTH = 2.5
 
+/** 조준으로 당겨지던 카메라가 이만큼(m) 안으로 오면 자리를 잡은 것으로 친다 */
+const AIM_SETTLED = 0.01
+
+/** 1인칭에서 올려다보는 각도 (rad): 기울기가 클수록 내려다본다. tilt: 조준경으로 들어올 때 맞춘 값 */
+function firstTilt(pitch: number, tilt: number): number {
+  return Math.max(-AIM_VIEW.firstPitch, Math.min(AIM_VIEW.firstPitch, tilt - pitch))
+}
+
 // 매 프레임 new Vector3()를 만들지 않도록 재사용
 const moveDir = new Vector3()
 const grip = new Vector3()
@@ -179,13 +189,19 @@ export function Player() {
   /** 마지막으로 저장한 자리와 시각 */
   const saved = useRef({ place: start, at: 0 })
   const camera = useThree((s) => s.camera)
-  const { world, rapier } = useRapier()
+  const physics = useRapier()
+  const { world, rapier } = physics
   /** 땅 판정용 공 모양 */
   const groundBall = useRef<InstanceType<typeof rapier.Ball> | null>(null)
   /** 카메라가 벽을 뚫지 않게 시선점에서 카메라 쪽으로 쏘는 광선 */
   const camRay = useRef<InstanceType<typeof rapier.Ray> | null>(null)
   /** 마지막으로 움직인 시각 (가까이 당겼을 때 카메라 쪽으로 돌아서기용) */
   const movedAt = useRef(0)
+  /**
+   * 조준점 지키기 (logic/aimAnchor). scoped: 조준경 때문에 1인칭인가, tilt: 그동안 pitch 에 더하는 올려다보는 각도,
+   * aimed·settling: 권총·산탄총 조준을 켜거나 끈 뒤 3인칭 카메라가 자리를 잡는 동안
+   */
+  const anchor = useRef({ scoped: false, tilt: 0, aimed: false, settling: false })
   /**
    * 카메라: 거리·낮춤·발 높이(점프)·어깨 비킴만 부드럽게 바꾼다 (logic/cameraFollow). 방향(yaw·pitch)은 매 프레임 바로 쓴다.
    * 위치 전체를 늦게 따라가면 가까이 당긴 채 카메라 쪽으로 걸을 때 카메라가 몸을 뚫는다
@@ -336,8 +352,8 @@ export function Player() {
     // 1) WASD·조이스틱 → 카메라 기준 이동 방향 (조이스틱은 민 만큼 천천히 걷는다)
     const move = mode === 'explore' ? readMoveInput() : NO_MOVE
     const { forward, right } = move
-    const sin = Math.sin(yaw.current)
-    const cos = Math.cos(yaw.current)
+    let sin = Math.sin(yaw.current)
+    let cos = Math.cos(yaw.current)
     moveDir.set(-sin * forward + cos * right, 0, -cos * forward - sin * right)
     if (moveDir.lengthSq() > 0) moveDir.normalize().multiplyScalar(move.scale)
 
@@ -407,6 +423,35 @@ export function Player() {
     // 1인칭 (V, 또는 조준경 총으로 조준하는 동안): 내 몸을 숨기고 카메라를 눈높이에, 몸은 보는 쪽을 본다
     const firstView = isFirstPerson(session.view, mode, gunRig.optic !== null)
     playerRig.firstPerson = firstView
+    playerRig.eyeHeight = CHARACTER_BASE_HEIGHT * look.height * EYE_RATIO
+    // 3-0) 조준경을 보려고 1인칭이 되거나 3인칭으로 돌아올 때: 화면 가운데가 닿던 점을 바뀐 카메라로도 보게 yaw·pitch 를 다시 푼다
+    //      (3인칭은 어깨 너머에서 내려다보고 1인칭은 눈에서 봐서, 그대로 두면 조준 전에 겨눈 곳과 다른 곳을 본다)
+    const an = anchor.current
+    const height = CHARACTER_BASE_HEIGHT * look.height
+    const eyeAt = { x, y: y + FOOT_Y + playerRig.eyeHeight, z }
+    const scoped = firstView && session.view !== 'first'
+    if (scoped !== an.scoped) {
+      an.scoped = scoped
+      const rig = cam.current
+      if (scoped && rig) {
+        const s = solveFirst(eyeAt, aimPoint(physics, thirdAimRay(x, rig.feetY, z, yaw.current, pitch.current, rig, height)), yaw.current)
+        yaw.current = s.yaw
+        an.tilt = s.tilt + pitch.current
+      } else if (!scoped && firstView) {
+        // V 로 1인칭을 골랐다: 보던 높이 그대로
+        pitch.current = clampPitch(pitch.current - an.tilt)
+        an.tilt = 0
+      } else if (!scoped && rig) {
+        const s = solveThird(x, rig.feetY, z, aimPoint(physics, firstAimRay(eyeAt, yaw.current, firstTilt(pitch.current, an.tilt))), yaw.current, rig, height)
+        yaw.current = s.yaw
+        pitch.current = s.pitch
+        an.tilt = 0
+      } else {
+        an.tilt = 0
+      }
+      sin = Math.sin(yaw.current)
+      cos = Math.cos(yaw.current)
+    }
     if (boatAt) {
       facing.current = boatAt.heading
     } else if (mode === 'fishing' && spot) {
@@ -447,7 +492,6 @@ export function Player() {
     if (boatRef.current) boatRef.current.visible = boatAt !== null
     playerRig.facing = facing.current
     playerRig.yaw = yaw.current
-    playerRig.eyeHeight = CHARACTER_BASE_HEIGHT * look.height * EYE_RATIO
     playerRig.speed = speed
     playerRig.resting = mode === 'rest' || boatAt !== null
 
@@ -520,7 +564,9 @@ export function Player() {
 
     // 5-2) 1인칭: 눈높이에서 보는 쪽을 본다 (기울기가 클수록 내려다본다. 3인칭과 같은 손맛)
     if (firstView) {
-      const e = Math.max(-AIM_VIEW.firstPitch, Math.min(AIM_VIEW.firstPitch, -pitch.current))
+      const e = firstTilt(pitch.current, an.tilt)
+      an.settling = false
+      an.aimed = gunRig.aiming
       camera.position.set(x, y + FOOT_Y + playerRig.eyeHeight, z)
       lookTarget.set(x - sin * Math.cos(e), camera.position.y + Math.sin(e), z - cos * Math.cos(e))
       camera.lookAt(lookTarget)
@@ -530,7 +576,21 @@ export function Player() {
     // 6) 3인칭 카메라: 가까이 당길수록 얼굴 높이로 내려와 얼굴을 본다. 초원·무기를 들면 가까이 낮게 (cameraView).
     //    수평 위치는 플레이어에 바로 붙이고, 방향(마우스로 돌린 yaw·pitch)도 바로 쓴다. 거리·낮춤·발 높이(점프)·어깨만 부드럽게 따라간다.
     //    총을 들면 오른쪽 어깨 너머로 비키고(조준점이 몸에 겹치지 않게), 조준하면 가까이(1.9m) 당긴다 (은지 AIM_DIST·SHOULDER)
+    //    조준을 켜거나 끄면 카메라가 당겨지거나 물러나는 동안 조준선이 같은 점에 머물게 한다 (그대로 두면 당겨지면서 위를 본다)
+    const gunHeld = mode === 'explore' && isGun(session.tool)
+    if (gunHeld && gunRig.aiming !== an.aimed) an.settling = true
+    if (!gunHeld) an.settling = false
+    an.aimed = gunRig.aiming
+    const before = an.settling && cam.current ? aimPoint(physics, thirdAimRay(x, cam.current.feetY, z, yaw.current, pitch.current, cam.current, height)) : null
     const c = (cam.current = followCamera(cam.current, { distance: camView.distance, low: camView.low, feetY: y + FOOT_Y, shoulder: cameraShoulder(mode, session.tool) }, delta))
+    if (before) {
+      const s = solveThird(x, c.feetY, z, before, yaw.current, c, height)
+      yaw.current = s.yaw
+      pitch.current = s.pitch
+      sin = Math.sin(yaw.current)
+      cos = Math.cos(yaw.current)
+      if (Math.abs(c.distance - camView.distance) < AIM_SETTLED) an.settling = false
+    }
     const orbit = orbitOffset(yaw.current, pitch.current, c.distance, c.low, CHARACTER_BASE_HEIGHT * look.height)
     camera.position.set(x + orbit.x, c.feetY + orbit.y, z + orbit.z)
     lookTarget.set(x, c.feetY + orbit.lookAtY, z)
