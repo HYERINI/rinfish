@@ -65,6 +65,8 @@ export type ClientMsg =
   | { type: 'shot'; o: Vec3; d: Vec3; w: GunId }
   /** 내가 쓰러졌다. by: 마지막으로 나를 맞힌 사람 (PvP) */
   | { type: 'died'; by?: string }
+  /** 왕복 시간 재기: t(보낸 쪽 시계, ms)를 서버가 pong 으로 그대로 돌려준다. 옛 서버는 모르는 메시지라 버린다 */
+  | { type: 'ping'; t: number }
 
 /** 동물 한 마리 보내는 모양: [번호, 종(SPECIES_IDS 순서), x, z, 방향, 동작(ANIMAL_POSES 순서), 체력]. 소수 둘째 자리 */
 export type AnimalTuple = [number, number, number, number, number, number, number]
@@ -102,6 +104,8 @@ export type ServerMsg =
   /** 3-4: 남이 쐈다 (궤적만 그린다), 누가 쓰러졌다 (killer: 쓰러뜨린 사람, 없으면 혼자 쓰러짐) */
   | { type: 'shot'; id: string; o: Vec3; d: Vec3; w: GunId }
   | { type: 'kill'; victim: string; killer?: string }
+  /** ping 에 대한 답 (보낸 사람에게만) */
+  | { type: 'pong'; t: number }
 
 const EMOTE_IDS = EMOTES.map((e) => e.id)
 const FOOD_IDS: FoodId[] = [...DISHES.map((d) => d.id), ...SNACK_IDS, ...MEADOW_DISH_IDS]
@@ -111,6 +115,8 @@ const num = (v: unknown, lo: number, hi: number): number | null => (typeof v ===
 const oneOf = <T extends string>(v: unknown, list: readonly T[]): T | null => (typeof v === 'string' && (list as readonly string[]).includes(v) ? (v as T) : null)
 const id = (v: unknown): string | null => (typeof v === 'string' && v.length >= 1 && v.length <= 40 ? v : null)
 const int = (v: unknown, lo: number, hi: number): number | null => (Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi ? (v as number) : null)
+/** ping 에 싣는 시각 상한 (ms) */
+const MAX_PING_T = 1e13
 /** 날짜 상한 (하루 8분이라 백만 일이면 15년) */
 const MAX_DAY = 1e6
 
@@ -284,6 +290,10 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       const by = id(m.by)
       return by ? { type: 'died', by } : null
     }
+    case 'ping': {
+      const t = num(m.t, 0, MAX_PING_T)
+      return t === null ? null : { type: 'ping', t }
+    }
     default:
       return null
   }
@@ -398,6 +408,10 @@ export function parseServerMsg(raw: string): ServerMsg | null {
       const killer = id(m.killer)
       return killer ? { type: 'kill', victim, killer } : null
     }
+    case 'pong': {
+      const t = num(m.t, 0, MAX_PING_T)
+      return t === null ? null : { type: 'pong', t }
+    }
     default:
       return null
   }
@@ -457,16 +471,17 @@ export function stateKey(s: NetState): string {
 
 /**
  * 내 모습을 지금 보낼까. since: 지난번 보낸 뒤 초, changed: stateKey 가 바뀌었나.
- * 바뀌었으면 초당 최대 NET.sendHz 번, 그대로면 NET.idleSendEvery 초마다. 단 들판 근처(nearAnimalField)면 그대로여도 NET.sendHz 로:
+ * 바뀌었으면 초당 최대 hz 번 (NET.sendHz, 새 서버면 NET.fastSendHz), 그대로면 NET.idleSendEvery 초마다.
+ * 단 들판 근처(nearAnimalField)면 그대로여도 동물 간격(NET.animalEvery)으로:
  * 서버는 alarm 없이 이 메시지에 맞춰 동물을 움직인다 (창이 뒤에 있으면 그리지 않아 보내지도 않는다).
- * toolChanged: 든 도구가 바뀌었다. 서버 state 창(초당 NET.serverStatePerSecond)이 허락하는 만큼만 지나면 바로 보낸다
+ * toolChanged: 든 도구가 바뀌었다. NET.toolSendGap 만 지나면 바로 보낸다
  * (서버가 명중을 마지막 모습의 도구로 보므로, 바꾸고 바로 휘두른 명중이 옛 도구로 버려지지 않게)
  */
-export function stateSendDue(s: NetState, changed: boolean, since: number, toolChanged = false): boolean {
+export function stateSendDue(s: NetState, changed: boolean, since: number, toolChanged = false, hz = NET.sendHz): boolean {
   if (since >= NET.idleSendEvery) return true
-  if (toolChanged && since >= 1 / NET.serverStatePerSecond) return true
-  if (since < 1 / NET.sendHz) return false
-  return changed || nearAnimalField(s.p[0], s.p[2])
+  if (toolChanged && since >= NET.toolSendGap) return true
+  if (changed) return since >= 1 / hz
+  return nearAnimalField(s.p[0], s.p[2]) && since >= NET.animalEvery
 }
 
 const age = (now: number, at: number) => Math.min(NET.actAgeCap, Math.max(0, now - at))

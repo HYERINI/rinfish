@@ -8,10 +8,9 @@ import { isGun, type GunId } from '../data/guns'
 import { NET } from '../data/net'
 import type { CharacterLook } from '../data/types'
 import { saggingLinePoint } from '../logic/castArc'
-import { sampleAt } from '../logic/interpolate'
 import { remoteMode } from '../logic/netProtocol'
 import { shownTool } from '../logic/playerMotion'
-import { netNow, remoteRig } from '../net/remoteRig'
+import { netNow, remoteRig, remoteView } from '../net/remoteRig'
 import { BoatModel } from './boat/BoatModel'
 import { BENCH_SEAT_SHAPE } from './facilities/benchShape'
 import { bubbleStyle, nameTagStyle } from './nameTag'
@@ -29,7 +28,7 @@ const point = new Vector3()
 
 
 /**
- * 다른 사람 한 명. 받은 state 를 조금 늦은 시점(NET.interpDelay)에서 이어 그리고, 내 캐릭터와 같은 PlayerModel 로 자세를 잡는다.
+ * 다른 사람 한 명. 받은 state 를 조금 늦은 시점(net/remoteRig remoteView: 그 사람이 보내는 간격만큼)에서 이어 그리고, 내 캐릭터와 같은 PlayerModel 로 자세를 잡는다.
  * shown(): 폰에서 가까운 몇 명만 그릴 때 이 사람을 그릴지
  */
 export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: string; look: CharacterLook; shown: () => boolean }) {
@@ -61,7 +60,7 @@ export function RemotePlayer({ id, nick, look, shown }: { id: string; nick: stri
   useFrame((_, delta) => {
     const e = remoteRig.get(id)
     const now = netNow()
-    const cur = e && shown() ? sampleAt(e.buf, now - NET.interpDelay) : null
+    const cur = e && shown() ? remoteView(e, now) : null
     const ln = lineRef.current
     if (!root.current || !visual.current || !ln) return
     root.current.visible = cur !== null

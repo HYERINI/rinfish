@@ -89,6 +89,8 @@ export class Room extends DurableObject<Env> {
       if ((await this.ctx.storage.getAlarm()) === null) await this.ctx.storage.setAlarm(Date.now() + NET.clockEvery * 1000)
       return
     }
+    // 왕복 시간 재기: 보낸 사람에게만 그대로 돌려준다 (방 상태는 건드리지 않는다)
+    if (msg.type === 'ping') return send(ws, { type: 'pong', t: msg.t })
     const member = toMember(att)
     const now = Date.now()
     if (msg.type === 'animalHit') return this.hitAnimal(ws, member, msg, now)

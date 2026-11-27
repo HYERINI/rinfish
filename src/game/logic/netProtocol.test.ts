@@ -331,12 +331,30 @@ describe('총·PvP 메시지 (3-4)', () => {
   })
 })
 
+describe('ping·pong (왕복 시간 재기)', () => {
+  it('보낸 시각(ms)을 그대로 읽는다. 숫자가 아니거나 범위 밖이면 버린다', () => {
+    expect(parseClientMsg(json({ type: 'ping', t: 12345 }))).toEqual({ type: 'ping', t: 12345 })
+    expect(parseServerMsg(json({ type: 'pong', t: 12345 }))).toEqual({ type: 'pong', t: 12345 })
+    expect(parseClientMsg(json({ type: 'ping', t: '1' }))).toBeNull()
+    expect(parseClientMsg(json({ type: 'ping', t: -1 }))).toBeNull()
+    expect(parseServerMsg(json({ type: 'pong' }))).toBeNull()
+  })
+})
+
 describe('stateSendDue (3-3 들판 근처는 5Hz 로 계속)', () => {
   const field = state({ p: [186, 1, -39] })
   const town = state({ p: [0, 1, 0] })
-  it('바뀌었으면 0.2초(1/sendHz)마다', () => {
-    expect(stateSendDue(town, true, 0.19)).toBe(false)
-    expect(stateSendDue(town, true, 0.2)).toBe(true)
+  it('바뀌었으면 0.125초(1/sendHz 8)마다: 옛 서버(초당 10번)도 받는 빠르기', () => {
+    expect(stateSendDue(town, true, 0.12)).toBe(false)
+    expect(stateSendDue(town, true, 0.125)).toBe(true)
+  })
+  it('새 서버(ping 에 답한다)면 0.05초(1/fastSendHz 20)마다', () => {
+    expect(stateSendDue(town, true, 0.04, false, 20)).toBe(false)
+    expect(stateSendDue(town, true, 0.05, false, 20)).toBe(true)
+    // 그대로면 빨리 보내지 않는다 (들판 근처도 동물 간격 0.2초 그대로)
+    expect(stateSendDue(town, false, 0.5, false, 20)).toBe(false)
+    expect(stateSendDue(field, false, 0.1, false, 20)).toBe(false)
+    expect(stateSendDue(field, false, 0.2, false, 20)).toBe(true)
   })
   it('들판에서 멀면 그대로일 땐 2초마다', () => {
     expect(stateSendDue(town, false, 0.5)).toBe(false)
@@ -346,7 +364,7 @@ describe('stateSendDue (3-3 들판 근처는 5Hz 로 계속)', () => {
     expect(stateSendDue(field, false, 0.19)).toBe(false)
     expect(stateSendDue(field, false, 0.2)).toBe(true)
   })
-  it('든 도구가 바뀌면 0.1초(서버 state 창 1/10)만 지나도 바로 (서버가 새 도구로 명중을 본다)', () => {
+  it('든 도구가 바뀌면 0.1초만 지나도 바로 (서버가 새 도구로 명중을 본다)', () => {
     expect(stateSendDue(town, true, 0.12, true)).toBe(true)
     expect(stateSendDue(town, true, 0.12)).toBe(false)
     expect(stateSendDue(town, true, 0.05, true)).toBe(false)

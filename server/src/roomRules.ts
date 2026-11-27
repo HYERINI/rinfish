@@ -131,6 +131,9 @@ export function handleMemberMsg(member: Member, msg: ClientMsg, nowSec: number):
     case 'died':
       // 동물 명중은 방의 동물을, PvP·쓰러짐은 맞은 사람을 봐야 해서 room.ts 가 judgeAnimalHit·judgePvpHit·judgeDied 로 본다
       return { member, out: null }
+    case 'ping':
+      // 보낸 사람에게만 pong 으로 답한다 (room.ts). 남에게 보낼 것은 없다
+      return { member, out: null }
   }
 }
 

@@ -1,5 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { moveLatency, netStats, sendRate } from '../../net/netStats'
+import { remoteRig } from '../../net/remoteRig'
+import { useNetStore } from '../../stores/netStore'
 
 /** 직전 프레임에 그린 양. 브라우저 콘솔에 __render 라고 치면 보인다 (개발 모드, 또는 배포 주소에 ?probe 를 붙였을 때) */
 export type RenderStats = { calls: number; triangles: number; lines: number; geometries: number; textures: number }
@@ -8,6 +11,24 @@ declare global {
   interface Window {
     __render?: RenderStats
   }
+}
+
+const ms = (sec: number) => `${Math.round(sec * 1000)}ms`
+
+/**
+ * 같이 하는 중이면 통신 지연 한 줄: 서버 왕복 시간, 내가 모습을 보내는 빠르기, 다른 사람을 늦게 그리는 시간(평균),
+ * 그리고 셋을 더한 "남의 움직임이 내 화면에 보이기까지" 어림. 서버가 ping 에 답하지 않으면(옛 서버) 왕복 시간은 모른다
+ */
+function netLine(): string {
+  if (useNetStore.getState().phase !== 'online') return ''
+  let sum = 0
+  for (const e of remoteRig.values()) sum += e.delay
+  const draw = remoteRig.size ? sum / remoteRig.size : null
+  const total = draw === null ? null : moveLatency(draw)
+  const parts = [netStats.rtt === null ? '왕복 ?' : `왕복 ${ms(netStats.rtt)}`, `보내기 ${sendRate()}/초`]
+  if (draw !== null) parts.push(`늦게 그리기 ${ms(draw)}`)
+  if (total !== null) parts.push(`움직임 지연 약 ${ms(total)}`)
+  return ` · ${parts.join(' · ')}`
 }
 
 /** 화면 글자를 고치는 간격(초). 매 프레임 고치면 숫자가 떨려 읽을 수 없다 */
@@ -58,7 +79,7 @@ export function RenderProbe({ panel = false }: { panel?: boolean }) {
     const fps = Math.round(frames.current / dt)
     frames.current = 0
     since.current = now
-    el.textContent = `${fps} fps · 드로우 콜 ${out.calls} · 삼각형 ${out.triangles.toLocaleString()} · 형상 ${out.geometries} · 텍스처 ${out.textures}`
+    el.textContent = `${fps} fps · 드로우 콜 ${out.calls} · 삼각형 ${out.triangles.toLocaleString()} · 형상 ${out.geometries} · 텍스처 ${out.textures}${netLine()}`
   })
   return null
 }
