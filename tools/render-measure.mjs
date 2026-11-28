@@ -2,6 +2,7 @@
 // 어떤 물체가 드로우 콜을 많이 쓰는지 순위를 낸다. 결과는 콘솔 표와 JSON 파일, 자리마다 화면 캡처(PNG).
 // 준비: npx vite --port 5190 --strictPort --host 127.0.0.1   (개발 모드, 또는 배포 주소 끝에 ?probe)
 // 사용: node tools/render-measure.mjs [게임 주소] [결과 JSON] [mobile|desktop]
+//   환경 변수: SUN_T=0.25 (잴 시각, 하루 진행도), REPEAT=3 (기본 콜 수 반복 횟수)
 //   mobile: 390×844 화면·DPR 3·터치(폰 화질 자동 선택), 프레임 시간은 CPU 4배 느리게 해서 잰다
 //   GPU 는 이 맥의 것이라 폰보다 빠르다: 숫자는 고치기 전후 비교용. 폰의 실제 FPS 는 폰에서 ?probe 로 확인한다
 import { spawn } from 'node:child_process'
@@ -14,6 +15,10 @@ const GAME = process.argv[2] ?? 'http://127.0.0.1:5190'
 const OUT = process.argv[3] ?? join(tmpdir(), 'render-measure.json')
 const MODE = process.argv[4] ?? 'mobile'
 const CPU_SLOWDOWN = MODE === 'mobile' ? 4 : 1
+/** 자리마다 잴 시각 (하루 진행도 0~1: 0=06:00, 0.25=12:00, 0.03≈06:45 해가 낮음). 시각이 흐르면 해 방향이 바뀌어 전후 비교가 흔들린다 */
+const SUN_T = Number(process.env.SUN_T ?? 0.25)
+/** 기본 콜 수를 몇 번 잴지 (2초 간격). 동물이 돌아다녀 흔들리는 폭을 최소~최대로 남긴다 */
+const REPEAT = Math.max(1, Number(process.env.REPEAT ?? 3))
 const CHROME = process.env.CHROME ?? ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', 'C:/Program Files/Google/Chrome/Application/chrome.exe'].find((p) => existsSync(p))
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
@@ -278,11 +283,21 @@ const shot = async (i) => {
   return file
 }
 
+const setTime = (t) => evaluate(`(async () => { const { liveClock } = await __mod('/src/game/stores/dayStore.ts'); liveClock.t = ${t}; return true })()`)
+
 const results = []
 for (const [i, [name, x, z]] of SPOTS.entries()) {
   await teleport(x, z)
+  await setTime(SUN_T)
   await wait(6000)
-  const r = { name, base: await calls(), frames: await frames(), est: JSON.parse(await evaluate('JSON.stringify(__m.breakdown())')), shot: await shot(i) }
+  const runs = []
+  for (let k = 0; k < REPEAT; k++) {
+    if (k) await wait(2000)
+    await setTime(SUN_T)
+    runs.push((await calls()).calls)
+  }
+  await setTime(SUN_T)
+  const r = { name, sunT: SUN_T, runs, base: await calls(), frames: await frames(), est: JSON.parse(await evaluate('JSON.stringify(__m.breakdown())')), shot: await shot(i) }
   await evaluate('__m.shadowsOff()')
   await wait(400)
   r.noShadow = { ...(await calls()), frames: await frames() }
@@ -299,6 +314,7 @@ for (const [i, [name, x, z]] of SPOTS.entries()) {
   const line = (label, c, f) => console.log(`  ${label.padEnd(8)} ${String(c.calls).padStart(4)} 콜 · 그리기 CPU ${f.renderMs}ms (느린 5% ${f.renderP95}) · FPS ${f.fps}`)
   console.log(`  삼각형 ${r.base.triangles.toLocaleString()}`)
   line('지금', r.base, r.frames)
+  console.log(`  반복 ${REPEAT}번: ${Math.min(...runs)}~${Math.max(...runs)} 콜`)
   line('그림자 끔', r.noShadow, r.noShadow.frames)
   line('초원 숨김', r.hide초원, r.hide초원.frames)
   line('섬 숨김', r.hide섬, r.hide섬.frames)

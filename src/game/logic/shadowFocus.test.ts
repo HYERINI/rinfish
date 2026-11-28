@@ -10,7 +10,11 @@ describe('shadowFocus (그림자 범위 가운데)', () => {
     expect(x).toBeCloseTo(SHADOW_AHEAD)
     expect(z).toBeCloseTo(0)
   })
-  it('바로 아래를 보면 (땅 위 방향이 거의 없으면) 플레이어 자리 그대로', () => {
+  it('바로 아래를 보면 플레이어 자리 그대로', () => {
     expect(shadowFocus(4, -2, 0, 0)).toEqual([4, -2])
+  })
+  it('아래·위로 기울일수록 앞으로 덜 옮긴다 (가운데가 덜컥 튀지 않게, 땅 위 성분 길이만큼)', () => {
+    const [x] = shadowFocus(0, 0, 0.1, 0)
+    expect(x).toBeCloseTo(SHADOW_AHEAD * 0.1)
   })
 })

@@ -45,7 +45,7 @@ describe('초원 조명 (빛 개수가 처음부터 같게)', () => {
 })
 
 describe('실내 그림자', () => {
-  it('모델이 다 들어오면 방 안에 다 들어 있는 물체는 그림자를 안 만든다. 지붕은 그대로', async () => {
+  it('모델이 다 들어오면 밖으로 난 문이 없는 방 안 물체는 그림자를 안 만든다. 현관이 있는 거실·지붕은 그대로', async () => {
     const { meadowReady, meadowWorld } = await import('./meadowSingleton')
     const { insideRoom } = await import('../game/logic/indoorShadow')
     const { ROOMS, WALL_H } = await import('./vendor/world.js')
@@ -53,18 +53,22 @@ describe('실내 그림자', () => {
     await meadowReady()
     const w = meadowWorld()
     w.group.updateMatrixWorld(true)
-    let indoor = 0
+    const others = ROOMS.filter((r) => r.id !== 'living')
+    let sealed = 0
     let roofs = 0
     w.group.traverse((o) => {
       if (!(o instanceof Mesh)) return
       const b = new Box3().setFromObject(o)
-      if (insideRoom(b, ROOMS, WALL_H)) {
-        indoor++
+      if (insideRoom(b, others, WALL_H)) {
+        sealed++
         expect(o.castShadow).toBe(false)
       }
       if (b.min.y >= WALL_H - 0.01 && o.castShadow) roofs++
     })
-    expect(indoor).toBeGreaterThan(0)
+    expect(sealed).toBeGreaterThan(0)
+    // 실제 집 문으로 따지면 현관이 있는 거실만 빠진다
+    const { sealedRooms } = await import('../game/logic/indoorShadow')
+    expect(sealedRooms(ROOMS, w.doors.map((d) => d.group.position)).map((r) => r.id)).toEqual(others.map((r) => r.id))
     expect(roofs).toBeGreaterThan(0)
   })
 })

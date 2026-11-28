@@ -6,11 +6,12 @@ export const SHADOW_AHEAD = 4
 export const SHADOW_HALF = 20
 
 /**
- * 그림자 범위 가운데 (세계 x, z). 카메라 방향(dirX, dirZ)의 땅 위 성분 쪽으로 SHADOW_AHEAD 앞.
- * 바로 아래를 볼 때처럼 땅 위 방향이 거의 없으면 플레이어 자리 그대로
+ * 그림자 범위 가운데 (세계 x, z). 카메라 방향(dirX, dirZ: 길이 1 방향의 땅 위 성분)으로 SHADOW_AHEAD 앞.
+ * 아래·위로 기울일수록 땅 위 성분이 짧아지는 만큼 덜 옮긴다 (바로 아래를 보면 플레이어 자리, 가운데가 덜컥 튀지 않는다)
  */
 export function shadowFocus(px: number, pz: number, dirX: number, dirZ: number): [number, number] {
   const len = Math.hypot(dirX, dirZ)
-  if (len < 1e-3) return [px, pz]
-  return [px + (dirX / len) * SHADOW_AHEAD, pz + (dirZ / len) * SHADOW_AHEAD]
+  if (len < 1e-6) return [px, pz]
+  const k = (SHADOW_AHEAD * Math.min(1, len)) / len
+  return [px + dirX * k, pz + dirZ * k]
 }

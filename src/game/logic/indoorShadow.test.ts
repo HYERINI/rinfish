@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { insideRoom } from './indoorShadow'
+import { insideRoom, sealedRooms } from './indoorShadow'
 
 const ROOMS = [{ minX: -5, maxX: 5, minZ: -5, maxZ: 5 }]
 const box = (minX: number, maxX: number, minZ: number, maxZ: number, maxY = 1) => ({ min: { x: minX, y: 0, z: minZ }, max: { x: maxX, y: maxY, z: maxZ } })
@@ -17,5 +17,16 @@ describe('insideRoom (그림자가 지붕·바깥벽 그림자에 가려 안 보
   })
   it('방 밖 물체는 실내가 아니다', () => {
     expect(insideRoom(box(8, 9, 0, 1), ROOMS, 3)).toBe(false)
+  })
+})
+
+describe('sealedRooms (밖으로 난 문이 없는 방만)', () => {
+  const bed = { minX: -5, maxX: 5, minZ: -5, maxZ: 5 }
+  const liv = { minX: 5, maxX: 15, minZ: -5, maxZ: 5 }
+  it('두 방 사이 문은 방을 열지 않고, 한 방에만 닿은 문(현관)은 그 방을 뺀다', () => {
+    const inner = { x: 5, z: -0.5 }
+    const front = { x: 12.5, z: 5 }
+    expect(sealedRooms([bed, liv], [inner])).toEqual([bed, liv])
+    expect(sealedRooms([bed, liv], [inner, front])).toEqual([bed])
   })
 })

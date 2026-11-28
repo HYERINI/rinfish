@@ -58,5 +58,9 @@ export function rigidToSkinned(src: Object3D): Object3D {
   out.add(skinned)
   out.updateMatrixWorld(true)
   skinned.bind(new Skeleton(bones))
+  // 화면·그림자에서 빼는 판정용 구: three 는 처음 한 번만 재고 다시 안 잰다. 다리·머리가 움직여도 덮게 처음 자세의 두 배로 (복제에도 따라간다)
+  merged.computeBoundingSphere()
+  skinned.boundingSphere = merged.boundingSphere!.clone()
+  skinned.boundingSphere.radius *= 2
   return out
 }

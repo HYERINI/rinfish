@@ -6,7 +6,7 @@ import { DayNight } from './vendor/daynight.js'
 import { boxesToCuboids, doorBox, type Cuboid } from '../game/logic/meadowColliders'
 import { MEADOW_REACH, type MeadowSpot } from '../game/logic/meadowInteract'
 import { SHADOW_HALF } from '../game/logic/shadowFocus'
-import { insideRoom } from '../game/logic/indoorShadow'
+import { insideRoom, sealedRooms } from '../game/logic/indoorShadow'
 import type { EunjiRange } from './vendor/range.js'
 import { ROOMS, WALL_H, createWorld, type EunjiPickup, type EunjiWorld } from './vendor/world.js'
 
@@ -79,14 +79,18 @@ export function meadowReady(): Promise<void> {
 }
 let ready: Promise<void> | null = null
 
-/** 방 안에 다 들어 있는 물체는 그림자를 안 만든다 (지붕·바깥벽 그림자에 가려 안 보이고 그림자 그리기만 는다). 모델이 다 온 뒤 한 번 */
+/**
+ * 밖으로 난 문이 없는 방 안에 다 들어 있는 물체는 그림자를 안 만든다 (지붕·바깥벽 그림자에 가려 안 보이고 그림자 그리기만 는다).
+ * 현관이 있는 거실은 열린 문으로 해가 들어올 수 있어 그대로. 모델이 다 온 뒤 한 번
+ */
 function dropIndoorShadows(w: EunjiWorld) {
+  const rooms = sealedRooms(ROOMS, w.doors.map((d) => d.group.position))
   const box = new Box3()
   w.group.updateMatrixWorld(true)
   w.group.traverse((o) => {
     if (!(o as Mesh).isMesh || !o.castShadow) return
     // group 이 아직 장면에 안 붙어 있어 월드 좌표 = 은지 좌표
-    if (insideRoom(box.setFromObject(o), ROOMS, WALL_H)) o.castShadow = false
+    if (insideRoom(box.setFromObject(o), rooms, WALL_H)) o.castShadow = false
   })
 }
 

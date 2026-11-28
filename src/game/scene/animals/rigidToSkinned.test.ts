@@ -78,6 +78,23 @@ describe('rigidToSkinned (부위마다 따로 그리던 모델을 한 번에 그
     close(worldVerts(out), worldVerts(src))
   })
 
+  it('화면에서 빼는 판정(바운딩 구)이 부위가 크게 움직여도 다 덮을 만큼 넉넉하고, 복제에도 따라간다', () => {
+    const out = rigidToSkinned(pet())
+    let mesh: SkinnedMesh | null = null
+    out.traverse((o) => {
+      if ((o as SkinnedMesh).isSkinnedMesh) mesh = o as SkinnedMesh
+    })
+    const m = mesh as unknown as SkinnedMesh
+    expect(m.boundingSphere).not.toBeNull()
+    // 다리를 90° 돌리고 몸을 돌려도 모든 꼭짓점이 구 안
+    find(out, 'leg').rotation.x = Math.PI / 2
+    find(out, 'body').rotation.y = Math.PI / 2
+    out.updateMatrixWorld(true)
+    const inv = m.matrixWorld.clone().invert()
+    for (const v of worldVerts(out)) expect(m.boundingSphere!.containsPoint(v.applyMatrix4(inv))).toBe(true)
+    expect(m.clone().boundingSphere?.radius).toBe(m.boundingSphere!.radius)
+  })
+
   it('이름으로 붙는 동작 클립이 뼈를 움직인다', () => {
     const out = rigidToSkinned(pet())
     const clip = new AnimationClip('walk', 1, [new QuaternionKeyframeTrack('leg.quaternion', [0, 1], [0, 0, 0.3826834, 0.9238795, 0, 0, 0.3826834, 0.9238795])])

@@ -1,0 +1,932 @@
+{
+ "note": "FPS 는 화면 주사율(60)에 막힌다. 비교는 드로우 콜과 그리기 CPU 시간(renderMs)으로",
+ "at": "2026-11-28T12:44:56.589Z",
+ "game": "http://127.0.0.1:5190",
+ "mode": "mobile",
+ "cpuSlowdown": 4,
+ "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M2 Pro, Unspecified Version)",
+ "env": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3,
+  "pixelRatio": 1.5,
+  "coarse": true,
+  "shadows": true
+ },
+ "glbAtStart": 159,
+ "glbAfter": 159,
+ "results": [
+  {
+   "name": "초원 시작 자리",
+   "sunT": 0.03,
+   "runs": [
+    301,
+    301,
+    301
+   ],
+   "base": {
+    "calls": 299,
+    "triangles": 469962,
+    "lines": 0,
+    "geometries": 190,
+    "textures": 103,
+    "renderMs": 1.7999992370605469
+   },
+   "frames": {
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.7,
+    "renderMs": 9.1,
+    "renderP95": 11
+   },
+   "est": {
+    "mainCalls": 121,
+    "shadowCalls": 175,
+    "objects": 213,
+    "casters": 193,
+    "instanced": 16,
+    "shadowLights": [
+     "DirectionalLight"
+    ],
+    "regions": {
+     "초원": {
+      "main": 99,
+      "shadow": 155
+     },
+     "섬": {
+      "main": 22,
+      "shadow": 20
+     }
+    },
+    "top": [
+     {
+      "key": "초원 · Armature/head [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · Armature/eyes [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · Armature/eyebrows [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · (이름 없음 Box #eae6dc) [메시]",
+      "n": 6,
+      "main": 1,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · mushroom_red/Mesh_mushroom_red [메시]",
+      "n": 5,
+      "main": 2,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · mushroom_red/Mesh_mushroom_red_1 [메시]",
+      "n": 5,
+      "main": 2,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · (이름 없음 Buffer #73eddd) [묶음]",
+      "n": 6,
+      "main": 6,
+      "shadow": 0
+     },
+     {
+      "key": "초원 · Armature/peasant_body [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_legs [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_feet [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · fence_corner/Mesh_fence_corner [메시]",
+      "n": 3,
+      "main": 2,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · fence_corner/Mesh_fence_corner_1 [메시]",
+      "n": 3,
+      "main": 2,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · tree_default_fall/Mesh_tree_default_fall [메시]",
+      "n": 4,
+      "main": 2,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · tree_default_fall/Mesh_tree_default_fall_1 [메시]",
+      "n": 4,
+      "main": 2,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · tree_detailed/Mesh_tree_detailed [메시]",
+      "n": 4,
+      "main": 1,
+      "shadow": 4
+     }
+    ]
+   },
+   "shot": "after-0.03-1.jpg",
+   "noShadow": {
+    "calls": 122,
+    "triangles": 339687,
+    "lines": 0,
+    "geometries": 190,
+    "textures": 103,
+    "renderMs": 2,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 6.7,
+     "renderP95": 7.8
+    }
+   },
+   "hide초원": {
+    "calls": 41,
+    "triangles": 45790,
+    "lines": 0,
+    "geometries": 190,
+    "textures": 103,
+    "renderMs": 1,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 4.6,
+     "renderP95": 6.1
+    }
+   },
+   "hide섬": {
+    "calls": 261,
+    "triangles": 425950,
+    "lines": 0,
+    "geometries": 190,
+    "textures": 103,
+    "renderMs": 2.1000003814697266,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 8.1,
+     "renderP95": 10.2
+    }
+   }
+  },
+  {
+   "name": "초원 한가운데",
+   "sunT": 0.03,
+   "runs": [
+    357,
+    357,
+    359
+   ],
+   "base": {
+    "calls": 358,
+    "triangles": 468839,
+    "lines": 26,
+    "geometries": 216,
+    "textures": 111,
+    "renderMs": 2.5
+   },
+   "frames": {
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.8,
+    "renderMs": 10,
+    "renderP95": 12
+   },
+   "est": {
+    "mainCalls": 185,
+    "shadowCalls": 172,
+    "objects": 280,
+    "casters": 242,
+    "instanced": 17,
+    "shadowLights": [
+     "DirectionalLight"
+    ],
+    "regions": {
+     "초원": {
+      "main": 165,
+      "shadow": 154
+     },
+     "섬": {
+      "main": 20,
+      "shadow": 18
+     }
+    },
+    "top": [
+     {
+      "key": "초원 · Armature/head [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · Armature/eyes [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · Armature/eyebrows [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · (이름 없음 Plane #ffffff) [메시]",
+      "n": 7,
+      "main": 7,
+      "shadow": 0
+     },
+     {
+      "key": "초원 · (이름 없음 Box #d6d6cf) [메시]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · tree_default_fall/Mesh_tree_default_fall [메시]",
+      "n": 5,
+      "main": 4,
+      "shadow": 2
+     },
+     {
+      "key": "초원 · tree_default_fall/Mesh_tree_default_fall_1 [메시]",
+      "n": 5,
+      "main": 4,
+      "shadow": 2
+     },
+     {
+      "key": "초원 · tree_pineRoundA/Mesh_tree_pineRoundA [메시]",
+      "n": 6,
+      "main": 5,
+      "shadow": 1
+     },
+     {
+      "key": "초원 · tree_pineRoundA/Mesh_tree_pineRoundA_1 [메시]",
+      "n": 6,
+      "main": 5,
+      "shadow": 1
+     },
+     {
+      "key": "초원 · (이름 없음 Buffer #73eddd) [묶음]",
+      "n": 6,
+      "main": 6,
+      "shadow": 0
+     },
+     {
+      "key": "초원 · wall-window-glass/wall-window-glass_1 [메시]",
+      "n": 6,
+      "main": 0,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · Armature/peasant_body [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_legs [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_feet [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · (이름 없음 Box #8c5a4a) [메시]",
+      "n": 4,
+      "main": 1,
+      "shadow": 4
+     }
+    ]
+   },
+   "shot": "after-0.03-2.jpg",
+   "noShadow": {
+    "calls": 185,
+    "triangles": 341244,
+    "lines": 26,
+    "geometries": 216,
+    "textures": 111,
+    "renderMs": 2.1999998092651367,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 7.7,
+     "renderP95": 9.4
+    }
+   },
+   "hide초원": {
+    "calls": 41,
+    "triangles": 45790,
+    "lines": 0,
+    "geometries": 216,
+    "textures": 111,
+    "renderMs": 1.1000003814697266,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 4.6,
+     "renderP95": 5.9
+    }
+   },
+   "hide섬": {
+    "calls": 322,
+    "triangles": 423691,
+    "lines": 26,
+    "geometries": 216,
+    "textures": 111,
+    "renderMs": 2.09999942779541,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 8.6,
+     "renderP95": 10.3
+    }
+   }
+  },
+  {
+   "name": "초원 서쪽 물가",
+   "sunT": 0.03,
+   "runs": [
+    291,
+    291,
+    291
+   ],
+   "base": {
+    "calls": 291,
+    "triangles": 456388,
+    "lines": 0,
+    "geometries": 248,
+    "textures": 116,
+    "renderMs": 2.3999996185302734
+   },
+   "frames": {
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.7,
+    "renderMs": 8.9,
+    "renderP95": 10.7
+   },
+   "est": {
+    "mainCalls": 100,
+    "shadowCalls": 192,
+    "objects": 220,
+    "casters": 202,
+    "instanced": 11,
+    "shadowLights": [
+     "DirectionalLight"
+    ],
+    "regions": {
+     "초원": {
+      "main": 78,
+      "shadow": 166
+     },
+     "바다": {
+      "main": 0,
+      "shadow": 6
+     },
+     "섬": {
+      "main": 22,
+      "shadow": 20
+     }
+    },
+    "top": [
+     {
+      "key": "초원 · wall-window-glass/wall-window-glass_1 [메시]",
+      "n": 12,
+      "main": 0,
+      "shadow": 12
+     },
+     {
+      "key": "초원 · wall/wall_1 [메시]",
+      "n": 8,
+      "main": 0,
+      "shadow": 8
+     },
+     {
+      "key": "초원 · hedge/hedge_1 [메시]",
+      "n": 8,
+      "main": 0,
+      "shadow": 8
+     },
+     {
+      "key": "초원 · Armature/head [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · Armature/eyes [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · Armature/eyebrows [뼈대]",
+      "n": 4,
+      "main": 4,
+      "shadow": 4
+     },
+     {
+      "key": "초원 · tree_small/Mesh_tree_small [메시]",
+      "n": 7,
+      "main": 1,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · tree_small/Mesh_tree_small_1 [메시]",
+      "n": 7,
+      "main": 1,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · wall-window-shutters/wall-window-shutters_1 [메시]",
+      "n": 6,
+      "main": 0,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · tree-high/tree-high_1 [메시]",
+      "n": 6,
+      "main": 0,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · Armature/peasant_body [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_legs [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_feet [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · (이름 없음 Buffer #73eddd) [묶음]",
+      "n": 5,
+      "main": 5,
+      "shadow": 0
+     },
+     {
+      "key": "바다 · (이름 없음 Box #8d6e63) [메시]",
+      "n": 5,
+      "main": 0,
+      "shadow": 5
+     }
+    ]
+   },
+   "noShadow": {
+    "calls": 99,
+    "triangles": 322041,
+    "lines": 0,
+    "geometries": 248,
+    "textures": 116,
+    "renderMs": 1.1000003814697266,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 6.9,
+     "renderP95": 8.4
+    }
+   },
+   "hide초원": {
+    "calls": 47,
+    "triangles": 45862,
+    "lines": 0,
+    "geometries": 248,
+    "textures": 116,
+    "renderMs": 1.0999994277954102,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 4.7,
+     "renderP95": 5.8
+    }
+   },
+   "hide섬": {
+    "calls": 252,
+    "triangles": 410622,
+    "lines": 0,
+    "geometries": 248,
+    "textures": 116,
+    "renderMs": 2.1999998092651367,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 8.1,
+     "renderP95": 10.3
+    }
+   }
+  },
+  {
+   "name": "섬 가운데",
+   "sunT": 0.03,
+   "runs": [
+    298,
+    298,
+    294
+   ],
+   "base": {
+    "calls": 294,
+    "triangles": 506606,
+    "lines": 0,
+    "geometries": 371,
+    "textures": 118,
+    "renderMs": 2.1999998092651367
+   },
+   "frames": {
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.8,
+    "renderMs": 9.4,
+    "renderP95": 12.2
+   },
+   "est": {
+    "mainCalls": 113,
+    "shadowCalls": 182,
+    "objects": 206,
+    "casters": 183,
+    "instanced": 37,
+    "shadowLights": [
+     "DirectionalLight"
+    ],
+    "regions": {
+     "초원": {
+      "main": 32,
+      "shadow": 31
+     },
+     "섬": {
+      "main": 81,
+      "shadow": 151
+     }
+    },
+    "top": [
+     {
+      "key": "섬 · (이름 없음 Buffer #62b345) [묶음]",
+      "n": 10,
+      "main": 10,
+      "shadow": 6
+     },
+     {
+      "key": "섬 · (이름 없음 Buffer #a8714f) [묶음]",
+      "n": 6,
+      "main": 6,
+      "shadow": 6
+     },
+     {
+      "key": "섬 · (이름 없음 Buffer #5bb04a) [묶음]",
+      "n": 6,
+      "main": 6,
+      "shadow": 6
+     },
+     {
+      "key": "섬 · (이름 없음 Box #8d7b6c) [메시]",
+      "n": 12,
+      "main": 0,
+      "shadow": 12
+     },
+     {
+      "key": "섬 · (이름 없음 Box #8d6e63) [메시]",
+      "n": 5,
+      "main": 2,
+      "shadow": 5
+     },
+     {
+      "key": "섬 · (이름 없음 Cylinder #6d4c41) [메시]",
+      "n": 6,
+      "main": 1,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · Armature/head [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/eyes [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/eyebrows [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "섬 · (이름 없음 Dodecahedron #7a7166) [메시]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "섬 · (이름 없음 Box #fafafa) [메시]",
+      "n": 5,
+      "main": 0,
+      "shadow": 5
+     },
+     {
+      "key": "초원 · Armature/peasant_body [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "초원 · Armature/peasant_legs [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "초원 · Armature/peasant_feet [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "섬 · (이름 없음 Buffer #b8ae9f) [묶음]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     }
+    ]
+   },
+   "noShadow": {
+    "calls": 112,
+    "triangles": 377835,
+    "lines": 0,
+    "geometries": 371,
+    "textures": 118,
+    "renderMs": 1.6999998092651367,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 7,
+     "renderP95": 8.3
+    }
+   },
+   "hide초원": {
+    "calls": 233,
+    "triangles": 221452,
+    "lines": 0,
+    "geometries": 372,
+    "textures": 118,
+    "renderMs": 1.8000001907348633,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 7.1,
+     "renderP95": 8.9
+    }
+   },
+   "hide섬": {
+    "calls": 63,
+    "triangles": 285178,
+    "lines": 0,
+    "geometries": 372,
+    "textures": 118,
+    "renderMs": 1.2999992370605469,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 5.3,
+     "renderP95": 6.1
+    }
+   }
+  },
+  {
+   "name": "섬 동쪽 끝",
+   "sunT": 0.03,
+   "runs": [
+    220,
+    220,
+    220
+   ],
+   "base": {
+    "calls": 220,
+    "triangles": 500827,
+    "lines": 0,
+    "geometries": 376,
+    "textures": 118,
+    "renderMs": 2.3000001907348633
+   },
+   "frames": {
+    "fps": 60,
+    "p50": 16.7,
+    "p95": 16.7,
+    "renderMs": 8.7,
+    "renderP95": 10.2
+   },
+   "est": {
+    "mainCalls": 97,
+    "shadowCalls": 124,
+    "objects": 143,
+    "casters": 124,
+    "instanced": 35,
+    "shadowLights": [
+     "DirectionalLight"
+    ],
+    "regions": {
+     "초원": {
+      "main": 32,
+      "shadow": 31
+     },
+     "섬": {
+      "main": 65,
+      "shadow": 93
+     }
+    },
+    "top": [
+     {
+      "key": "섬 · (이름 없음 Buffer #62b345) [묶음]",
+      "n": 10,
+      "main": 10,
+      "shadow": 6
+     },
+     {
+      "key": "섬 · (이름 없음 Buffer #a8714f) [묶음]",
+      "n": 5,
+      "main": 2,
+      "shadow": 5
+     },
+     {
+      "key": "섬 · (이름 없음 Buffer #5bb04a) [묶음]",
+      "n": 5,
+      "main": 2,
+      "shadow": 5
+     },
+     {
+      "key": "섬 · (이름 없음 Cylinder #6d4c41) [메시]",
+      "n": 6,
+      "main": 1,
+      "shadow": 6
+     },
+     {
+      "key": "초원 · Armature/head [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/eyes [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/eyebrows [뼈대]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "섬 · (이름 없음 Dodecahedron #78909c) [메시]",
+      "n": 3,
+      "main": 3,
+      "shadow": 3
+     },
+     {
+      "key": "초원 · Armature/peasant_body [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "초원 · Armature/peasant_legs [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "초원 · Armature/peasant_feet [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "섬 · (이름 없음 Buffer #b8ae9f) [묶음]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "섬 · Armature/peasant_body [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "섬 · Armature/head [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     },
+     {
+      "key": "섬 · Armature/eyes [뼈대]",
+      "n": 2,
+      "main": 2,
+      "shadow": 2
+     }
+    ]
+   },
+   "noShadow": {
+    "calls": 96,
+    "triangles": 375821,
+    "lines": 0,
+    "geometries": 376,
+    "textures": 118,
+    "renderMs": 1.6999998092651367,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 6.5,
+     "renderP95": 8.3
+    }
+   },
+   "hide초원": {
+    "calls": 158,
+    "triangles": 215793,
+    "lines": 0,
+    "geometries": 376,
+    "textures": 118,
+    "renderMs": 1.4000005722045898,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.7,
+     "renderMs": 6.8,
+     "renderP95": 8.7
+    }
+   },
+   "hide섬": {
+    "calls": 63,
+    "triangles": 285178,
+    "lines": 0,
+    "geometries": 376,
+    "textures": 118,
+    "renderMs": 1.2000007629394531,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 5.5,
+     "renderP95": 6.9
+    }
+   }
+  }
+ ],
+ "errors": []
+}
