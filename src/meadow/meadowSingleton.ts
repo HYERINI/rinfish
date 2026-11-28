@@ -1,12 +1,14 @@
-import { PointLight, type Object3D, type Vector3 } from 'three'
+import { Box3, PointLight, type Mesh, type Object3D, type Vector3 } from 'three'
 import { MEADOW_VENDORS } from '../game/data/meadow'
 import { ISLAND_LANTERNS } from '../game/data/zones'
 import { skyNow } from '../game/scene/skyNow'
 import { DayNight } from './vendor/daynight.js'
 import { boxesToCuboids, doorBox, type Cuboid } from '../game/logic/meadowColliders'
 import { MEADOW_REACH, type MeadowSpot } from '../game/logic/meadowInteract'
+import { SHADOW_HALF } from '../game/logic/shadowFocus'
+import { insideRoom } from '../game/logic/indoorShadow'
 import type { EunjiRange } from './vendor/range.js'
-import { ROOMS, createWorld, type EunjiPickup, type EunjiWorld } from './vendor/world.js'
+import { ROOMS, WALL_H, createWorld, type EunjiPickup, type EunjiWorld } from './vendor/world.js'
 
 let world: EunjiWorld | null = null
 let daynight: DayNight | null = null
@@ -32,6 +34,11 @@ export function meadowWorld(): EunjiWorld {
     roomLamps = world.group.children.filter((o): o is PointLight => isPointLight(o) && !town.has(o))
     roomLampRooms = roomLamps.map((l) => ROOMS.find((r) => l.position.x >= r.minX && l.position.x <= r.maxX && l.position.z >= r.minZ && l.position.z <= r.maxZ)?.id ?? '')
     for (const l of [...roomLamps, ...world.lights.lamps]) world.group.remove(l)
+    // 그림자 범위: 은지 ±22m 대신 보는 쪽 앞으로 옮긴 ±SHADOW_HALF (MeadowLighting 이 가운데를 정한다)
+    const cam = world.lights.sun.shadow.camera
+    cam.left = cam.bottom = -SHADOW_HALF
+    cam.right = cam.top = SHADOW_HALF
+    cam.updateProjectionMatrix()
   }
   return world
 }
@@ -67,17 +74,30 @@ export function meadowDayNight(): DayNight {
  */
 export function meadowReady(): Promise<void> {
   const w = meadowWorld()
-  return Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready]).then(() => undefined)
+  ready ??= Promise.allSettled([w.furnitureReady, w.outdoor.ready, w.town.ready]).then(() => dropIndoorShadows(w))
+  return ready
+}
+let ready: Promise<void> | null = null
+
+/** 방 안에 다 들어 있는 물체는 그림자를 안 만든다 (지붕·바깥벽 그림자에 가려 안 보이고 그림자 그리기만 는다). 모델이 다 온 뒤 한 번 */
+function dropIndoorShadows(w: EunjiWorld) {
+  const box = new Box3()
+  w.group.updateMatrixWorld(true)
+  w.group.traverse((o) => {
+    if (!(o as Mesh).isMesh || !o.castShadow) return
+    // group 이 아직 장면에 안 붙어 있어 월드 좌표 = 은지 좌표
+    if (insideRoom(box.setFromObject(o), ROOMS, WALL_H)) o.castShadow = false
+  })
 }
 
 /**
- * 지금 시각(t)으로 해·하늘빛·등불을 맞추고 플레이어(은지 좌표 local)를 따라 해를 옮긴다.
- * 하늘(skyNow): 배경은 실내면 흰빛을 어둡게(은지 roomAt), 바다는 늘 바깥 하늘. 해 방향은 180° 돌려 세계 좌표로
+ * 지금 시각(t)으로 해·하늘빛·등불을 맞추고 그림자 범위 가운데(은지 좌표 focus, 없으면 플레이어 local)를 따라 해를 옮긴다.
+ * 하늘(skyNow): 배경은 실내면 흰빛을 어둡게(플레이어 자리로 은지 roomAt), 바다는 늘 바깥 하늘. 해 방향은 180° 돌려 세계 좌표로
  */
-export function followMeadowSun(local: Vector3, t: number) {
+export function followMeadowSun(local: Vector3, t: number, focus: Vector3 = local) {
   const dn = meadowDayNight()
   dn.t = t
-  dn.update(0, local)
+  dn.update(0, focus)
   const outdoor = meadowWorld().roomAt(local.x, local.z).outdoor === true
   skyNow.background.copy(dn.skyFor(outdoor).color)
   skyNow.sea.copy(dn.skyFor(true).color)

@@ -1,5 +1,5 @@
 // 그리기 측정 (헤드리스 Chrome): 자리 몇 곳에서 드로우 콜·삼각형·프레임 시간을 재고, 그림자를 끄거나 구역을 숨기면 얼마나 줄어드는지,
-// 어떤 물체가 드로우 콜을 많이 쓰는지 순위를 낸다. 결과는 콘솔 표와 JSON 파일.
+// 어떤 물체가 드로우 콜을 많이 쓰는지 순위를 낸다. 결과는 콘솔 표와 JSON 파일, 자리마다 화면 캡처(PNG).
 // 준비: npx vite --port 5190 --strictPort --host 127.0.0.1   (개발 모드, 또는 배포 주소 끝에 ?probe)
 // 사용: node tools/render-measure.mjs [게임 주소] [결과 JSON] [mobile|desktop]
 //   mobile: 390×844 화면·DPR 3·터치(폰 화질 자동 선택), 프레임 시간은 CPU 4배 느리게 해서 잰다
@@ -160,7 +160,9 @@ window.__m = (() => {
     const names = []
     for (let p = o; p && p !== T().scene && names.length < 2; p = p.parent) if (p.name) names.push(p.name)
     const kind = o.isInstancedMesh ? '묶음' : o.isSkinnedMesh ? '뼈대' : o.isMesh ? '메시' : o.type
-    return (names.reverse().join('/') || '(이름 없음)') + ' [' + kind + ']'
+    // 이름 없는 물체(코드로 만든 상자·판 등)는 모양과 색으로 구분한다
+    const anon = () => '(이름 없음 ' + (o.geometry?.type ?? '?').replace('Geometry', '') + ' #' + (o.material?.color?.getHexString?.() ?? '-') + ')'
+    return (names.reverse().join('/') || anon()) + ' [' + kind + ']'
   }
   /** 이번 시점의 드로우 콜 추정: 본 그리기 + 그림자 그리기, 구역·이름별 */
   function breakdown() {
@@ -268,11 +270,19 @@ const frames = async () => {
 }
 const teleport = (x, z) => evaluate(`(async () => { const { useSessionStore } = await __mod('/src/game/stores/sessionStore.ts'); useSessionStore.getState().requestTeleport([${x}, ${z}]); return true })()`)
 
+/** 자리마다 화면 캡처 (그림자를 고치기 전후 눈으로 비교): 결과 JSON 옆에 이름-번호.png */
+const shot = async (i) => {
+  const data = (await send('Page.captureScreenshot', { format: 'png' })).result?.data ?? ''
+  const file = OUT.replace(/\.json$/, '') + `-${i + 1}.png`
+  writeFileSync(file, Buffer.from(data, 'base64'))
+  return file
+}
+
 const results = []
-for (const [name, x, z] of SPOTS) {
+for (const [i, [name, x, z]] of SPOTS.entries()) {
   await teleport(x, z)
   await wait(6000)
-  const r = { name, base: await calls(), frames: await frames(), est: JSON.parse(await evaluate('JSON.stringify(__m.breakdown())')) }
+  const r = { name, base: await calls(), frames: await frames(), est: JSON.parse(await evaluate('JSON.stringify(__m.breakdown())')), shot: await shot(i) }
   await evaluate('__m.shadowsOff()')
   await wait(400)
   r.noShadow = { ...(await calls()), frames: await frames() }

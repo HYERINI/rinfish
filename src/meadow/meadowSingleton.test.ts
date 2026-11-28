@@ -44,6 +44,31 @@ describe('초원 조명 (빛 개수가 처음부터 같게)', () => {
   })
 })
 
+describe('실내 그림자', () => {
+  it('모델이 다 들어오면 방 안에 다 들어 있는 물체는 그림자를 안 만든다. 지붕은 그대로', async () => {
+    const { meadowReady, meadowWorld } = await import('./meadowSingleton')
+    const { insideRoom } = await import('../game/logic/indoorShadow')
+    const { ROOMS, WALL_H } = await import('./vendor/world.js')
+    const { Box3, Mesh } = await import('three')
+    await meadowReady()
+    const w = meadowWorld()
+    w.group.updateMatrixWorld(true)
+    let indoor = 0
+    let roofs = 0
+    w.group.traverse((o) => {
+      if (!(o instanceof Mesh)) return
+      const b = new Box3().setFromObject(o)
+      if (insideRoom(b, ROOMS, WALL_H)) {
+        indoor++
+        expect(o.castShadow).toBe(false)
+      }
+      if (b.min.y >= WALL_H - 0.01 && o.castShadow) roofs++
+    })
+    expect(indoor).toBeGreaterThan(0)
+    expect(roofs).toBeGreaterThan(0)
+  })
+})
+
 describe('낮과 밤', () => {
   it('낮(12:00)엔 가로등·섬 등불 세기 0, 밤(00:00)엔 켜진다', async () => {
     const { followMeadowSun, islandLanterns, meadowWorld } = await import('./meadowSingleton')
@@ -73,6 +98,18 @@ describe('낮과 밤', () => {
     expect(skyNow.sea.getHexString()).toBe('a9d4f5')
     followMeadowSun(BEDROOM, 0.75)
     expect(skyNow.background.r).toBeLessThan(0.5)
+  })
+
+  it('그림자 범위는 SHADOW_HALF 폭으로, 가운데(해 target)는 넘겨준 focus. 실내/바깥은 플레이어 자리로 본다', async () => {
+    const { followMeadowSun, meadowWorld } = await import('./meadowSingleton')
+    const { SHADOW_HALF } = await import('../game/logic/shadowFocus')
+    const { skyNow } = await import('../game/scene/skyNow')
+    const { sun } = meadowWorld().lights
+    expect([sun.shadow.camera.left, sun.shadow.camera.right, sun.shadow.camera.top, sun.shadow.camera.bottom]).toEqual([-SHADOW_HALF, SHADOW_HALF, SHADOW_HALF, -SHADOW_HALF])
+    const focus = new Vector3(20, 1, 30)
+    followMeadowSun(BEDROOM, 0.25, focus)
+    expect(sun.target.position.toArray()).toEqual(focus.toArray())
+    expect(skyNow.background.getHexString()).toBe('ffffff')
   })
 
   it('해 방향은 은지 좌표를 180° 돌린 세계 방향 (아침 해는 은지 +x = 세계 -x 쪽)', async () => {

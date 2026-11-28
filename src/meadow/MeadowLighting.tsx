@@ -2,18 +2,21 @@ import { useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { MEADOW_POS, MEADOW_YAW, toMeadowLocal } from '../game/data/meadow'
+import { shadowFocus } from '../game/logic/shadowFocus'
 import { useQualityLevel, useQualityPreset } from '../game/input/touchDevice'
 import { playerRig } from '../game/scene/Player'
 import { skyNow } from '../game/scene/skyNow'
 import { liveClock } from '../game/stores/dayStore'
 import { followMeadowSun, islandLanterns, meadowRoomLamps, meadowWorld, setMeadowShadowSize, updateRoomLamps } from './meadowSingleton'
 
-// 매 프레임 new 하지 않도록 재사용 (은지 좌표의 플레이어 위치)
+// 매 프레임 new 하지 않도록 재사용 (은지 좌표의 플레이어 위치, 그림자 범위 가운데, 카메라 방향)
 const local = new Vector3()
+const focus = new Vector3()
+const look = new Vector3()
 
 /**
  * 세계 조명은 은지 것 한 벌: 해(그림자)·하늘빛·방 조명 4·가로등 4·섬 등불 2 를 처음부터 여기 붙인다 (빛 개수가 첫 프레임부터 같다).
- * 매 프레임 지금 시각(liveClock)으로 해·하늘·등불 세기를 맞춘다. 해와 그림자 범위(±22m)는 은지 DayNight 가 플레이어를 따라 옮긴다
+ * 매 프레임 지금 시각(liveClock)으로 해·하늘·등불 세기를 맞춘다. 해와 그림자 범위(±SHADOW_HALF)는 카메라가 보는 쪽 앞(shadowFocus)을 따라 옮긴다
  */
 export function MeadowLighting() {
   const { sun, hemi, lamps } = meadowWorld().lights
@@ -23,10 +26,15 @@ export function MeadowLighting() {
   // 그림자 지도 크기는 품질 설정을 따른다 (바뀌면 지도를 새로 만든다)
   useEffect(() => setMeadowShadowSize(shadowMapSize), [shadowMapSize])
 
-  useFrame(() => {
-    const [x, z] = toMeadowLocal(playerRig.position.x, playerRig.position.z)
-    local.set(x, playerRig.position.y, z)
-    followMeadowSun(local, liveClock.t)
+  useFrame(({ camera }) => {
+    const { x: px, y: py, z: pz } = playerRig.position
+    const [x, z] = toMeadowLocal(px, pz)
+    local.set(x, py, z)
+    // 그림자는 카메라가 보는 쪽 앞을 덮는다 (뒤쪽 물체 그림자는 화면에 안 나온다)
+    camera.getWorldDirection(look)
+    const [fx, fz] = toMeadowLocal(...shadowFocus(px, pz, look.x, look.z))
+    focus.set(fx, py, fz)
+    followMeadowSun(local, liveClock.t, focus)
     updateRoomLamps(low, local)
   })
 
