@@ -1,6 +1,6 @@
 {
  "note": "FPS 는 화면 주사율(60)에 막힌다. 비교는 드로우 콜과 그리기 CPU 시간(renderMs)으로",
- "at": "2026-11-28T12:44:56.589Z",
+ "at": "2026-11-28T13:01:14.404Z",
  "game": "http://127.0.0.1:5190",
  "mode": "mobile",
  "cpuSlowdown": 4,
@@ -20,38 +20,38 @@
    "name": "초원 시작 자리",
    "sunT": 0.03,
    "runs": [
-    301,
-    301,
-    301
+    295,
+    295,
+    294
    ],
    "base": {
-    "calls": 299,
-    "triangles": 469962,
+    "calls": 294,
+    "triangles": 467599,
     "lines": 0,
     "geometries": 190,
-    "textures": 103,
-    "renderMs": 1.7999992370605469
+    "textures": 102,
+    "renderMs": 1.7000007629394531
    },
    "frames": {
     "fps": 60,
     "p50": 16.7,
     "p95": 16.7,
-    "renderMs": 9.1,
+    "renderMs": 9.3,
     "renderP95": 11
    },
    "est": {
-    "mainCalls": 121,
-    "shadowCalls": 175,
-    "objects": 213,
-    "casters": 193,
+    "mainCalls": 119,
+    "shadowCalls": 174,
+    "objects": 210,
+    "casters": 190,
     "instanced": 16,
     "shadowLights": [
      "DirectionalLight"
     ],
     "regions": {
      "초원": {
-      "main": 99,
-      "shadow": 155
+      "main": 97,
+      "shadow": 154
      },
      "섬": {
       "main": 22,
@@ -154,17 +154,17 @@
    "shot": "after-0.03-1.jpg",
    "noShadow": {
     "calls": 122,
-    "triangles": 339687,
+    "triangles": 339325,
     "lines": 0,
     "geometries": 190,
-    "textures": 103,
-    "renderMs": 2,
+    "textures": 102,
+    "renderMs": 1.5,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 6.7,
-     "renderP95": 7.8
+     "renderMs": 6.5,
+     "renderP95": 8
     }
    },
    "hide초원": {
@@ -172,67 +172,68 @@
     "triangles": 45790,
     "lines": 0,
     "geometries": 190,
-    "textures": 103,
-    "renderMs": 1,
-    "frames": {
-     "fps": 60,
-     "p50": 16.7,
-     "p95": 16.7,
-     "renderMs": 4.6,
-     "renderP95": 6.1
-    }
-   },
-   "hide섬": {
-    "calls": 261,
-    "triangles": 425950,
-    "lines": 0,
-    "geometries": 190,
-    "textures": 103,
-    "renderMs": 2.1000003814697266,
+    "textures": 102,
+    "renderMs": 1.1999998092651367,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.8,
-     "renderMs": 8.1,
-     "renderP95": 10.2
+     "renderMs": 4.2,
+     "renderP95": 5.5
     }
-   }
+   },
+   "hide섬": {
+    "calls": 252,
+    "triangles": 420585,
+    "lines": 0,
+    "geometries": 190,
+    "textures": 102,
+    "renderMs": 2.09999942779541,
+    "frames": {
+     "fps": 60,
+     "p50": 16.7,
+     "p95": 16.8,
+     "renderMs": 8.2,
+     "renderP95": 11
+    }
+   },
+   "sunTAtEnd": 0.03
   },
   {
    "name": "초원 한가운데",
    "sunT": 0.03,
    "runs": [
+    358,
     357,
-    357,
-    359
+    357
    ],
    "base": {
-    "calls": 358,
-    "triangles": 468839,
+    "calls": 357,
+    "triangles": 467610,
     "lines": 26,
     "geometries": 216,
-    "textures": 111,
-    "renderMs": 2.5
+    "textures": 110,
+    "renderMs": 2.3000001907348633
    },
    "frames": {
     "fps": 60,
     "p50": 16.7,
     "p95": 16.8,
-    "renderMs": 10,
+    "renderMs": 10.1,
     "renderP95": 12
    },
    "est": {
-    "mainCalls": 185,
+    "mainCalls": 186,
     "shadowCalls": 172,
-    "objects": 280,
-    "casters": 242,
+    "objects": 281,
+    "casters": 243,
     "instanced": 17,
     "shadowLights": [
      "DirectionalLight"
     ],
     "regions": {
      "초원": {
-      "main": 165,
+      "main": 166,
       "shadow": 154
      },
      "섬": {
@@ -336,17 +337,17 @@
    "shot": "after-0.03-2.jpg",
    "noShadow": {
     "calls": 185,
-    "triangles": 341244,
+    "triangles": 341057,
     "lines": 26,
     "geometries": 216,
-    "textures": 111,
-    "renderMs": 2.1999998092651367,
+    "textures": 110,
+    "renderMs": 1.4000005722045898,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 7.7,
-     "renderP95": 9.4
+     "renderMs": 7.2,
+     "renderP95": 9
     }
    },
    "hide초원": {
@@ -354,31 +355,32 @@
     "triangles": 45790,
     "lines": 0,
     "geometries": 216,
-    "textures": 111,
-    "renderMs": 1.1000003814697266,
+    "textures": 110,
+    "renderMs": 1.3999996185302734,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 4.6,
-     "renderP95": 5.9
+     "renderMs": 4,
+     "renderP95": 5.2
     }
    },
    "hide섬": {
-    "calls": 322,
-    "triangles": 423691,
+    "calls": 319,
+    "triangles": 422940,
     "lines": 26,
     "geometries": 216,
-    "textures": 111,
-    "renderMs": 2.09999942779541,
+    "textures": 110,
+    "renderMs": 1.8000001907348633,
     "frames": {
      "fps": 60,
      "p50": 16.7,
-     "p95": 16.8,
-     "renderMs": 8.6,
-     "renderP95": 10.3
+     "p95": 16.7,
+     "renderMs": 8.8,
+     "renderP95": 10.4
     }
-   }
+   },
+   "sunTAtEnd": 0.03
   },
   {
    "name": "초원 서쪽 물가",
@@ -393,15 +395,15 @@
     "triangles": 456388,
     "lines": 0,
     "geometries": 248,
-    "textures": 116,
-    "renderMs": 2.3999996185302734
+    "textures": 115,
+    "renderMs": 1.6000003814697266
    },
    "frames": {
     "fps": 60,
     "p50": 16.7,
-    "p95": 16.7,
-    "renderMs": 8.9,
-    "renderP95": 10.7
+    "p95": 16.8,
+    "renderMs": 8.8,
+    "renderP95": 11.6
    },
    "est": {
     "mainCalls": 100,
@@ -524,14 +526,14 @@
     "triangles": 322041,
     "lines": 0,
     "geometries": 248,
-    "textures": 116,
-    "renderMs": 1.1000003814697266,
+    "textures": 115,
+    "renderMs": 1.3000001907348633,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 6.9,
-     "renderP95": 8.4
+     "renderMs": 6.4,
+     "renderP95": 7.7
     }
    },
    "hide초원": {
@@ -539,54 +541,55 @@
     "triangles": 45862,
     "lines": 0,
     "geometries": 248,
-    "textures": 116,
-    "renderMs": 1.0999994277954102,
+    "textures": 115,
+    "renderMs": 1.1000003814697266,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.8,
-     "renderMs": 4.7,
-     "renderP95": 5.8
+     "renderMs": 4.5,
+     "renderP95": 7.2
     }
    },
    "hide섬": {
-    "calls": 252,
-    "triangles": 410622,
+    "calls": 250,
+    "triangles": 410598,
     "lines": 0,
     "geometries": 248,
-    "textures": 116,
-    "renderMs": 2.1999998092651367,
+    "textures": 115,
+    "renderMs": 2,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 8.1,
-     "renderP95": 10.3
+     "renderMs": 7.8,
+     "renderP95": 9.6
     }
-   }
+   },
+   "sunTAtEnd": 0.03
   },
   {
    "name": "섬 가운데",
    "sunT": 0.03,
    "runs": [
     298,
-    298,
+    294,
     294
    ],
    "base": {
     "calls": 294,
     "triangles": 506606,
     "lines": 0,
-    "geometries": 371,
-    "textures": 118,
-    "renderMs": 2.1999998092651367
+    "geometries": 370,
+    "textures": 117,
+    "renderMs": 2.09999942779541
    },
    "frames": {
     "fps": 60,
     "p50": 16.7,
-    "p95": 16.8,
-    "renderMs": 9.4,
-    "renderP95": 12.2
+    "p95": 16.7,
+    "renderMs": 9.3,
+    "renderP95": 11.7
    },
    "est": {
     "mainCalls": 113,
@@ -704,47 +707,48 @@
     "calls": 112,
     "triangles": 377835,
     "lines": 0,
-    "geometries": 371,
-    "textures": 118,
-    "renderMs": 1.6999998092651367,
+    "geometries": 370,
+    "textures": 117,
+    "renderMs": 1.1000003814697266,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.8,
-     "renderMs": 7,
-     "renderP95": 8.3
+     "renderMs": 6.5,
+     "renderP95": 8.2
     }
    },
    "hide초원": {
-    "calls": 233,
-    "triangles": 221452,
+    "calls": 231,
+    "triangles": 221428,
     "lines": 0,
-    "geometries": 372,
-    "textures": 118,
-    "renderMs": 1.8000001907348633,
+    "geometries": 370,
+    "textures": 117,
+    "renderMs": 1.7000007629394531,
     "frames": {
      "fps": 60,
      "p50": 16.7,
-     "p95": 16.8,
-     "renderMs": 7.1,
-     "renderP95": 8.9
+     "p95": 16.7,
+     "renderMs": 6.9,
+     "renderP95": 8.2
     }
    },
    "hide섬": {
     "calls": 63,
     "triangles": 285178,
     "lines": 0,
-    "geometries": 372,
-    "textures": 118,
-    "renderMs": 1.2999992370605469,
+    "geometries": 370,
+    "textures": 117,
+    "renderMs": 1.1999998092651367,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 5.3,
-     "renderP95": 6.1
+     "renderMs": 5.4,
+     "renderP95": 7.7
     }
-   }
+   },
+   "sunTAtEnd": 0.03
   },
   {
    "name": "섬 동쪽 끝",
@@ -758,16 +762,16 @@
     "calls": 220,
     "triangles": 500827,
     "lines": 0,
-    "geometries": 376,
-    "textures": 118,
-    "renderMs": 2.3000001907348633
+    "geometries": 373,
+    "textures": 117,
+    "renderMs": 2
    },
    "frames": {
     "fps": 60,
     "p50": 16.7,
     "p95": 16.7,
-    "renderMs": 8.7,
-    "renderP95": 10.2
+    "renderMs": 8.5,
+    "renderP95": 11.4
    },
    "est": {
     "mainCalls": 97,
@@ -885,47 +889,48 @@
     "calls": 96,
     "triangles": 375821,
     "lines": 0,
-    "geometries": 376,
-    "textures": 118,
-    "renderMs": 1.6999998092651367,
+    "geometries": 373,
+    "textures": 117,
+    "renderMs": 1.3999996185302734,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 6.5,
-     "renderP95": 8.3
+     "renderMs": 6.4,
+     "renderP95": 8.2
     }
    },
    "hide초원": {
-    "calls": 158,
-    "triangles": 215793,
+    "calls": 157,
+    "triangles": 215649,
     "lines": 0,
-    "geometries": 376,
-    "textures": 118,
-    "renderMs": 1.4000005722045898,
+    "geometries": 373,
+    "textures": 117,
+    "renderMs": 1.5999994277954102,
     "frames": {
      "fps": 60,
      "p50": 16.7,
      "p95": 16.7,
-     "renderMs": 6.8,
-     "renderP95": 8.7
+     "renderMs": 6.1,
+     "renderP95": 7.4
     }
    },
    "hide섬": {
     "calls": 63,
     "triangles": 285178,
     "lines": 0,
-    "geometries": 376,
-    "textures": 118,
-    "renderMs": 1.2000007629394531,
+    "geometries": 373,
+    "textures": 117,
+    "renderMs": 1.0999994277954102,
     "frames": {
      "fps": 60,
      "p50": 16.7,
-     "p95": 16.8,
-     "renderMs": 5.5,
-     "renderP95": 6.9
+     "p95": 16.7,
+     "renderMs": 5.2,
+     "renderP95": 6.6
     }
-   }
+   },
+   "sunTAtEnd": 0.03
   }
  ],
  "errors": []

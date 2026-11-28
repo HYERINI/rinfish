@@ -73,6 +73,41 @@ describe('실내 그림자', () => {
   })
 })
 
+describe('실내 그림자: 현관으로 든 햇빛이 방 사이 문까지 닿지 않는다 (거실 밖 방들을 빼도 되는 근거)', () => {
+  it('하루 모든 시각에 현관 개구부를 지난 햇빛이 다른 문 개구부를 지나지 않는다', async () => {
+    const { meadowWorld } = await import('./meadowSingleton')
+    const { DayNight } = await import('./vendor/daynight.js')
+    const { DirectionalLight, HemisphereLight } = await import('three')
+    const { doors } = meadowWorld()
+    // 문 개구부: 경첩에서 폭만큼 +z (base 0) 또는 +x (base π/2), 높이 0~문 높이
+    const open = doors.map((d) => ({ x: d.group.position.x, z: d.group.position.z, alongX: d.base !== 0, w: d.width, h: d.panel.geometry.parameters.height, label: d.label }))
+    const front = open.find((d) => d.label === '현관문')!
+    const inner = open.filter((d) => d !== front)
+    expect(inner.length).toBe(3)
+    const dn = new DayNight({ sun: new DirectionalLight(), hemi: new HemisphereLight() })
+    const hits: string[] = []
+    for (let t = 0; t < 1; t += 0.002) {
+      dn.t = t
+      dn.update(0, new Vector3())
+      const L = dn.offset.clone().normalize().negate() // 해에서 땅으로 가는 빛 방향
+      for (let i = 0; i <= 10; i++) {
+        for (let j = 0; j <= 8; j++) {
+          const a = (front.w * i) / 10
+          const P = new Vector3(front.x + (front.alongX ? a : 0), (front.h * j) / 8, front.z + (front.alongX ? 0 : a))
+          for (const d of inner) {
+            const s = d.alongX ? (d.z - P.z) / L.z : (d.x - P.x) / L.x
+            if (!(s > 0) || !Number.isFinite(s)) continue
+            const Q = P.clone().addScaledVector(L, s)
+            const along = d.alongX ? Q.x - d.x : Q.z - d.z
+            if (along >= 0 && along <= d.w && Q.y >= 0 && Q.y <= d.h) hits.push(`${d.label} t=${t.toFixed(3)}`)
+          }
+        }
+      }
+    }
+    expect(hits).toEqual([])
+  })
+})
+
 describe('낮과 밤', () => {
   it('낮(12:00)엔 가로등·섬 등불 세기 0, 밤(00:00)엔 켜진다', async () => {
     const { followMeadowSun, islandLanterns, meadowWorld } = await import('./meadowSingleton')

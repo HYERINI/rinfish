@@ -283,7 +283,18 @@ const shot = async (i) => {
   return file
 }
 
-const setTime = (t) => evaluate(`(async () => { const { liveClock } = await __mod('/src/game/stores/dayStore.ts'); liveClock.t = ${t}; return true })()`)
+/** 게임 시각을 t 에 붙잡아 둔다 (매 프레임 되돌린다: 시계는 흐르지만 해 방향은 그대로). 지금 시각(t)을 돌려준다 */
+const setTime = (t) =>
+  evaluate(`(async () => {
+    const { liveClock } = await __mod('/src/game/stores/dayStore.ts')
+    window.__pinT = ${t}
+    if (!window.__pinLoop) {
+      window.__pinLoop = true
+      const pin = () => { liveClock.t = window.__pinT; requestAnimationFrame(pin) }
+      pin()
+    }
+    return liveClock.t
+  })()`)
 
 const results = []
 for (const [i, [name, x, z]] of SPOTS.entries()) {
@@ -293,10 +304,8 @@ for (const [i, [name, x, z]] of SPOTS.entries()) {
   const runs = []
   for (let k = 0; k < REPEAT; k++) {
     if (k) await wait(2000)
-    await setTime(SUN_T)
     runs.push((await calls()).calls)
   }
-  await setTime(SUN_T)
   const r = { name, sunT: SUN_T, runs, base: await calls(), frames: await frames(), est: JSON.parse(await evaluate('JSON.stringify(__m.breakdown())')), shot: await shot(i) }
   await evaluate('__m.shadowsOff()')
   await wait(400)
@@ -309,6 +318,7 @@ for (const [i, [name, x, z]] of SPOTS.entries()) {
     await evaluate('__m.restore()')
   }
   await wait(400)
+  r.sunTAtEnd = await setTime(SUN_T) // 끝날 때도 시각이 그대로였는지 기록
   results.push(r)
   console.log(`\n■ ${name}`)
   const line = (label, c, f) => console.log(`  ${label.padEnd(8)} ${String(c.calls).padStart(4)} 콜 · 그리기 CPU ${f.renderMs}ms (느린 5% ${f.renderP95}) · FPS ${f.fps}`)
