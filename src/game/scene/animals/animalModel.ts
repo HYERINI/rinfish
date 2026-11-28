@@ -3,6 +3,7 @@ import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js
 import { ANIMAL, speciesOf, type SpeciesId } from '../../data/animals'
 import type { AnimalPose, AnimalView } from '../../logic/animalSim'
 import { shortestAngleDelta } from '../../logic/cameraYaw'
+import { rigidToSkinned } from './rigidToSkinned'
 
 /** 동작 → 은지 Cube Pets 클립 (들이받기는 머리를 숙이는 eat, 쓰러지면 idle 위에 옆으로 눕힌다) */
 const CLIP: Record<AnimalPose, 'idle' | 'walk' | 'run' | 'eat'> = { idle: 'idle', eat: 'eat', walk: 'walk', run: 'run', butt: 'eat', dead: 'idle' }
@@ -24,9 +25,17 @@ export type AnimalObject = {
   fall: number
 }
 
-/** 모델을 복제해 동물 하나를 만든다 (SkeletonUtils.clone: 뼈까지 따로. 클립은 노드 이름으로 붙는다) */
+/** 종마다 부위(몸통·다리·머리)를 뼈대 메시 하나로 합친 원본 (한 마리 = 그리기 한 번, 그림자 한 번) */
+const merged = new WeakMap<Object3D, Object3D>()
+
+/** 모델을 복제해 동물 하나를 만든다 (SkeletonUtils.clone: 뼈까지 따로. 클립은 노드(뼈) 이름으로 붙는다) */
 export function makeAnimal(sp: SpeciesId, scene: Object3D, clips: AnimationClip[], v: AnimalView): AnimalObject {
-  const obj = cloneSkinned(scene)
+  let src = merged.get(scene)
+  if (!src) {
+    src = rigidToSkinned(scene)
+    merged.set(scene, src)
+  }
+  const obj = cloneSkinned(src)
   obj.scale.setScalar(speciesOf(sp).scale)
   const mats: MeshStandardMaterial[] = []
   obj.traverse((o) => {
